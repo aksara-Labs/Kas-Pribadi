@@ -1,0 +1,1304 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0F2744">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Kas Pribadi</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            navy: {
+              50:  '#f0f5fa',
+              100: '#d9e6f2',
+              200: '#b3cde5',
+              300: '#7da9cc',
+              400: '#4a7fad',
+              500: '#1B3A5F',
+              600: '#16304f',
+              700: '#0F2744',
+              800: '#0c1f36',
+              900: '#091828'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    [x-cloak] { display: none !important; }
+    body { font-family: 'Inter', system-ui, sans-serif; -webkit-tap-highlight-color: transparent; }
+    .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .modal-enter { animation: slideUp .25s ease-out; }
+    @keyframes slideUp {
+      from { transform: translateY(100%); opacity: 0; }
+      to   { transform: translateY(0); opacity: 1; }
+    }
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased overflow-hidden h-screen">
+
+  <!-- ========== LOADING ========== -->
+  <div id="loading" class="fixed inset-0 z-50 bg-navy-700 flex flex-col items-center justify-center">
+    <div class="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center mb-4">
+      <span class="text-3xl">💰</span>
+    </div>
+    <p class="text-white font-semibold text-lg">Kas Pribadi</p>
+    <p class="text-navy-200 text-sm mt-1">Memuat data...</p>
+  </div>
+
+  <!-- ========== PIN LOCK ========== -->
+  <div id="pin-lock" class="fixed inset-0 z-40 bg-navy-700 hidden flex-col items-center justify-center px-6">
+    <div class="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center mb-6">
+      <span class="text-3xl">🔒</span>
+    </div>
+    <h2 class="text-white text-xl font-semibold mb-1">Masukkan PIN</h2>
+    <p class="text-navy-200 text-sm mb-8">Untuk membuka Kas Pribadi</p>
+    <div class="flex gap-3 mb-6" id="pin-dots">
+      <div class="w-3.5 h-3.5 rounded-full border-2 border-white/40 pin-dot"></div>
+      <div class="w-3.5 h-3.5 rounded-full border-2 border-white/40 pin-dot"></div>
+      <div class="w-3.5 h-3.5 rounded-full border-2 border-white/40 pin-dot"></div>
+      <div class="w-3.5 h-3.5 rounded-full border-2 border-white/40 pin-dot"></div>
+    </div>
+    <p id="pin-error" class="text-red-300 text-sm h-5 mb-4"></p>
+    <div class="grid grid-cols-3 gap-4 w-full max-w-xs">
+      <button onclick="pressPin(1)" class="h-16 rounded-2xl bg-white/10 text-white text-2xl font-medium active:bg-white/20">1</button>
+      <button onclick="pressPin(2)" class="h-16 rounded-2xl bg-white/10 text-white text-2xl font-medium active:bg-white/20">2</button>
+      <button onclick="pressPin(3)" class="h-16 rounded-2xl bg-white/10 text-white text-2xl font-medium active:bg-white/20">3</button>
+      <button onclick="pressPin(4)" class="h-16 rounded-2xl bg-white/10 text-white text-2xl font-medium active:bg-white/20">4</button>
+      <button onclick="pressPin(5)" class="h-16 rounded-2xl bg-white/10 text-white text-2xl font-medium active:bg-white/20">5</button>
+      <button onclick="pressPin(6)" class="h-16 rounded-2xl bg-white/10 text-white text-2xl font-medium active:bg-white/20">6</button>
+      <button onclick="pressPin(7)" class="h-16 rounded-2xl bg-white/10 text-white text-2xl font-medium active:bg-white/20">7</button>
+      <button onclick="pressPin(8)" class="h-16 rounded-2xl bg-white/10 text-white text-2xl font-medium active:bg-white/20">8</button>
+      <button onclick="pressPin(9)" class="h-16 rounded-2xl bg-white/10 text-white text-2xl font-medium active:bg-white/20">9</button>
+      <div></div>
+      <button onclick="pressPin(0)" class="h-16 rounded-2xl bg-white/10 text-white text-2xl font-medium active:bg-white/20">0</button>
+      <button onclick="deletePin()" class="h-16 rounded-2xl bg-white/10 text-white text-xl flex items-center justify-center active:bg-white/20">⌫</button>
+    </div>
+  </div>
+
+  <!-- ========== APP ========== -->
+  <div id="app" class="hidden h-full flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-navy-700 text-white px-4 pt-4 pb-3 shrink-0 safe-top">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-navy-200 text-xs">Halo,</p>
+          <h1 id="user-name" class="font-semibold text-lg leading-tight">Pengguna</h1>
+        </div>
+        <button onclick="showPage('settings')" class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <main id="content" class="flex-1 overflow-y-auto pb-24 px-4 pt-4">
+
+      <!-- ===== BERANDA ===== -->
+      <div id="page-home" class="space-y-4">
+        <!-- Total Saldo -->
+        <div class="bg-navy-700 rounded-2xl p-5 text-white shadow-lg">
+          <p class="text-navy-200 text-sm">Total Saldo Kas</p>
+          <p id="total-saldo" class="text-3xl font-bold mt-1 tracking-tight">Rp0</p>
+          <div class="flex gap-4 mt-4 text-sm">
+            <div class="flex-1 bg-white/10 rounded-xl p-3">
+              <p class="text-navy-200 text-xs">Pemasukan</p>
+              <p id="home-pemasukan" class="font-semibold text-emerald-300">Rp0</p>
+            </div>
+            <div class="flex-1 bg-white/10 rounded-xl p-3">
+              <p class="text-navy-200 text-xs">Pengeluaran</p>
+              <p id="home-pengeluaran" class="font-semibold text-rose-300">Rp0</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="grid grid-cols-4 gap-2">
+          <button onclick="openModal('trx', {jenis:'Pemasukan'})" class="flex flex-col items-center gap-1.5 py-3 bg-white rounded-xl border border-slate-100 shadow-sm active:scale-95 transition">
+            <div class="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg">+</div>
+            <span class="text-xs font-medium text-slate-600">Masuk</span>
+          </button>
+          <button onclick="openModal('trx', {jenis:'Pengeluaran'})" class="flex flex-col items-center gap-1.5 py-3 bg-white rounded-xl border border-slate-100 shadow-sm active:scale-95 transition">
+            <div class="w-10 h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center text-lg">−</div>
+            <span class="text-xs font-medium text-slate-600">Keluar</span>
+          </button>
+          <button onclick="openModal('transfer')" class="flex flex-col items-center gap-1.5 py-3 bg-white rounded-xl border border-slate-100 shadow-sm active:scale-95 transition">
+            <div class="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-lg">⇄</div>
+            <span class="text-xs font-medium text-slate-600">Transfer</span>
+          </button>
+          <button onclick="openModal('hutang')" class="flex flex-col items-center gap-1.5 py-3 bg-white rounded-xl border border-slate-100 shadow-sm active:scale-95 transition">
+            <div class="w-10 h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center text-lg">📝</div>
+            <span class="text-xs font-medium text-slate-600">Hutang</span>
+          </button>
+        </div>
+
+        <!-- Rekening ringkas -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="font-semibold text-slate-700">Rekening</h3>
+            <button onclick="showPage('rekening')" class="text-sm text-navy-500 font-medium">Lihat semua</button>
+          </div>
+          <div id="home-rekening" class="flex gap-3 overflow-x-auto no-scrollbar pb-1"></div>
+        </div>
+
+        <!-- Transaksi Terbaru -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="font-semibold text-slate-700">Transaksi Terbaru</h3>
+            <button onclick="showPage('transaksi')" class="text-sm text-navy-500 font-medium">Semua</button>
+          </div>
+          <div id="home-trx" class="space-y-2"></div>
+        </div>
+      </div>
+
+      <!-- ===== TRANSAKSI ===== -->
+      <div id="page-transaksi" class="hidden space-y-4">
+        <div class="flex gap-2">
+          <select id="filter-jenis" onchange="renderTransaksi()" class="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm">
+            <option value="">Semua Jenis</option>
+            <option value="Pemasukan">Pemasukan</option>
+            <option value="Pengeluaran">Pengeluaran</option>
+          </select>
+          <button onclick="openModal('trx', {jenis:'Pengeluaran'})" class="bg-navy-700 text-white px-4 rounded-xl text-sm font-medium">+ Baru</button>
+        </div>
+        <div id="list-trx" class="space-y-2"></div>
+      </div>
+
+      <!-- ===== REKENING ===== -->
+      <div id="page-rekening" class="hidden space-y-4">
+        <div class="flex justify-between items-center">
+          <h2 class="font-semibold text-lg">Rekening</h2>
+          <button onclick="openModal('rekening')" class="bg-navy-700 text-white px-4 py-2 rounded-xl text-sm font-medium">+ Rekening</button>
+        </div>
+        <div id="list-rekening" class="space-y-3"></div>
+      </div>
+
+      <!-- ===== HUTANG ===== -->
+      <div id="page-hutang" class="hidden space-y-4">
+        <div class="flex gap-2">
+          <button onclick="filterHutang('semua')" id="btn-hp-semua" class="flex-1 py-2 rounded-xl text-sm font-medium bg-navy-700 text-white">Semua</button>
+          <button onclick="filterHutang('Hutang')" id="btn-hp-hutang" class="flex-1 py-2 rounded-xl text-sm font-medium bg-white border border-slate-200">Hutang</button>
+          <button onclick="filterHutang('Piutang')" id="btn-hp-piutang" class="flex-1 py-2 rounded-xl text-sm font-medium bg-white border border-slate-200">Piutang</button>
+        </div>
+        <button onclick="openModal('hutang')" class="w-full bg-navy-700 text-white py-3 rounded-xl text-sm font-medium">+ Catat Hutang / Piutang</button>
+        <div id="list-hutang" class="space-y-3"></div>
+      </div>
+
+      <!-- ===== LAINNYA / SETTINGS ===== -->
+      <div id="page-lainnya" class="hidden space-y-4">
+        <h2 class="font-semibold text-lg">Lainnya</h2>
+        <div class="bg-white rounded-2xl border border-slate-100 overflow-hidden divide-y divide-slate-100">
+          <button onclick="showPage('anggaran')" class="w-full flex items-center gap-3 px-4 py-3.5 text-left active:bg-slate-50">
+            <span class="text-xl">📊</span><span class="font-medium">Anggaran</span>
+          </button>
+          <button onclick="showPage('recurring')" class="w-full flex items-center gap-3 px-4 py-3.5 text-left active:bg-slate-50">
+            <span class="text-xl">🔄</span><span class="font-medium">Transaksi Berulang</span>
+          </button>
+          <button onclick="showPage('tujuan')" class="w-full flex items-center gap-3 px-4 py-3.5 text-left active:bg-slate-50">
+            <span class="text-xl">🎯</span><span class="font-medium">Tujuan Nabung</span>
+          </button>
+          <button onclick="openModal('reimburse')" class="w-full flex items-center gap-3 px-4 py-3.5 text-left active:bg-slate-50">
+            <span class="text-xl">🧾</span><span class="font-medium">Reimburse</span>
+          </button>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-100 overflow-hidden divide-y divide-slate-100">
+          <button onclick="showPage('settings')" class="w-full flex items-center gap-3 px-4 py-3.5 text-left active:bg-slate-50">
+            <span class="text-xl">⚙️</span><span class="font-medium">Pengaturan</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Anggaran -->
+      <div id="page-anggaran" class="hidden space-y-4">
+        <div class="flex justify-between items-center">
+          <button onclick="showPage('lainnya')" class="text-navy-500 text-sm">← Kembali</button>
+          <button onclick="openModal('anggaran')" class="bg-navy-700 text-white px-4 py-2 rounded-xl text-sm">+ Anggaran</button>
+        </div>
+        <div id="list-anggaran" class="space-y-3"></div>
+      </div>
+
+      <!-- Recurring -->
+      <div id="page-recurring" class="hidden space-y-4">
+        <div class="flex justify-between items-center">
+          <button onclick="showPage('lainnya')" class="text-navy-500 text-sm">← Kembali</button>
+          <button onclick="openModal('recurring')" class="bg-navy-700 text-white px-4 py-2 rounded-xl text-sm">+ Berulang</button>
+        </div>
+        <div id="list-recurring" class="space-y-3"></div>
+      </div>
+
+      <!-- Tujuan Nabung -->
+      <div id="page-tujuan" class="hidden space-y-4">
+        <div class="flex justify-between items-center">
+          <button onclick="showPage('lainnya')" class="text-navy-500 text-sm">← Kembali</button>
+          <button onclick="openModal('tujuan')" class="bg-navy-700 text-white px-4 py-2 rounded-xl text-sm">+ Tujuan</button>
+        </div>
+        <div id="list-tujuan" class="space-y-3"></div>
+      </div>
+
+      <!-- Settings -->
+      <div id="page-settings" class="hidden space-y-4">
+        <button onclick="showPage('lainnya')" class="text-navy-500 text-sm">← Kembali</button>
+        <div class="bg-white rounded-2xl border border-slate-100 p-4 space-y-4">
+          <div>
+            <label class="text-sm text-slate-500">Nama Tampilan</label>
+            <div class="flex gap-2 mt-1">
+              <input id="input-nama" type="text" class="flex-1 border border-slate-200 rounded-xl px-3 py-2.5 text-sm" placeholder="Nama kamu">
+              <button onclick="saveNama()" class="bg-navy-700 text-white px-4 rounded-xl text-sm">Simpan</button>
+            </div>
+          </div>
+          <div class="pt-2 border-t border-slate-100">
+            <p class="text-sm font-medium mb-2">Keamanan PIN</p>
+            <div class="flex gap-2">
+              <button onclick="openModal('setpin')" class="flex-1 bg-slate-100 py-2.5 rounded-xl text-sm font-medium">Atur / Ubah PIN</button>
+              <button onclick="removePinUI()" class="flex-1 bg-rose-50 text-rose-600 py-2.5 rounded-xl text-sm font-medium">Hapus PIN</button>
+            </div>
+          </div>
+          <div class="pt-2 border-t border-slate-100 space-y-2">
+            <button onclick="doBackup()" class="w-full bg-slate-100 py-2.5 rounded-xl text-sm font-medium">⬇️ Backup Data (JSON)</button>
+            <label class="w-full block bg-slate-100 py-2.5 rounded-xl text-sm font-medium text-center cursor-pointer">
+              ⬆️ Restore Data
+              <input type="file" accept=".json" class="hidden" onchange="doRestore(event)">
+            </label>
+            <button onclick="confirmReset()" class="w-full bg-rose-50 text-rose-600 py-2.5 rounded-xl text-sm font-medium">🗑️ Reset Semua Data</button>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- Bottom Nav -->
+    <nav class="fixed bottom-0 inset-x-0 bg-white border-t border-slate-200 safe-bottom z-30">
+      <div class="flex justify-around py-2">
+        <button onclick="showPage('home')" data-page="home" class="nav-btn flex flex-col items-center gap-0.5 px-3 py-1 text-navy-700">
+          <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+          <span class="text-[10px] font-medium">Beranda</span>
+        </button>
+        <button onclick="showPage('transaksi')" data-page="transaksi" class="nav-btn flex flex-col items-center gap-0.5 px-3 py-1 text-slate-400">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          <span class="text-[10px] font-medium">Transaksi</span>
+        </button>
+        <button onclick="showPage('rekening')" data-page="rekening" class="nav-btn flex flex-col items-center gap-0.5 px-3 py-1 text-slate-400">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+          <span class="text-[10px] font-medium">Rekening</span>
+        </button>
+        <button onclick="showPage('hutang')" data-page="hutang" class="nav-btn flex flex-col items-center gap-0.5 px-3 py-1 text-slate-400">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          <span class="text-[10px] font-medium">Hutang</span>
+        </button>
+        <button onclick="showPage('lainnya')" data-page="lainnya" class="nav-btn flex flex-col items-center gap-0.5 px-3 py-1 text-slate-400">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+          <span class="text-[10px] font-medium">Lainnya</span>
+        </button>
+      </div>
+    </nav>
+  </div>
+
+  <!-- ========== MODAL CONTAINER ========== -->
+  <div id="modal-overlay" class="fixed inset-0 z-50 bg-black/40 hidden items-end sm:items-center justify-center" onclick="if(event.target===this)closeModal()">
+    <div id="modal-box" class="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto modal-enter safe-bottom"></div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed top-4 left-1/2 -translate-x-1/2 z-[60] bg-navy-800 text-white px-4 py-2.5 rounded-xl text-sm font-medium shadow-lg opacity-0 transition-opacity duration-300 pointer-events-none"></div>
+
+<script>
+// ===================== CONFIG =====================
+// GANTI dengan URL Web App Google Apps Script kamu
+// Contoh: https://script.google.com/macros/s/AKfycb.../exec
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwS5U4gH1kTpPtBbSC8_Oj7ZnS0pOWjvZN4P6fT6aICABp6QhXLu68_S1HXl-lSoOM/exec';
+
+// ===================== STATE =====================
+let data = { transaksi: [], rekening: [], hutangPiutang: [], anggaran: [], recurring: [], tujuanNabung: [], userName: 'Pengguna' };
+let currentPage = 'home';
+let hutangFilter = 'semua';
+let pinBuffer = '';
+let hasPinLock = false;
+
+// ===================== UTILS =====================
+const rp = n => 'Rp' + Math.round(Number(n) || 0).toLocaleString('id-ID');
+const today = () => new Date().toISOString().slice(0, 10);
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.remove('opacity-0');
+  setTimeout(() => t.classList.add('opacity-0'), 2200);
+}
+
+/**
+ * Panggil backend GAS via fetch
+ * Contoh: run('getInitialData')
+ *         run('addTransaksi', { jenis: 'Pemasukan', ... })
+ */
+async function run(action, payload) {
+  if (!WEB_APP_URL || WEB_APP_URL.includes('XXXX')) {
+    toast('Isi dulu WEB_APP_URL di Index.html');
+    throw new Error('WEB_APP_URL belum diisi');
+  }
+
+  try {
+    const res = await fetch(WEB_APP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: action, data: payload }),
+      redirect: 'follow'
+    });
+
+    const text = await res.text();
+    let json;
+    try {
+      json = JSON.parse(text);
+    } catch (e) {
+      console.error('Response bukan JSON:', text);
+      throw new Error('Respons server tidak valid');
+    }
+
+    if (!json.success) {
+      throw new Error(json.error || 'Gagal memproses permintaan');
+    }
+    return json.data;
+  } catch (err) {
+    console.error(err);
+    toast('Error: ' + (err.message || err));
+    throw err;
+  }
+}
+
+// ===================== INIT =====================
+async function init() {
+  try {
+    const pinExists = await run('hasPin');
+    if (pinExists) {
+      hasPinLock = true;
+      document.getElementById('loading').classList.add('hidden');
+      document.getElementById('pin-lock').classList.remove('hidden');
+      document.getElementById('pin-lock').classList.add('flex');
+      return;
+    }
+    await loadData();
+  } catch (e) {
+    document.getElementById('loading').innerHTML = '<p class="text-white">Gagal memuat. Coba refresh.</p>';
+  }
+}
+
+async function loadData() {
+  data = await run('getInitialData');
+  document.getElementById('user-name').textContent = data.userName || 'Pengguna';
+  document.getElementById('input-nama').value = data.userName || '';
+  document.getElementById('loading').classList.add('hidden');
+  document.getElementById('pin-lock').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  document.getElementById('app').classList.add('flex');
+  renderAll();
+}
+
+// ===================== PIN =====================
+function pressPin(n) {
+  if (pinBuffer.length >= 4) return;
+  pinBuffer += n;
+  updatePinDots();
+  if (pinBuffer.length === 4) verifyPin();
+}
+function deletePin() {
+  pinBuffer = pinBuffer.slice(0, -1);
+  updatePinDots();
+  document.getElementById('pin-error').textContent = '';
+}
+function updatePinDots() {
+  document.querySelectorAll('.pin-dot').forEach((d, i) => {
+    d.classList.toggle('bg-white', i < pinBuffer.length);
+    d.classList.toggle('border-white/40', i >= pinBuffer.length);
+  });
+}
+async function verifyPin() {
+  const ok = await run('checkPin', pinBuffer);
+  if (ok) {
+    pinBuffer = '';
+    await loadData();
+  } else {
+    document.getElementById('pin-error').textContent = 'PIN salah';
+    pinBuffer = '';
+    updatePinDots();
+  }
+}
+
+// ===================== NAV =====================
+function showPage(page) {
+  currentPage = page;
+  ['home','transaksi','rekening','hutang','lainnya','anggaran','recurring','tujuan','settings'].forEach(p => {
+    const el = document.getElementById('page-' + p);
+    if (el) el.classList.toggle('hidden', p !== page);
+  });
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    const active = btn.dataset.page === page || (['anggaran','recurring','tujuan','settings'].includes(page) && btn.dataset.page === 'lainnya');
+    btn.classList.toggle('text-navy-700', active);
+    btn.classList.toggle('text-slate-400', !active);
+  });
+  if (page === 'transaksi') renderTransaksi();
+  if (page === 'rekening') renderRekening();
+  if (page === 'hutang') renderHutang();
+  if (page === 'anggaran') renderAnggaran();
+  if (page === 'recurring') renderRecurring();
+  if (page === 'tujuan') renderTujuan();
+}
+
+// ===================== RENDER =====================
+function renderAll() {
+  renderHome();
+  renderTransaksi();
+  renderRekening();
+  renderHutang();
+  renderAnggaran();
+  renderRecurring();
+  renderTujuan();
+}
+
+function renderHome() {
+  const kasRekening = data.rekening.filter(r => r.Nama !== 'Kredit (Non-Kas)' && r.Nama !== 'Reimburse');
+  const total = kasRekening.reduce((s, r) => s + (Number(r.Saldo) || 0), 0);
+  document.getElementById('total-saldo').textContent = rp(total);
+
+  const now = new Date();
+  const ym = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  let masuk = 0, keluar = 0;
+  data.transaksi.forEach(t => {
+    if (!t.Tanggal || !t.Tanggal.startsWith(ym)) return;
+    if (['Transfer Keluar','Transfer Masuk'].includes(t.Kategori)) return;
+    if (t.Jenis === 'Pemasukan') masuk += Number(t.Nominal);
+    else keluar += Number(t.Nominal);
+  });
+  document.getElementById('home-pemasukan').textContent = rp(masuk);
+  document.getElementById('home-pengeluaran').textContent = rp(keluar);
+
+  // rekening cards
+  const rekEl = document.getElementById('home-rekening');
+  rekEl.innerHTML = kasRekening.map(r => `
+    <div class="shrink-0 w-36 bg-white rounded-xl border border-slate-100 p-3 shadow-sm">
+      <div class="w-3 h-3 rounded-full mb-2" style="background:${r.Warna || '#1B3A5F'}"></div>
+      <p class="text-xs text-slate-500 truncate">${r.Nama}</p>
+      <p class="font-semibold text-sm mt-0.5">${rp(r.Saldo)}</p>
+    </div>
+  `).join('') || '<p class="text-sm text-slate-400">Belum ada rekening</p>';
+
+  // recent trx
+  const trxEl = document.getElementById('home-trx');
+  const recent = data.transaksi.slice(0, 8);
+  trxEl.innerHTML = recent.length ? recent.map(trxCard).join('') : '<p class="text-sm text-slate-400 text-center py-6">Belum ada transaksi</p>';
+}
+
+function trxCard(t) {
+  const isIn = t.Jenis === 'Pemasukan';
+  return `
+    <div class="bg-white rounded-xl border border-slate-100 p-3 flex items-center gap-3 shadow-sm" onclick="editTrx('${t.ID}')">
+      <div class="w-10 h-10 rounded-full flex items-center justify-center text-lg ${isIn ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}">
+        ${isIn ? '↓' : '↑'}
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="font-medium text-sm truncate">${t.Kategori || t.Jenis}</p>
+        <p class="text-xs text-slate-400">${t.Tanggal} · ${t.Akun || '-'}</p>
+      </div>
+      <p class="font-semibold text-sm ${isIn ? 'text-emerald-600' : 'text-rose-600'}">${isIn ? '+' : '−'}${rp(t.Nominal).slice(2)}</p>
+    </div>`;
+}
+
+function renderTransaksi() {
+  const jenis = document.getElementById('filter-jenis')?.value || '';
+  let list = data.transaksi;
+  if (jenis) list = list.filter(t => t.Jenis === jenis);
+  document.getElementById('list-trx').innerHTML = list.length
+    ? list.map(trxCard).join('')
+    : '<p class="text-sm text-slate-400 text-center py-8">Tidak ada transaksi</p>';
+}
+
+function renderRekening() {
+  const list = data.rekening.filter(r => r.Nama !== 'Kredit (Non-Kas)');
+  document.getElementById('list-rekening').innerHTML = list.map(r => `
+    <div class="bg-white rounded-xl border border-slate-100 p-4 flex items-center gap-3 shadow-sm">
+      <div class="w-4 h-4 rounded-full shrink-0" style="background:${r.Warna || '#1B3A5F'}"></div>
+      <div class="flex-1 min-w-0">
+        <p class="font-medium">${r.Nama}</p>
+        <p class="text-sm text-slate-500">Saldo: <span class="font-semibold text-navy-700">${rp(r.Saldo)}</span></p>
+      </div>
+      <button onclick="editRekening('${r.ID}')" class="text-sm text-navy-500 font-medium px-2">Edit</button>
+    </div>
+  `).join('') || '<p class="text-sm text-slate-400 text-center py-8">Belum ada rekening</p>';
+}
+
+function filterHutang(f) {
+  hutangFilter = f;
+  ['semua','Hutang','Piutang'].forEach(x => {
+    const btn = document.getElementById('btn-hp-' + (x === 'semua' ? 'semua' : x.toLowerCase()));
+    if (!btn) return;
+    const active = f === x;
+    btn.className = `flex-1 py-2 rounded-xl text-sm font-medium ${active ? 'bg-navy-700 text-white' : 'bg-white border border-slate-200'}`;
+  });
+  renderHutang();
+}
+
+function renderHutang() {
+  let list = data.hutangPiutang;
+  if (hutangFilter !== 'semua') list = list.filter(h => h.Jenis === hutangFilter);
+  document.getElementById('list-hutang').innerHTML = list.map(h => {
+    const sisa = Number(h.SisaHutang) || 0;
+    const total = Number(h.TotalHutang) || 0;
+    const pct = total > 0 ? Math.min(100, Math.round((total - sisa) / total * 100)) : 0;
+    const isHutang = h.Jenis === 'Hutang';
+    return `
+      <div class="bg-white rounded-xl border border-slate-100 p-4 shadow-sm" onclick="openHutangDetail('${h.ID}')">
+        <div class="flex justify-between items-start">
+          <div>
+            <span class="text-xs px-2 py-0.5 rounded-full ${isHutang ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}">${h.Jenis}</span>
+            <p class="font-medium mt-1">${h.Nama}</p>
+            <p class="text-xs text-slate-400">${h.Metode} · ${h.Bentuk || 'Tunai'}</p>
+          </div>
+          <div class="text-right">
+            <p class="font-semibold ${isHutang ? 'text-rose-600' : 'text-emerald-600'}">${rp(sisa)}</p>
+            <p class="text-xs text-slate-400">${h.Status}</p>
+          </div>
+        </div>
+        ${total > 0 ? `<div class="mt-3 h-1.5 bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-navy-500 rounded-full" style="width:${pct}%"></div></div>` : ''}
+      </div>`;
+  }).join('') || '<p class="text-sm text-slate-400 text-center py-8">Belum ada data</p>';
+}
+
+function renderAnggaran() {
+  const now = new Date();
+  const ym = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  document.getElementById('list-anggaran').innerHTML = data.anggaran.map(a => {
+    const used = data.transaksi
+      .filter(t => t.Jenis === 'Pengeluaran' && t.Kategori === a.Kategori && t.Tanggal && t.Tanggal.startsWith(ym))
+      .reduce((s, t) => s + Number(t.Nominal), 0);
+    const limit = Number(a.LimitBulanan) || 0;
+    const pct = limit > 0 ? Math.min(100, Math.round(used / limit * 100)) : 0;
+    const over = used > limit;
+    return `
+      <div class="bg-white rounded-xl border border-slate-100 p-4">
+        <div class="flex justify-between">
+          <p class="font-medium">${a.Kategori}</p>
+          <p class="text-sm ${over ? 'text-rose-600' : 'text-slate-500'}">${rp(used)} / ${rp(limit)}</p>
+        </div>
+        <div class="mt-2 h-2 bg-slate-100 rounded-full overflow-hidden">
+          <div class="h-full rounded-full ${over ? 'bg-rose-500' : 'bg-navy-500'}" style="width:${pct}%"></div>
+        </div>
+      </div>`;
+  }).join('') || '<p class="text-sm text-slate-400 text-center py-8">Belum ada anggaran</p>';
+}
+
+function renderRecurring() {
+  document.getElementById('list-recurring').innerHTML = data.recurring.map(r => `
+    <div class="bg-white rounded-xl border border-slate-100 p-4 flex justify-between items-center">
+      <div>
+        <p class="font-medium">${r.Kategori || r.Jenis}</p>
+        <p class="text-xs text-slate-400">Tiap tgl ${r.TanggalPerBulan} · ${r.Akun}</p>
+      </div>
+      <div class="text-right">
+        <p class="font-semibold ${r.Jenis==='Pemasukan'?'text-emerald-600':'text-rose-600'}">${rp(r.Nominal)}</p>
+        <button onclick="delRecurring('${r.ID}')" class="text-xs text-rose-500 mt-1">Hapus</button>
+      </div>
+    </div>
+  `).join('') || '<p class="text-sm text-slate-400 text-center py-8">Belum ada</p>';
+}
+
+function renderTujuan() {
+  document.getElementById('list-tujuan').innerHTML = data.tujuanNabung.map(g => {
+    const target = Number(g.TargetNominal) || 0;
+    const terkumpul = Number(g.TerkumpulNominal) || 0;
+    const pct = target > 0 ? Math.min(100, Math.round(terkumpul / target * 100)) : 0;
+    return `
+      <div class="bg-white rounded-xl border border-slate-100 p-4">
+        <div class="flex justify-between">
+          <p class="font-medium">${g.Nama}</p>
+          <p class="text-sm text-slate-500">${pct}%</p>
+        </div>
+        <p class="text-sm mt-1">${rp(terkumpul)} / ${rp(target)}</p>
+        <div class="mt-2 h-2 bg-slate-100 rounded-full overflow-hidden">
+          <div class="h-full bg-emerald-500 rounded-full" style="width:${pct}%"></div>
+        </div>
+        <button onclick="openModal('progress',{id:'${g.ID}',nama:'${g.Nama}'})" class="mt-3 text-sm text-navy-600 font-medium">+ Setor</button>
+      </div>`;
+  }).join('') || '<p class="text-sm text-slate-400 text-center py-8">Belum ada tujuan</p>';
+}
+
+// ===================== MODALS =====================
+function openModal(type, preset = {}) {
+  const box = document.getElementById('modal-box');
+  let html = '';
+
+  if (type === 'trx') {
+    const isEdit = !!preset.id;
+    html = `
+      <div class="p-5">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="font-semibold text-lg">${isEdit ? 'Edit' : 'Tambah'} Transaksi</h3>
+          <button onclick="closeModal()" class="text-slate-400 text-2xl leading-none">×</button>
+        </div>
+        <div class="space-y-3">
+          <div class="flex gap-2">
+            <button type="button" id="btn-jenis-in" onclick="setJenis('Pemasukan')" class="flex-1 py-2.5 rounded-xl text-sm font-medium ${preset.jenis!=='Pengeluaran'?'bg-emerald-600 text-white':'bg-slate-100'}">Pemasukan</button>
+            <button type="button" id="btn-jenis-out" onclick="setJenis('Pengeluaran')" class="flex-1 py-2.5 rounded-xl text-sm font-medium ${preset.jenis==='Pengeluaran'?'bg-rose-600 text-white':'bg-slate-100'}">Pengeluaran</button>
+          </div>
+          <input type="hidden" id="f-jenis" value="${preset.jenis || 'Pemasukan'}">
+          <input type="hidden" id="f-id" value="${preset.id || ''}">
+          <div>
+            <label class="text-xs text-slate-500">Nominal</label>
+            <input id="f-nominal" type="number" inputmode="numeric" class="w-full border border-slate-200 rounded-xl px-3 py-3 text-lg font-semibold" placeholder="0" value="${preset.nominal || ''}">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Kategori</label>
+            <input id="f-kategori" list="list-kategori" class="w-full border border-slate-200 rounded-xl px-3 py-2.5" placeholder="Makanan, Gaji, dll" value="${preset.kategori || ''}">
+            <datalist id="list-kategori">
+              <option value="Gaji"><option value="Makanan"><option value="Transport"><option value="Belanja">
+              <option value="Tagihan"><option value="Hiburan"><option value="Kesehatan"><option value="Pendidikan">
+            </datalist>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Rekening</label>
+            <select id="f-akun" class="w-full border border-slate-200 rounded-xl px-3 py-2.5">
+              ${data.rekening.filter(r=>r.Nama!=='Kredit (Non-Kas)').map(r=>`<option value="${r.Nama}" ${preset.akun===r.Nama?'selected':''}>${r.Nama}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Tanggal</label>
+            <input id="f-tanggal" type="date" class="w-full border border-slate-200 rounded-xl px-3 py-2.5" value="${preset.tanggal || today()}">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Catatan</label>
+            <input id="f-catatan" class="w-full border border-slate-200 rounded-xl px-3 py-2.5" value="${preset.catatan || ''}">
+          </div>
+          <button onclick="saveTrx()" class="w-full bg-navy-700 text-white py-3 rounded-xl font-medium mt-2">Simpan</button>
+          ${isEdit ? `<button onclick="delTrx('${preset.id}')" class="w-full text-rose-600 py-2 text-sm mt-1">Hapus Transaksi</button>` : ''}
+        </div>
+      </div>`;
+  }
+
+  if (type === 'rekening') {
+    html = `
+      <div class="p-5">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="font-semibold text-lg">${preset.id ? 'Edit' : 'Tambah'} Rekening</h3>
+          <button onclick="closeModal()" class="text-slate-400 text-2xl">×</button>
+        </div>
+        <div class="space-y-3">
+          <input type="hidden" id="f-id" value="${preset.id || ''}">
+          <div>
+            <label class="text-xs text-slate-500">Nama Rekening</label>
+            <input id="f-nama" class="w-full border border-slate-200 rounded-xl px-3 py-2.5" value="${preset.nama || ''}" placeholder="BCA, Cash, dll">
+          </div>
+          ${!preset.id ? `<div>
+            <label class="text-xs text-slate-500">Saldo Awal</label>
+            <input id="f-saldo" type="number" class="w-full border border-slate-200 rounded-xl px-3 py-2.5" value="${preset.saldoAwal || 0}">
+          </div>` : `<div>
+            <label class="text-xs text-slate-500">Sesuaikan Saldo Saat Ini</label>
+            <input id="f-saldo-baru" type="number" class="w-full border border-slate-200 rounded-xl px-3 py-2.5" placeholder="Kosongkan jika tidak ubah">
+          </div>`}
+          <button onclick="saveRekening()" class="w-full bg-navy-700 text-white py-3 rounded-xl font-medium">Simpan</button>
+          ${preset.id ? `<button onclick="delRekening('${preset.id}')" class="w-full text-rose-600 py-2 text-sm">Hapus Rekening</button>` : ''}
+        </div>
+      </div>`;
+  }
+
+  if (type === 'transfer') {
+    html = `
+      <div class="p-5">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="font-semibold text-lg">Transfer</h3>
+          <button onclick="closeModal()" class="text-slate-400 text-2xl">×</button>
+        </div>
+        <div class="space-y-3">
+          <div>
+            <label class="text-xs text-slate-500">Dari</label>
+            <select id="f-asal" class="w-full border border-slate-200 rounded-xl px-3 py-2.5">
+              ${data.rekening.filter(r=>r.Nama!=='Kredit (Non-Kas)').map(r=>`<option value="${r.Nama}">${r.Nama}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Ke</label>
+            <select id="f-tujuan" class="w-full border border-slate-200 rounded-xl px-3 py-2.5">
+              ${data.rekening.filter(r=>r.Nama!=='Kredit (Non-Kas)').map(r=>`<option value="${r.Nama}">${r.Nama}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Nominal</label>
+            <input id="f-nominal" type="number" class="w-full border border-slate-200 rounded-xl px-3 py-2.5" placeholder="0">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Biaya Admin (opsional)</label>
+            <input id="f-admin" type="number" class="w-full border border-slate-200 rounded-xl px-3 py-2.5" value="0">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Tanggal</label>
+            <input id="f-tanggal" type="date" class="w-full border border-slate-200 rounded-xl px-3 py-2.5" value="${today()}">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Catatan</label>
+            <input id="f-catatan" class="w-full border border-slate-200 rounded-xl px-3 py-2.5">
+          </div>
+          <button onclick="saveTransfer()" class="w-full bg-navy-700 text-white py-3 rounded-xl font-medium">Transfer</button>
+        </div>
+      </div>`;
+  }
+
+  if (type === 'hutang') {
+    html = `
+      <div class="p-5">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="font-semibold text-lg">Hutang / Piutang</h3>
+          <button onclick="closeModal()" class="text-slate-400 text-2xl">×</button>
+        </div>
+        <div class="space-y-3">
+          <div class="flex gap-2">
+            <button type="button" onclick="document.getElementById('f-jenis-hp').value='Hutang';this.className='flex-1 py-2.5 rounded-xl text-sm font-medium bg-rose-600 text-white';this.nextElementSibling.className='flex-1 py-2.5 rounded-xl text-sm font-medium bg-slate-100'" class="flex-1 py-2.5 rounded-xl text-sm font-medium bg-rose-600 text-white">Hutang</button>
+            <button type="button" onclick="document.getElementById('f-jenis-hp').value='Piutang';this.className='flex-1 py-2.5 rounded-xl text-sm font-medium bg-emerald-600 text-white';this.previousElementSibling.className='flex-1 py-2.5 rounded-xl text-sm font-medium bg-slate-100'" class="flex-1 py-2.5 rounded-xl text-sm font-medium bg-slate-100">Piutang</button>
+          </div>
+          <input type="hidden" id="f-jenis-hp" value="Hutang">
+          <div>
+            <label class="text-xs text-slate-500">Nama / Keperluan</label>
+            <input id="f-nama" class="w-full border border-slate-200 rounded-xl px-3 py-2.5" placeholder="Nama orang / keperluan">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Metode</label>
+            <select id="f-metode" class="w-full border border-slate-200 rounded-xl px-3 py-2.5" onchange="toggleMetode()">
+              <option value="Sekaligus">Sekaligus</option>
+              <option value="Cicilan Tetap">Cicilan Tetap</option>
+              <option value="Cicilan Bebas">Cicilan Bebas</option>
+              <option value="Paylater">Paylater</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Bentuk</label>
+            <select id="f-bentuk" class="w-full border border-slate-200 rounded-xl px-3 py-2.5">
+              <option value="Tunai">Tunai (uang pindah)</option>
+              <option value="Barang">Barang / Jasa</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Pokok</label>
+            <input id="f-pokok" type="number" class="w-full border border-slate-200 rounded-xl px-3 py-2.5" placeholder="0">
+          </div>
+          <div id="field-bunga" class="hidden grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-xs text-slate-500">Bunga %</label>
+              <input id="f-bunga-persen" type="number" class="w-full border border-slate-200 rounded-xl px-3 py-2.5" value="0">
+            </div>
+            <div>
+              <label class="text-xs text-slate-500">Bunga Nominal</label>
+              <input id="f-bunga-nominal" type="number" class="w-full border border-slate-200 rounded-xl px-3 py-2.5" value="0">
+            </div>
+          </div>
+          <div id="field-tenor" class="hidden">
+            <label class="text-xs text-slate-500">Tenor (bulan)</label>
+            <input id="f-tenor" type="number" class="w-full border border-slate-200 rounded-xl px-3 py-2.5" value="1">
+          </div>
+          <div id="field-biaya" class="hidden">
+            <label class="text-xs text-slate-500">Biaya Layanan</label>
+            <input id="f-biaya" type="number" class="w-full border border-slate-200 rounded-xl px-3 py-2.5" value="0">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Rekening (jika Tunai)</label>
+            <select id="f-akun" class="w-full border border-slate-200 rounded-xl px-3 py-2.5">
+              <option value="">—</option>
+              ${data.rekening.filter(r=>r.Nama!=='Kredit (Non-Kas)').map(r=>`<option value="${r.Nama}">${r.Nama}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Tanggal</label>
+            <input id="f-tanggal" type="date" class="w-full border border-slate-200 rounded-xl px-3 py-2.5" value="${today()}">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Jatuh Tempo</label>
+            <input id="f-jatuh" type="date" class="w-full border border-slate-200 rounded-xl px-3 py-2.5">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Catatan</label>
+            <input id="f-catatan" class="w-full border border-slate-200 rounded-xl px-3 py-2.5">
+          </div>
+          <button onclick="saveHutang()" class="w-full bg-navy-700 text-white py-3 rounded-xl font-medium">Simpan</button>
+        </div>
+      </div>`;
+  }
+
+  if (type === 'bayar') {
+    html = `
+      <div class="p-5">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="font-semibold text-lg">Bayar Cicilan</h3>
+          <button onclick="closeModal()" class="text-slate-400 text-2xl">×</button>
+        </div>
+        <div class="space-y-3">
+          <input type="hidden" id="f-id" value="${preset.id}">
+          <p class="text-sm text-slate-500">${preset.nama} · Sisa ${rp(preset.sisa)}</p>
+          <div>
+            <label class="text-xs text-slate-500">Nominal Bayar</label>
+            <input id="f-nominal" type="number" class="w-full border border-slate-200 rounded-xl px-3 py-2.5" value="${preset.nominalCicilan || ''}">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Dari Rekening</label>
+            <select id="f-akun" class="w-full border border-slate-200 rounded-xl px-3 py-2.5">
+              ${data.rekening.filter(r=>r.Nama!=='Kredit (Non-Kas)').map(r=>`<option value="${r.Nama}">${r.Nama}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Tanggal</label>
+            <input id="f-tanggal" type="date" class="w-full border border-slate-200 rounded-xl px-3 py-2.5" value="${today()}">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Catatan</label>
+            <input id="f-catatan" class="w-full border border-slate-200 rounded-xl px-3 py-2.5">
+          </div>
+          <button onclick="saveBayar()" class="w-full bg-navy-700 text-white py-3 rounded-xl font-medium">Bayar</button>
+        </div>
+      </div>`;
+  }
+
+  if (type === 'anggaran') {
+    html = `
+      <div class="p-5">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="font-semibold text-lg">Tambah Anggaran</h3>
+          <button onclick="closeModal()" class="text-slate-400 text-2xl">×</button>
+        </div>
+        <div class="space-y-3">
+          <div>
+            <label class="text-xs text-slate-500">Kategori</label>
+            <input id="f-kategori" class="w-full border border-slate-200 rounded-xl px-3 py-2.5" placeholder="Makanan, Transport...">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Limit Bulanan</label>
+            <input id="f-limit" type="number" class="w-full border border-slate-200 rounded-xl px-3 py-2.5" placeholder="0">
+          </div>
+          <button onclick="saveAnggaran()" class="w-full bg-navy-700 text-white py-3 rounded-xl font-medium">Simpan</button>
+        </div>
+      </div>`;
+  }
+
+  if (type === 'recurring') {
+    html = `
+      <div class="p-5">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="font-semibold text-lg">Transaksi Berulang</h3>
+          <button onclick="closeModal()" class="text-slate-400 text-2xl">×</button>
+        </div>
+        <div class="space-y-3">
+          <div class="flex gap-2">
+            <button type="button" onclick="document.getElementById('f-jenis').value='Pemasukan'" class="flex-1 py-2 rounded-xl bg-emerald-600 text-white text-sm">Pemasukan</button>
+            <button type="button" onclick="document.getElementById('f-jenis').value='Pengeluaran'" class="flex-1 py-2 rounded-xl bg-slate-100 text-sm">Pengeluaran</button>
+          </div>
+          <input type="hidden" id="f-jenis" value="Pengeluaran">
+          <div>
+            <label class="text-xs text-slate-500">Kategori</label>
+            <input id="f-kategori" class="w-full border border-slate-200 rounded-xl px-3 py-2.5">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Rekening</label>
+            <select id="f-akun" class="w-full border border-slate-200 rounded-xl px-3 py-2.5">
+              ${data.rekening.filter(r=>r.Nama!=='Kredit (Non-Kas)').map(r=>`<option value="${r.Nama}">${r.Nama}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Nominal</label>
+            <input id="f-nominal" type="number" class="w-full border border-slate-200 rounded-xl px-3 py-2.5">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Tanggal tiap bulan (1-28)</label>
+            <input id="f-tgl" type="number" min="1" max="28" class="w-full border border-slate-200 rounded-xl px-3 py-2.5" value="1">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Catatan</label>
+            <input id="f-catatan" class="w-full border border-slate-200 rounded-xl px-3 py-2.5">
+          </div>
+          <button onclick="saveRecurring()" class="w-full bg-navy-700 text-white py-3 rounded-xl font-medium">Simpan</button>
+        </div>
+      </div>`;
+  }
+
+  if (type === 'tujuan') {
+    html = `
+      <div class="p-5">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="font-semibold text-lg">Tujuan Nabung</h3>
+          <button onclick="closeModal()" class="text-slate-400 text-2xl">×</button>
+        </div>
+        <div class="space-y-3">
+          <div>
+            <label class="text-xs text-slate-500">Nama Tujuan</label>
+            <input id="f-nama" class="w-full border border-slate-200 rounded-xl px-3 py-2.5" placeholder="Liburan, DP Rumah...">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Target Nominal</label>
+            <input id="f-target" type="number" class="w-full border border-slate-200 rounded-xl px-3 py-2.5">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Tanggal Target (opsional)</label>
+            <input id="f-tgl" type="date" class="w-full border border-slate-200 rounded-xl px-3 py-2.5">
+          </div>
+          <button onclick="saveTujuan()" class="w-full bg-navy-700 text-white py-3 rounded-xl font-medium">Simpan</button>
+        </div>
+      </div>`;
+  }
+
+  if (type === 'progress') {
+    html = `
+      <div class="p-5">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="font-semibold text-lg">Setor ke ${preset.nama}</h3>
+          <button onclick="closeModal()" class="text-slate-400 text-2xl">×</button>
+        </div>
+        <div class="space-y-3">
+          <input type="hidden" id="f-id" value="${preset.id}">
+          <div>
+            <label class="text-xs text-slate-500">Nominal</label>
+            <input id="f-nominal" type="number" class="w-full border border-slate-200 rounded-xl px-3 py-2.5">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Dari Rekening</label>
+            <select id="f-akun" class="w-full border border-slate-200 rounded-xl px-3 py-2.5">
+              ${data.rekening.filter(r=>r.Nama!=='Kredit (Non-Kas)').map(r=>`<option value="${r.Nama}">${r.Nama}</option>`).join('')}
+            </select>
+          </div>
+          <button onclick="saveProgress()" class="w-full bg-navy-700 text-white py-3 rounded-xl font-medium">Setor</button>
+        </div>
+      </div>`;
+  }
+
+  if (type === 'reimburse') {
+    html = `
+      <div class="p-5">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="font-semibold text-lg">Reimburse</h3>
+          <button onclick="closeModal()" class="text-slate-400 text-2xl">×</button>
+        </div>
+        <div class="space-y-3">
+          <div>
+            <label class="text-xs text-slate-500">Nominal Pengeluaran</label>
+            <input id="f-nominal" type="number" class="w-full border border-slate-200 rounded-xl px-3 py-2.5">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">% yang diklaim</label>
+            <input id="f-persen" type="number" class="w-full border border-slate-200 rounded-xl px-3 py-2.5" value="100">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Dari Rekening</label>
+            <select id="f-akun" class="w-full border border-slate-200 rounded-xl px-3 py-2.5">
+              ${data.rekening.filter(r=>r.Nama!=='Kredit (Non-Kas)').map(r=>`<option value="${r.Nama}">${r.Nama}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Kategori</label>
+            <input id="f-kategori" class="w-full border border-slate-200 rounded-xl px-3 py-2.5" value="Reimburse">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Tanggal</label>
+            <input id="f-tanggal" type="date" class="w-full border border-slate-200 rounded-xl px-3 py-2.5" value="${today()}">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Catatan</label>
+            <input id="f-catatan" class="w-full border border-slate-200 rounded-xl px-3 py-2.5">
+          </div>
+          <button onclick="saveReimburse()" class="w-full bg-navy-700 text-white py-3 rounded-xl font-medium">Simpan</button>
+        </div>
+      </div>`;
+  }
+
+  if (type === 'setpin') {
+    html = `
+      <div class="p-5">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="font-semibold text-lg">Atur PIN</h3>
+          <button onclick="closeModal()" class="text-slate-400 text-2xl">×</button>
+        </div>
+        <div class="space-y-3">
+          <div>
+            <label class="text-xs text-slate-500">PIN Baru (4 digit)</label>
+            <input id="f-pin" type="password" inputmode="numeric" maxlength="4" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-center text-xl tracking-widest">
+          </div>
+          <button onclick="savePin()" class="w-full bg-navy-700 text-white py-3 rounded-xl font-medium">Simpan PIN</button>
+        </div>
+      </div>`;
+  }
+
+  box.innerHTML = html;
+  document.getElementById('modal-overlay').classList.remove('hidden');
+  document.getElementById('modal-overlay').classList.add('flex');
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.add('hidden');
+  document.getElementById('modal-overlay').classList.remove('flex');
+}
+
+function setJenis(j) {
+  document.getElementById('f-jenis').value = j;
+  document.getElementById('btn-jenis-in').className = `flex-1 py-2.5 rounded-xl text-sm font-medium ${j==='Pemasukan'?'bg-emerald-600 text-white':'bg-slate-100'}`;
+  document.getElementById('btn-jenis-out').className = `flex-1 py-2.5 rounded-xl text-sm font-medium ${j==='Pengeluaran'?'bg-rose-600 text-white':'bg-slate-100'}`;
+}
+
+function toggleMetode() {
+  const m = document.getElementById('f-metode').value;
+  document.getElementById('field-bunga').classList.toggle('hidden', m !== 'Cicilan Tetap');
+  document.getElementById('field-tenor').classList.toggle('hidden', m !== 'Cicilan Tetap');
+  document.getElementById('field-biaya').classList.toggle('hidden', m !== 'Paylater');
+}
+
+// ===================== ACTIONS =====================
+async function saveTrx() {
+  const payload = {
+    id: document.getElementById('f-id').value || undefined,
+    jenis: document.getElementById('f-jenis').value,
+    nominal: document.getElementById('f-nominal').value,
+    kategori: document.getElementById('f-kategori').value,
+    akun: document.getElementById('f-akun').value,
+    tanggal: document.getElementById('f-tanggal').value,
+    catatan: document.getElementById('f-catatan').value
+  };
+  data = payload.id ? await run('updateTransaksi', payload) : await run('addTransaksi', payload);
+  closeModal();
+  renderAll();
+  toast('Transaksi disimpan');
+}
+
+function editTrx(id) {
+  const t = data.transaksi.find(x => x.ID === id);
+  if (!t) return;
+  openModal('trx', { id: t.ID, jenis: t.Jenis, nominal: t.Nominal, kategori: t.Kategori, akun: t.Akun, tanggal: t.Tanggal, catatan: t.Catatan });
+}
+
+async function delTrx(id) {
+  if (!confirm('Hapus transaksi ini?')) return;
+  data = await run('deleteTransaksi', id);
+  closeModal();
+  renderAll();
+  toast('Dihapus');
+}
+
+async function saveRekening() {
+  const id = document.getElementById('f-id').value;
+  if (id) {
+    const payload = { id, nama: document.getElementById('f-nama').value };
+    const sb = document.getElementById('f-saldo-baru').value;
+    if (sb !== '') payload.saldoBaru = sb;
+    data = await run('updateRekening', payload);
+  } else {
+    data = await run('addRekening', {
+      nama: document.getElementById('f-nama').value,
+      saldoAwal: document.getElementById('f-saldo').value
+    });
+  }
+  closeModal();
+  renderAll();
+  toast('Rekening disimpan');
+}
+
+function editRekening(id) {
+  const r = data.rekening.find(x => x.ID === id);
+  if (!r) return;
+  openModal('rekening', { id: r.ID, nama: r.Nama });
+}
+
+async function delRekening(id) {
+  if (!confirm('Hapus rekening ini?')) return;
+  data = await run('deleteRekening', id);
+  closeModal();
+  renderAll();
+  toast('Dihapus');
+}
+
+async function saveTransfer() {
+  data = await run('addTransfer', {
+    akunAsal: document.getElementById('f-asal').value,
+    akunTujuan: document.getElementById('f-tujuan').value,
+    nominal: document.getElementById('f-nominal').value,
+    biayaAdmin: document.getElementById('f-admin').value,
+    tanggal: document.getElementById('f-tanggal').value,
+    catatan: document.getElementById('f-catatan').value
+  });
+  closeModal();
+  renderAll();
+  toast('Transfer berhasil');
+}
+
+async function saveHutang() {
+  const metode = document.getElementById('f-metode').value;
+  const payload = {
+    jenis: document.getElementById('f-jenis-hp').value,
+    nama: document.getElementById('f-nama').value,
+    metode,
+    bentuk: document.getElementById('f-bentuk').value,
+    pokok: document.getElementById('f-pokok').value,
+    bungaPersen: document.getElementById('f-bunga-persen')?.value || 0,
+    bungaNominal: document.getElementById('f-bunga-nominal')?.value || 0,
+    tenor: document.getElementById('f-tenor')?.value || 0,
+    biayaLayanan: document.getElementById('f-biaya')?.value || 0,
+    akun: document.getElementById('f-akun').value,
+    tanggal: document.getElementById('f-tanggal').value,
+    jatuhTempo: document.getElementById('f-jatuh').value,
+    catatan: document.getElementById('f-catatan').value
+  };
+  data = await run('addHutangPiutang', payload);
+  closeModal();
+  renderAll();
+  toast('Berhasil dicatat');
+}
+
+function openHutangDetail(id) {
+  const h = data.hutangPiutang.find(x => x.ID === id);
+  if (!h) return;
+  if (h.Status === 'Lunas') {
+    toast('Sudah lunas');
+    return;
+  }
+  openModal('bayar', {
+    id: h.ID,
+    nama: h.Nama,
+    sisa: h.SisaHutang,
+    nominalCicilan: h.NominalCicilan || h.SisaHutang
+  });
+}
+
+async function saveBayar() {
+  data = await run('bayarCicilan', {
+    id: document.getElementById('f-id').value,
+    nominal: document.getElementById('f-nominal').value,
+    tanggal: document.getElementById('f-tanggal').value,
+    catatan: document.getElementById('f-catatan').value,
+    akun: document.getElementById('f-akun').value
+  });
+  closeModal();
+  renderAll();
+  toast('Pembayaran dicatat');
+}
+
+async function saveAnggaran() {
+  data.anggaran = await run('addAnggaran', {
+    kategori: document.getElementById('f-kategori').value,
+    limitBulanan: document.getElementById('f-limit').value
+  });
+  closeModal();
+  renderAnggaran();
+  toast('Anggaran ditambah');
+}
+
+async function saveRecurring() {
+  data.recurring = await run('addRecurring', {
+    jenis: document.getElementById('f-jenis').value,
+    kategori: document.getElementById('f-kategori').value,
+    akun: document.getElementById('f-akun').value,
+    nominal: document.getElementById('f-nominal').value,
+    tanggalPerBulan: document.getElementById('f-tgl').value,
+    catatan: document.getElementById('f-catatan').value
+  });
+  closeModal();
+  renderRecurring();
+  toast('Berhasil ditambah');
+}
+
+async function delRecurring(id) {
+  if (!confirm('Hapus?')) return;
+  data.recurring = await run('deleteRecurring', id);
+  renderRecurring();
+  toast('Dihapus');
+}
+
+async function saveTujuan() {
+  data.tujuanNabung = await run('addTujuanNabung', {
+    nama: document.getElementById('f-nama').value,
+    targetNominal: document.getElementById('f-target').value,
+    tanggalTarget: document.getElementById('f-tgl').value
+  });
+  closeModal();
+  renderTujuan();
+  toast('Tujuan ditambah');
+}
+
+async function saveProgress() {
+  data = await run('tambahProgressNabung', {
+    id: document.getElementById('f-id').value,
+    nominalTambahan: document.getElementById('f-nominal').value,
+    akun: document.getElementById('f-akun').value
+  });
+  closeModal();
+  renderAll();
+  toast('Berhasil disetor');
+}
+
+async function saveReimburse() {
+  data = await run('addReimburseTransaksi', {
+    nominal: document.getElementById('f-nominal').value,
+    persentase: document.getElementById('f-persen').value,
+    akun: document.getElementById('f-akun').value,
+    kategori: document.getElementById('f-kategori').value,
+    tanggal: document.getElementById('f-tanggal').value,
+    catatan: document.getElementById('f-catatan').value
+  });
+  closeModal();
+  renderAll();
+  toast('Reimburse dicatat');
+}
+
+async function saveNama() {
+  const name = document.getElementById('input-nama').value;
+  data.userName = await run('setDisplayName', name);
+  document.getElementById('user-name').textContent = data.userName;
+  toast('Nama disimpan');
+}
+
+async function savePin() {
+  const pin = document.getElementById('f-pin').value;
+  if (pin.length !== 4) return toast('PIN harus 4 digit');
+  await run('setPin', pin);
+  closeModal();
+  toast('PIN berhasil diset');
+}
+
+async function removePinUI() {
+  if (!confirm('Hapus PIN?')) return;
+  await run('removePin');
+  toast('PIN dihapus');
+}
+
+async function doBackup() {
+  const json = await run('exportBackupJson');
+  const blob = new Blob([json], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'kas-pribadi-backup-' + today() + '.json';
+  a.click();
+  toast('Backup diunduh');
+}
+
+async function doRestore(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (!confirm('Restore akan menimpa semua data. Lanjutkan?')) return;
+  const text = await file.text();
+  data = await run('restoreBackupJson', text);
+  renderAll();
+  toast('Restore berhasil');
+}
+
+async function confirmReset() {
+  if (!confirm('Yakin reset SEMUA data? Tidak bisa dibatalkan.')) return;
+  data = await run('resetAllData');
+  renderAll();
+  toast('Data direset');
+}
+
+// Start
+init();
+</script>
+</body>
+</html>
