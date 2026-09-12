@@ -648,7 +648,9 @@
   // directly from the OS/browser, independent of that wrapper's math — so we
   // use it to explicitly pin #app (and the modal sheet) to the real screen,
   // in pixels, instead of trusting vw/%/transform-based CSS alone.
-  var uiScale = Number(localStorage.getItem('kasUiScale')) || 1;
+  // Default 0.82 biar tidak kegedean di HP (bisa diubah di Pengaturan → Ukuran tampilan)
+  var uiScale = Number(localStorage.getItem('kasUiScale'));
+  if (!uiScale || isNaN(uiScale) || uiScale < 0.5 || uiScale > 1.4) uiScale = 0.82;
   var isDarkMode = localStorage.getItem('kasDarkMode') === '1';
   document.documentElement.classList.toggle('dark', isDarkMode);
   function setDarkMode(on){
@@ -841,8 +843,29 @@
   }
   function loadData(){
     document.getElementById('lockscreen').style.display = 'none';
-    document.getElementById('loading').style.display = 'flex';
-    google.script.run.withSuccessHandler(onDataLoaded).withFailureHandler(onLoadError).getInitialData();
+
+    // 1) Tampilkan cache dulu (buka app ~langsung), lalu refresh dari server di belakang
+    var cached = null;
+    try { cached = JSON.parse(localStorage.getItem('kasCacheV1') || 'null'); } catch(e) {}
+    if (cached && cached.transaksi) {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('app').style.display = 'flex';
+      onDataLoaded(cached, true); // true = dari cache, jangan tutup loading dua kali
+    } else {
+      document.getElementById('loading').style.display = 'flex';
+    }
+
+    // 2) Ambil data terbaru dari server
+    google.script.run.withSuccessHandler(function(data){
+      try { localStorage.setItem('kasCacheV1', JSON.stringify(data)); } catch(e) {}
+      onDataLoaded(data, false);
+    }).withFailureHandler(function(err){
+      if (!cached) onLoadError(err);
+      else {
+        // Ada cache: biarkan user pakai data lama, kasih tahu gagal refresh
+        try { toast('Gagal sync: ' + (err.message || err)); } catch(e) {}
+      }
+    }).getInitialData();
   }
   function showLockScreen(){
     document.getElementById('loading').style.display = 'none';
@@ -875,17 +898,24 @@
   document.getElementById('lock-pin-input').addEventListener('keydown', function(e){ if(e.key === 'Enter') trySubmitPin(); });
   initApp();
 
-  function onDataLoaded(data){
+  function onDataLoaded(data, fromCache){
     STATE = data;
     document.getElementById('loading').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
     renderAll();
+    if (!fromCache) {
+      try { localStorage.setItem('kasCacheV1', JSON.stringify(data)); } catch(e) {}
+    }
   }
   function onLoadError(err){
     document.getElementById('loading').innerHTML =
       '<div style="text-align:center; padding:0 30px; color:var(--ink-soft); font-size:13.5px;">Gagal memuat data.<br>' + (err && err.message ? err.message : err) + '</div>';
   }
-  function refreshState(data){ STATE = data; renderAll(); }
+  function refreshState(data){
+    STATE = data;
+    renderAll();
+    try { localStorage.setItem('kasCacheV1', JSON.stringify(data)); } catch(e) {}
+  }
 
   // Optimistic save: tutup sheet + toast dulu, server jalan di background.
   // User langsung bisa lanjut, data full refresh setelah server selesai.
