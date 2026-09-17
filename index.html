@@ -888,14 +888,45 @@
     // Server: sumber kebenaran — satu kali render bersih
     google.script.run.withSuccessHandler(function(data){
       try { localStorage.setItem('kasCacheV1', JSON.stringify(data)); } catch(e) {}
+      window.__kasDemoMode = false;
       onDataLoaded(data, false);
     }).withFailureHandler(function(err){
       if (paintedFromCache) {
         try { toast('Gagal sync: ' + (err.message || err)); } catch(e) {}
       } else {
-        onLoadError(err);
+        // Fallback demo: biar UI tetap tampil di preview Grok / offline (tanpa deploy)
+        console.warn('API gagal, masuk mode demo', err);
+        window.__kasDemoMode = true;
+        onDataLoaded(makeDemoData_(), false);
+        setTimeout(function(){
+          try { toast('Mode demo (API tidak terhubung)'); } catch(e) {}
+        }, 400);
       }
     }).getInitialData();
+  }
+
+  function makeDemoData_(){
+    var today = (function(){
+      var d = new Date();
+      return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    })();
+    return {
+      transaksi: [
+        { ID: 'demo1', Tanggal: today, Jenis: 'Pemasukan', Kategori: 'Gaji', Akun: 'Cash', Nominal: 2500000, Catatan: 'Contoh (demo)' },
+        { ID: 'demo2', Tanggal: today, Jenis: 'Pengeluaran', Kategori: 'Makanan', Akun: 'Cash', Nominal: 45000, Catatan: 'Contoh (demo)' }
+      ],
+      rekening: [
+        { ID: 'r1', Nama: 'Cash', SaldoAwal: 1000000, Warna: '#0D8A6A', Saldo: 3455000 },
+        { ID: 'r2', Nama: 'BCA', SaldoAwal: 500000, Warna: '#1B3A5F', Saldo: 500000 }
+      ],
+      hutangPiutang: [],
+      anggaran: [],
+      recurring: [],
+      tujuanNabung: [],
+      dailyTriggerActive: false,
+      userName: 'Demo',
+      hasPin: false
+    };
   }
 
   function applyState_(data){
