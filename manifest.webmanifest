@@ -1,13 +1,13 @@
 {
-  "name": "Kas Pribadi",
-  "short_name": "Kas",
+  "name": "Catatan Kas",
+  "short_name": "Catatan Kas",
   "description": "Catatan keuangan pribadi",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0B1F36",
-  "theme_color": "#0B1F36",
+  "background_color": "#0F172A",
+  "theme_color": "#0F172A",
   "icons": [
     {
       "src": "icon-192.png",
