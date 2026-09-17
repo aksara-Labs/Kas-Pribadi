@@ -3181,6 +3181,38 @@
     });
   }
 
+  // Jadwal cicilan tidak rata di Catatan: JADWAL:2026-10-05=384471;2026-11-05=109555
+  function parseJadwalTagihan_(catatan){
+    var m = String(catatan || '').match(/JADWAL:([^\n|]+)/i);
+    if(!m) return [];
+    return m[1].split(';').map(function(part){
+      part = part.trim();
+      if(!part) return null;
+      var bits = part.split('=');
+      if(bits.length < 2) return null;
+      var amount = Number(String(bits[1]).replace(/[^\d.]/g, '')) || 0;
+      if(amount <= 0) return null;
+      return { date: bits[0].trim(), amount: amount };
+    }).filter(Boolean);
+  }
+  function nextTagihanDariJadwal_(h){
+    var jadwal = parseJadwalTagihan_(h.Catatan);
+    if(!jadwal.length) return null;
+    var terbayar = Math.max(0, Number(h.TotalHutang) - Number(h.SisaHutang));
+    var acc = 0;
+    for(var i = 0; i < jadwal.length; i++){
+      var prevAcc = acc;
+      acc += jadwal[i].amount;
+      if(terbayar < acc - 0.01){
+        var alreadyOnThis = Math.max(0, terbayar - prevAcc);
+        var sisaTagihan = Math.round(jadwal[i].amount - alreadyOnThis);
+        if(sisaTagihan <= 0) continue;
+        return { amount: sisaTagihan, date: jadwal[i].date, ke: i + 1, total: jadwal.length };
+      }
+    }
+    return null;
+  }
+
   function openHutangDetail(id){
     var h = STATE.hutangPiutang.find(function(x){ return x.ID === id; });
     if(!h) return;
@@ -3232,17 +3264,28 @@
     }
 
     if(!lunas){
-      var defaultBayar = h.Metode === 'Cicilan Tetap' ? Math.min(h.NominalCicilan, h.SisaHutang) : h.SisaHutang;
-      var payLabel = h.Metode === 'Cicilan Tetap' ? 'Bayar Cicilan Ke-' + (Number(h.CicilanTerbayar)+1)
+      // Jadwal cicilan tidak rata (contoh SPaylater): JADWAL:YYYY-MM-DD=nominal;YYYY-MM-DD=nominal
+      var nextJadwal = nextTagihanDariJadwal_(h);
+      var defaultBayar = nextJadwal ? Math.min(nextJadwal.amount, Number(h.SisaHutang))
+        : (h.Metode === 'Cicilan Tetap' ? Math.min(h.NominalCicilan, h.SisaHutang) : h.SisaHutang);
+      var payLabel = nextJadwal ? ('Bayar Tagihan ' + nextJadwal.ke + '/' + nextJadwal.total)
+        : (h.Metode === 'Cicilan Tetap' ? 'Bayar Cicilan Ke-' + (Number(h.CicilanTerbayar)+1)
         : h.Metode === 'Cicilan Bebas' ? 'Catat Pembayaran'
-        : 'Tandai ' + (isHutang ? 'Sudah Dibayar' : 'Sudah Diterima');
+        : 'Tandai ' + (isHutang ? 'Sudah Dibayar' : 'Sudah Diterima'));
+      var bayarReadonly = h.Metode==='Cicilan Tetap'||h.Metode==='Paylater'||h.Metode==='Sekaligus' || !!nextJadwal;
       if(!STATE.rekening.length){
         html += '<div style="font-size:13px; color:var(--ink-soft); line-height:1.6; margin-top:16px; background:var(--amber-pale); padding:12px 14px; border-radius:12px;">' +
           'Kamu belum punya rekening. Tambahkan rekening dulu di tab <b>Rekening</b> untuk bisa mencatat pembayaran ' + (isHutang?'hutang':'piutang') + ' ini.</div>';
       } else {
+        if(nextJadwal){
+          html += '<div style="font-size:12.5px; color:var(--blue-dark); background:var(--blue-pale); padding:10px 12px; border-radius:10px; margin-top:14px; line-height:1.45;">' +
+            'Tagihan berikutnya: <b class="num">' + fmtRupiah(nextJadwal.amount) + '</b>' +
+            (nextJadwal.date ? ' · jatuh tempo <b>' + esc(nextJadwal.date) + '</b>' : '') +
+            ' <span style="opacity:.75;">(' + nextJadwal.ke + '/' + nextJadwal.total + ')</span></div>';
+        }
         html += '<div class="form-group" style="margin-top:16px;"><label class="form-label">Nominal Bayar</label>' +
           '<input class="form-input num num-input" id="f-bayar-nominal" type="text" inputmode="numeric" value="' + ribuanStr(defaultBayar) + '"' +
-          (h.Metode==='Cicilan Tetap'||h.Metode==='Paylater'||h.Metode==='Sekaligus' ? ' readonly' : '') + '></div>' +
+          (bayarReadonly ? ' readonly' : '') + '></div>' +
           '<div class="form-group"><label class="form-label">Tanggal Bayar</label><input class="form-input" id="f-bayar-tanggal" type="date" value="' + today + '"></div>' +
           '<div class="form-group"><label class="form-label">' + (isHutang ? 'Bayar Dari Rekening' : 'Uang Diterima ke Rekening') + '</label>' +
           '<select class="form-select" id="f-akun-lunas">' + accountOptions() + '</select></div>' +
