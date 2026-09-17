@@ -230,9 +230,9 @@
     .icon-badge.amber{background:var(--amber-pale); color:var(--amber);}
     .icon-badge.blue{background:var(--blue-pale); color:var(--blue-dark);}
     .item-main{flex:1 1 auto; min-width:0;}
-    .item-title{font-size:23px; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-    .item-sub{font-size:17.5px; color:var(--ink-faint); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-    .item-amount{font-size:23px; font-weight:800; flex:0 0 auto; text-align:right;}
+    .item-title{font-size:14.5px; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+    .item-sub{font-size:12px; color:var(--ink-faint); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+    .item-amount{font-size:14.5px; font-weight:800; flex:0 0 auto; text-align:right;}
     .item-amount.green{color:var(--green);}
     .item-amount.red{color:var(--red);}
     .item-amount.blue{color:var(--blue-dark);}
@@ -285,10 +285,10 @@
     /* metode selector grid (form) */
     .metode-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
     .metode-btn{
-      border:1.5px solid var(--line); border-radius:10px; padding:12px 8px; font-size:14.5px;
+      border:1.5px solid var(--line); border-radius:10px; padding:10px 6px; font-size:12.5px;
       font-weight:700; color:var(--ink-soft); background:var(--input-bg); text-align:center; line-height:1.3;
     }
-    .metode-btn small{display:block; font-weight:500; color:var(--ink-faint); font-size:12px; margin-top:2px;}
+    .metode-btn small{display:block; font-weight:500; color:var(--ink-faint); font-size:10.5px; margin-top:2px;}
     .metode-btn.active{background:var(--blue-pale); border-color:var(--blue); color:var(--blue-dark);}
     .metode-btn.active small{color:var(--blue-dark); opacity:.75;}
 
@@ -321,7 +321,7 @@
     }
     .rekap-card:active{background:#FBFCFE;}
     .rekap-date{font-size:21px; font-weight:700; color:var(--ink); margin-bottom:8px; text-align:center;}
-    .rekap-row{display:flex; justify-content:space-between; padding:9px 0; font-size:22px;}
+    .rekap-row{display:flex; justify-content:space-between; padding:9px 0; font-size:14px;}
     .rekap-row .k{color:var(--ink-soft);}
     .rekap-row .v{font-weight:700; color:var(--ink);}
     .rekap-row .v.green{color:var(--green);}
@@ -353,7 +353,7 @@
     }
     .rekening-dot{width:12px; height:38px; border-radius:6px; flex:0 0 auto;}
     .rekening-info{flex:1; min-width:0;}
-    .rekening-info .nm{font-size:23px; font-weight:700;}
+    .rekening-info .nm{font-size:14.5px; font-weight:700;}
     .rekening-info .sd{font-size:25px; font-weight:800; margin-top:3px;}
     .rekening-more{color:var(--ink-faint); padding:6px;}
 
@@ -403,7 +403,7 @@
     }
     #sheet-close-btn:active{background:var(--line);}
     #sheet-content{padding:6px 20px 24px; overflow-y:auto; overflow-x:hidden;}
-    .sheet-title{font-size:29px; font-weight:800; margin:6px 32px 16px 0;}
+    .sheet-title{font-size:18px; font-weight:800; margin:6px 32px 14px 0;}
 
     .riwayat-row{display:flex; justify-content:space-between; align-items:center; font-size:13px; padding:8px 0; border-bottom:1px solid var(--line); gap:10px;}
     .riwayat-row:last-child{border-bottom:none;}
@@ -411,16 +411,16 @@
     .riwayat-del-btn{color:var(--ink-faint); flex:0 0 auto; padding:4px;}
     .riwayat-del-btn:active{color:var(--red);}
 
-    .form-group{margin-bottom:14px;}
-    .form-label{font-size:18px; font-weight:700; color:var(--ink-soft); margin-bottom:6px; display:block;}
+    .form-group{margin-bottom:12px;}
+    .form-label{font-size:12.5px; font-weight:700; color:var(--ink-soft); margin-bottom:5px; display:block;}
     .form-input, .form-select, .form-textarea{
-      width:100%; border:1.5px solid var(--line); border-radius:10px; padding:11px 12px;
-      font-size:23px; color:var(--ink); background:var(--input-bg); font-family:inherit;
+      width:100%; border:1.5px solid var(--line); border-radius:10px; padding:10px 12px;
+      font-size:15px; color:var(--ink); background:var(--input-bg); font-family:inherit;
     }
     .form-input:focus, .form-select:focus, .form-textarea:focus{outline:none; border-color:var(--blue); background:var(--card);}
     .toggle-pair{display:flex; gap:8px;}
     .toggle-pair button{
-      flex:1; padding:15px 0; border-radius:10px; border:1.5px solid var(--line); font-weight:700; font-size:17px;
+      flex:1; padding:11px 0; border-radius:10px; border:1.5px solid var(--line); font-weight:700; font-size:13.5px;
       color:var(--ink-faint); background:var(--input-bg);
     }
     .toggle-pair button.active{background:var(--blue-pale); border-color:var(--blue); color:var(--blue-dark);}
@@ -430,8 +430,8 @@
     .toggle-pair button.active.piutang{background:var(--green-pale); border-color:var(--green); color:var(--green);}
 
     .btn-primary{
-      width:100%; padding:17px 0; border-radius:12px; background:var(--blue); color:#fff;
-      font-weight:700; font-size:18.5px; margin-top:6px;
+      width:100%; padding:13px 0; border-radius:12px; background:var(--blue); color:#fff;
+      font-weight:700; font-size:15px; margin-top:6px;
     }
     .btn-primary:active{background:var(--blue-dark);}
     .btn-danger-text{width:100%; text-align:center; padding:12px 0; color:var(--red); font-weight:700; font-size:13.5px;}
@@ -454,7 +454,7 @@
     .settings-row.active-row{background:var(--blue-pale);}
     .settings-row.active-row .sr-label{color:var(--blue-dark);}
     .row-2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
-    .detail-row{display:flex; justify-content:space-between; gap:12px; padding:13px 0; border-bottom:1px solid var(--line); font-size:22px;}
+    .detail-row{display:flex; justify-content:space-between; gap:12px; padding:11px 0; border-bottom:1px solid var(--line); font-size:14px;}
     .detail-row:last-child{border-bottom:none;}
     .detail-row .k{color:var(--ink-faint); flex:0 0 auto;}
     .detail-row .v{font-weight:700; text-align:right; word-break:break-word; overflow-wrap:anywhere; min-width:0;}
@@ -1857,10 +1857,15 @@
     list = sortHutangList(list);
 
     var html = statusHtml + segHtml + sortHtml + urgencyHtml;
+    // Tombol tambah hutang / piutang — selalu tampil
+    html += '<div style="display:flex; gap:8px; margin-bottom:12px;">' +
+      '<button class="btn-primary" id="btn-add-hutang" style="margin:0; flex:1; padding:12px 0; font-size:13.5px;">+ Hutang</button>' +
+      '<button class="btn-secondary" id="btn-add-piutang" style="margin:0; flex:1; padding:12px 0; font-size:13.5px; background:var(--green-pale); color:var(--green);">+ Piutang</button>' +
+    '</div>';
     if(!list.length){
       html += hutangStatusFilter === 'Lunas'
         ? emptyState('Belum ada yang lunas', 'Hutang atau piutang yang sudah lunas akan muncul di sini.')
-        : emptyState('Belum ada catatan aktif', 'Catat hutang atau piutang dengan tombol + di kanan bawah.');
+        : emptyState('Belum ada catatan aktif', 'Ketuk tombol + Hutang atau + Piutang di atas.');
     } else {
       list.forEach(function(h){
         var isHutang = h.Jenis === 'Hutang';
@@ -1910,6 +1915,10 @@
       urgencyFilter = urgencyFilter === 'upcoming' ? 'all' : 'upcoming'; renderHutang();
     });
     document.getElementById('f-hutang-sort').addEventListener('change', function(){ hutangSortBy = this.value; renderHutang(); });
+    var btnAddHutang = document.getElementById('btn-add-hutang');
+    var btnAddPiutang = document.getElementById('btn-add-piutang');
+    if(btnAddHutang) btnAddHutang.addEventListener('click', function(){ openHutangForm('Hutang'); });
+    if(btnAddPiutang) btnAddPiutang.addEventListener('click', function(){ openHutangForm('Piutang'); });
     el.querySelectorAll('.item-card[data-kind="hp"]').forEach(function(card){
       card.addEventListener('click', function(){ openHutangDetail(card.dataset.id); });
     });
@@ -2950,8 +2959,9 @@
     return toYMD(d);
   }
 
-  function openHutangForm(){
-    hpJenis = 'Hutang'; hpMetode = 'Sekaligus';
+  function openHutangForm(preferJenis){
+    hpJenis = (preferJenis === 'Piutang') ? 'Piutang' : 'Hutang';
+    hpMetode = 'Sekaligus';
     var today = toYMD(currentDate);
     if(!STATE.rekening.length){
       openSheet(
@@ -2968,8 +2978,8 @@
     openSheet(
       '<div class="sheet-title">Tambah Hutang / Piutang</div>' +
       '<div class="toggle-pair form-group" id="hp-toggle">' +
-        '<button type="button" data-v="Hutang" class="hutang active">Hutang (Saya Terima Uang)</button>' +
-        '<button type="button" data-v="Piutang" class="piutang">Piutang (Saya Beri Uang)</button>' +
+        '<button type="button" data-v="Hutang" class="hutang' + (hpJenis==='Hutang'?' active':'') + '">Hutang (Saya Terima Uang)</button>' +
+        '<button type="button" data-v="Piutang" class="piutang' + (hpJenis==='Piutang'?' active':'') + '">Piutang (Saya Beri Uang)</button>' +
       '</div>' +
       '<div class="form-group"><label class="form-label">Nama</label><input class="form-input" id="f-nama" type="text" placeholder="Nama orang / pihak terkait"></div>' +
       '<div class="form-group"><label class="form-label">Bentuk</label>' +
