@@ -863,29 +863,51 @@
   }
   function loadData(){
     document.getElementById('lockscreen').style.display = 'none';
+    document.getElementById('loading').style.display = 'flex';
 
-    // 1) Tampilkan cache dulu (buka app ~langsung), lalu refresh dari server di belakang
     var cached = null;
     try { cached = JSON.parse(localStorage.getItem('kasCacheV1') || 'null'); } catch(e) {}
-    if (cached && cached.transaksi) {
-      document.getElementById('loading').style.display = 'none';
-      document.getElementById('app').style.display = 'flex';
-      onDataLoaded(cached, true); // true = dari cache, jangan tutup loading dua kali
-    } else {
-      document.getElementById('loading').style.display = 'flex';
+
+    // Cache: coba render diam-diam. Kalau gagal, tetap di loading (jangan tampilkan error).
+    var paintedFromCache = false;
+    if (cached && Array.isArray(cached.transaksi)) {
+      try {
+        applyState_(cached);
+        if (!(pinEnabled && sessionStorage.getItem('kasPinUnlocked') !== '1')) {
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('app').style.display = 'flex';
+          renderAll();
+          paintedFromCache = true;
+        }
+      } catch (e) {
+        console.warn('Cache render skip', e);
+        paintedFromCache = false;
+      }
     }
 
-    // 2) Ambil data terbaru dari server
+    // Server: sumber kebenaran — satu kali render bersih
     google.script.run.withSuccessHandler(function(data){
       try { localStorage.setItem('kasCacheV1', JSON.stringify(data)); } catch(e) {}
       onDataLoaded(data, false);
     }).withFailureHandler(function(err){
-      if (!cached) onLoadError(err);
-      else {
-        // Ada cache: biarkan user pakai data lama, kasih tahu gagal refresh
+      if (paintedFromCache) {
         try { toast('Gagal sync: ' + (err.message || err)); } catch(e) {}
+      } else {
+        onLoadError(err);
       }
     }).getInitialData();
+  }
+
+  function applyState_(data){
+    STATE = data || {};
+    if (!Array.isArray(STATE.transaksi)) STATE.transaksi = [];
+    if (!Array.isArray(STATE.rekening)) STATE.rekening = [];
+    if (!Array.isArray(STATE.hutangPiutang)) STATE.hutangPiutang = [];
+    if (!Array.isArray(STATE.anggaran)) STATE.anggaran = [];
+    if (!Array.isArray(STATE.recurring)) STATE.recurring = [];
+    if (!Array.isArray(STATE.tujuanNabung)) STATE.tujuanNabung = [];
+    if (!STATE.userName) STATE.userName = 'Pengguna';
+    pinEnabled = !!STATE.hasPin;
   }
   function showLockScreen(){
     document.getElementById('loading').style.display = 'none';
@@ -919,9 +941,7 @@
   // initApp() dipanggil di akhir script (setelah semua ICON_* terdefinisi)
 
   function onDataLoaded(data, fromCache){
-    STATE = data;
-    pinEnabled = !!(data && data.hasPin);
-    // Kalau ada PIN dan belum unlock di sesi ini → tampilkan lock
+    applyState_(data);
     if (pinEnabled && sessionStorage.getItem('kasPinUnlocked') !== '1' && !fromCache) {
       document.getElementById('loading').style.display = 'none';
       showLockScreen();
@@ -929,7 +949,18 @@
     }
     document.getElementById('loading').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
-    renderAll();
+    try {
+      renderAll();
+    } catch (err) {
+      console.error(err);
+      // Jangan biarkan layar error permanen — coba sekali lagi setelah tick
+      setTimeout(function(){
+        try { renderAll(); } catch(e2) {
+          var el = document.getElementById('view-transaksi');
+          if (el) el.innerHTML = '<div class="empty-state"><div class="t1">Gagal menampilkan</div><div class="t2">' + String(e2.message || e2) + '</div></div>';
+        }
+      }, 50);
+    }
     if (!fromCache) {
       try { localStorage.setItem('kasCacheV1', JSON.stringify(data)); } catch(e) {}
     }
@@ -939,8 +970,8 @@
       '<div style="text-align:center; padding:0 30px; color:var(--ink-soft); font-size:13.5px;">Gagal memuat data.<br>' + (err && err.message ? err.message : err) + '</div>';
   }
   function refreshState(data){
-    STATE = data;
-    renderAll();
+    applyState_(data);
+    try { renderAll(); } catch(e) { console.error(e); }
     try { localStorage.setItem('kasCacheV1', JSON.stringify(data)); } catch(e) {}
   }
 
@@ -956,21 +987,14 @@
   }
 
   function renderAll(){
-    try {
-      renderTopbar();
-      renderSummary();
-      renderHutangBadge();
-      if(currentTab === 'transaksi') renderTransaksi();
-      if(currentTab === 'hutang') renderHutang();
-      if(currentTab === 'rekening') renderRekening();
-      if(currentTab === 'rekap') renderRekap();
-    } catch (err) {
-      console.error('renderAll error', err);
-      try {
-        var el = document.getElementById('view-transaksi');
-        if (el) el.innerHTML = '<div class="empty-state"><div class="t1">Gagal menampilkan</div><div class="t2">' + String(err.message || err) + '</div></div>';
-      } catch (e2) {}
-    }
+    // Jangan catch di sini — biarkan pemanggil yang putuskan tampil error atau retry
+    renderTopbar();
+    renderSummary();
+    renderHutangBadge();
+    if(currentTab === 'transaksi') renderTransaksi();
+    if(currentTab === 'hutang') renderHutang();
+    if(currentTab === 'rekening') renderRekening();
+    if(currentTab === 'rekap') renderRekap();
   }
 
   function renderHutangBadge(){
