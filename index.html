@@ -685,9 +685,18 @@
   // directly from the OS/browser, independent of that wrapper's math — so we
   // use it to explicitly pin #app (and the modal sheet) to the real screen,
   // in pixels, instead of trusting vw/%/transform-based CSS alone.
-  // Default 0.82 biar tidak kegedean di HP (bisa diubah di Pengaturan → Ukuran tampilan)
+  // Di GitHub Pages: JANGAN pakai transform scale (bikin konten hilang/blank).
+  // Pakai zoom CSS + layout normal biar flex tetap jalan.
   var uiScale = Number(localStorage.getItem('kasUiScale'));
-  if (!uiScale || isNaN(uiScale) || uiScale < 0.5 || uiScale > 1.4) uiScale = 0.82;
+  if (!uiScale || isNaN(uiScale) || uiScale < 0.5 || uiScale > 1.4) uiScale = 1;
+  // Bersihkan cache scale lama yang merusak layout (0.82 dll)
+  try {
+    var oldScale = localStorage.getItem('kasUiScale');
+    if (oldScale && Number(oldScale) < 0.95) {
+      localStorage.setItem('kasUiScale', '1');
+      uiScale = 1;
+    }
+  } catch(e) {}
   var isDarkMode = localStorage.getItem('kasDarkMode') === '1';
   document.documentElement.classList.toggle('dark', isDarkMode);
   function setDarkMode(on){
@@ -698,18 +707,22 @@
 
   function applyUiScale(realW, realH){
     var inner = document.getElementById('appInner');
-    if(inner){
-      var virtualW = realW / uiScale;
-      var virtualH = realH / uiScale;
-      inner.style.width = virtualW + 'px';
-      inner.style.height = virtualH + 'px';
-      inner.style.transform = 'scale(' + uiScale + ')';
+    if(!inner) return;
+    // Layout penuh — tanpa transform scale
+    inner.style.width = '100%';
+    inner.style.height = '100%';
+    inner.style.transform = 'none';
+    // Zoom hanya mempengaruhi visual, tidak merusak flex box
+    if (uiScale !== 1) {
+      inner.style.zoom = String(uiScale);
+    } else {
+      inner.style.zoom = '';
     }
   }
   function applySheetScale(realW, realH){
     var sheetInner = document.getElementById('sheetInner');
     if(!sheetInner) return;
-    sheetInner.style.width = realW + 'px';
+    sheetInner.style.width = '100%';
     sheetInner.style.maxHeight = (realH * 0.9) + 'px';
     sheetInner.style.transform = 'none';
   }
@@ -724,35 +737,20 @@
     var app = document.getElementById('app');
     var sheet = document.getElementById('sheet');
     if(!app) return;
-    if(vv){
-      var w = vv.width;
-      var left = vv.offsetLeft + (vv.width - w) / 2;
-      app.style.left = left + 'px';
-      app.style.top = vv.offsetTop + 'px';
-      app.style.width = w + 'px';
-      app.style.height = vv.height + 'px';
-      app.style.transform = 'none';
-      applyUiScale(w, vv.height);
-      if(sheet){
-        sheet.style.left = left + 'px';
-        sheet.style.width = w + 'px';
-        sheet.style.transform = sheet.classList.contains('show') ? 'translateY(0)' : 'translateY(100%)';
-        applySheetScale(w, vv.height);
-      }
-    } else {
-      var w2 = window.innerWidth;
-      app.style.left = ((window.innerWidth - w2) / 2) + 'px';
-      app.style.top = '0px';
-      app.style.width = w2 + 'px';
-      app.style.height = window.innerHeight + 'px';
-      app.style.transform = 'none';
-      applyUiScale(w2, window.innerHeight);
-      if(sheet){
-        sheet.style.left = ((window.innerWidth - w2) / 2) + 'px';
-        sheet.style.width = w2 + 'px';
-        sheet.style.transform = sheet.classList.contains('show') ? 'translateY(0)' : 'translateY(100%)';
-        applySheetScale(w2, window.innerHeight);
-      }
+    // Fullscreen sederhana — cocok untuk GitHub Pages / browser HP
+    app.style.left = '0';
+    app.style.top = '0';
+    app.style.width = '100%';
+    app.style.height = '100%';
+    app.style.transform = 'none';
+    var h = (vv && vv.height) ? vv.height : window.innerHeight;
+    var w = (vv && vv.width) ? vv.width : window.innerWidth;
+    applyUiScale(w, h);
+    if(sheet){
+      sheet.style.left = '0';
+      sheet.style.width = '100%';
+      sheet.style.transform = sheet.classList.contains('show') ? 'translateY(0)' : 'translateY(100%)';
+      applySheetScale(w, h);
     }
   }
   fitViewport();
@@ -964,13 +962,21 @@
   }
 
   function renderAll(){
-    renderTopbar();
-    renderSummary();
-    renderHutangBadge();
-    if(currentTab === 'transaksi') renderTransaksi();
-    if(currentTab === 'hutang') renderHutang();
-    if(currentTab === 'rekening') renderRekening();
-    if(currentTab === 'rekap') renderRekap();
+    try {
+      renderTopbar();
+      renderSummary();
+      renderHutangBadge();
+      if(currentTab === 'transaksi') renderTransaksi();
+      if(currentTab === 'hutang') renderHutang();
+      if(currentTab === 'rekening') renderRekening();
+      if(currentTab === 'rekap') renderRekap();
+    } catch (err) {
+      console.error('renderAll error', err);
+      try {
+        var el = document.getElementById('view-transaksi');
+        if (el) el.innerHTML = '<div class="empty-state"><div class="t1">Gagal menampilkan</div><div class="t2">' + String(err.message || err) + '</div></div>';
+      } catch (e2) {}
+    }
   }
 
   function renderHutangBadge(){
@@ -1528,8 +1534,8 @@
   function totalSaldoSemua(){
     var total = 0;
     STATE.rekening.forEach(function(r){
-      if(r.Nama === 'Kredit (Non-Kas)') return; // virtual, tidak dihitung ke total kas
-      total += Number(r.Saldo);
+      if(!r.Nama || r.Nama === 'Kredit (Non-Kas)' || r.Nama === 'Reimburse') return;
+      total += Number(r.Saldo) || 0;
     });
     return total;
   }
