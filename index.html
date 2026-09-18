@@ -2687,10 +2687,14 @@
       '</div>' +
       '<div class="form-group" id="trx-sumber-group">' +
         '<label class="form-label">Sumber Dana</label>' +
-        '<div class="toggle-pair" id="trx-sumber-toggle">' +
-          '<button type="button" data-s="Rekening" class="active">Rekening</button>' +
-          '<button type="button" data-s="Hutang">Hutang/Kredit</button>' +
-          '<button type="button" data-s="Reimburse">Reimburse</button>' +
+        '<button type="button" class="form-select" id="btn-sumber-pick" style="text-align:left; width:100%; display:flex; justify-content:space-between; align-items:center;">' +
+          '<span id="btn-sumber-label">Rekening</span>' +
+          '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>' +
+        '</button>' +
+        '<div id="trx-sumber-options" style="display:none; margin-top:8px; background:var(--input-bg); border-radius:12px; border:1px solid var(--line); overflow:hidden;">' +
+          '<button type="button" data-s="Rekening" class="settings-row" style="width:100%; border:none; border-bottom:1px solid var(--line);"><span>Rekening</span></button>' +
+          '<button type="button" data-s="Hutang" class="settings-row" style="width:100%; border:none; border-bottom:1px solid var(--line);"><span>Hutang/Kredit</span></button>' +
+          '<button type="button" data-s="Reimburse" class="settings-row" style="width:100%; border:none;"><span>Reimburse</span></button>' +
         '</div>' +
       '</div>' +
       '<div id="trx-dynamic-fields"></div>' +
@@ -2704,16 +2708,28 @@
         document.getElementById('trx-sumber-group').style.display = trxJenis === 'Pengeluaran' ? '' : 'none';
         if(trxJenis !== 'Pengeluaran'){
           trxSumber = 'Rekening';
-          document.querySelectorAll('#trx-sumber-toggle button').forEach(function(x){ x.classList.toggle('active', x.dataset.s === 'Rekening'); });
+          var lbl = document.getElementById('btn-sumber-label');
+          if(lbl) lbl.textContent = 'Rekening';
+          var opt = document.getElementById('trx-sumber-options');
+          if(opt) opt.style.display = 'none';
         }
         renderTrxDynamicFields(today);
       });
     });
-    document.querySelectorAll('#trx-sumber-toggle button').forEach(function(b){
+    var btnSumber = document.getElementById('btn-sumber-pick');
+    if(btnSumber){
+      btnSumber.addEventListener('click', function(){
+        var opt = document.getElementById('trx-sumber-options');
+        if(!opt) return;
+        opt.style.display = opt.style.display === 'none' ? 'block' : 'none';
+      });
+    }
+    document.querySelectorAll('#trx-sumber-options button').forEach(function(b){
       b.addEventListener('click', function(){
         trxSumber = b.dataset.s;
-        document.querySelectorAll('#trx-sumber-toggle button').forEach(function(x){ x.classList.remove('active'); });
-        b.classList.add('active');
+        var labels = { Rekening: 'Rekening', Hutang: 'Hutang/Kredit', Reimburse: 'Reimburse' };
+        document.getElementById('btn-sumber-label').textContent = labels[trxSumber] || trxSumber;
+        document.getElementById('trx-sumber-options').style.display = 'none';
         renderTrxDynamicFields(today);
       });
     });
@@ -2800,9 +2816,13 @@
       if(trxJenis === 'Pengeluaran'){
         html +=
           '<div class="form-group"><label class="form-label">Pengeluaran untuk *</label>' +
-            '<div class="toggle-pair" id="trx-untuk-toggle" style="flex-wrap:wrap;">' +
+            '<button type="button" class="form-select" id="btn-untuk-pick" style="text-align:left; width:100%; display:flex; justify-content:space-between; align-items:center;">' +
+              '<span id="btn-untuk-label">Pribadi</span>' +
+              '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>' +
+            '</button>' +
+            '<div id="trx-untuk-options" style="display:none; margin-top:8px; background:var(--input-bg); border-radius:12px; border:1px solid var(--line); overflow:hidden;">' +
               PENGELUARAN_UNTUK.map(function(u,i){
-                return '<button type="button" data-u="' + u + '" class="' + (i===0?'active':'') + '" style="min-width:calc(50% - 4px);">' + u + '</button>';
+                return '<button type="button" data-u="' + u + '" class="settings-row" style="width:100%; border:none;' + (i < PENGELUARAN_UNTUK.length-1 ? ' border-bottom:1px solid var(--line);' : '') + '"><span>' + u + '</span></button>';
               }).join('') +
             '</div>' +
           '</div>';
@@ -2814,11 +2834,19 @@
       el.innerHTML = html;
       if(trxJenis === 'Pengeluaran'){
         window.__trxUntuk = 'Pribadi';
-        document.querySelectorAll('#trx-untuk-toggle button').forEach(function(b){
+        var btnUntuk = document.getElementById('btn-untuk-pick');
+        if(btnUntuk){
+          btnUntuk.addEventListener('click', function(){
+            var opt = document.getElementById('trx-untuk-options');
+            if(!opt) return;
+            opt.style.display = opt.style.display === 'none' ? 'block' : 'none';
+          });
+        }
+        document.querySelectorAll('#trx-untuk-options button').forEach(function(b){
           b.addEventListener('click', function(){
             window.__trxUntuk = b.dataset.u;
-            document.querySelectorAll('#trx-untuk-toggle button').forEach(function(x){ x.classList.remove('active'); });
-            b.classList.add('active');
+            document.getElementById('btn-untuk-label').textContent = b.dataset.u;
+            document.getElementById('trx-untuk-options').style.display = 'none';
           });
         });
       }
