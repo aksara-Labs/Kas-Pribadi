@@ -629,7 +629,53 @@
   // URL Web App Google Apps Script (sudah diisi)
   var WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwS5U4gH1kTpPtBbSC8_Oj7ZnS0pOWjvZN4P6fT6aICABp6QhXLu68_S1HXl-lSoOM/exec';
 
-  // Polyfill google.script.run — pakai GET (POST sering gagal 302/405 dari GitHub Pages)
+  // Polyfill google.script.run — GET + 1x retry (GAS sering cold-start / lambat)
+  var API_TIMEOUT_MS = 45000;
+
+  function friendlyApiError_(err) {
+    if (!err) return 'Koneksi gagal';
+    if (err.name === 'AbortError') return 'Server lambat, coba lagi';
+    var m = String(err.message || err);
+    if (/Failed to fetch|NetworkError|Load failed|network/i.test(m)) return 'Jaringan terputus, coba lagi';
+    if (/Timeout/i.test(m)) return 'Server lambat, coba lagi';
+    if (/Respons server tidak valid/i.test(m)) return 'Server belum siap, coba lagi';
+    return m;
+  }
+
+  function parseApiResponse_(text) {
+    var json;
+    try { json = JSON.parse(text); }
+    catch (e) { throw new Error('Respons server tidak valid'); }
+    if (!json || !json.success) throw new Error((json && json.error) || 'Gagal');
+    return json.data;
+  }
+
+  function fetchOnce_(url, options) {
+    var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    var timer = setTimeout(function () { if (ctrl) try { ctrl.abort(); } catch (e) {} }, API_TIMEOUT_MS);
+    var opts = Object.assign({ redirect: 'follow', cache: 'no-store' }, options || {});
+    if (ctrl) opts.signal = ctrl.signal;
+    return fetch(url, opts)
+      .then(function (res) { return res.text(); })
+      .then(function (text) {
+        clearTimeout(timer);
+        return parseApiResponse_(text);
+      })
+      .catch(function (err) {
+        clearTimeout(timer);
+        throw err;
+      });
+  }
+
+  function fetchWithRetry_(url, options, retriesLeft) {
+    return fetchOnce_(url, options).catch(function (err) {
+      if (retriesLeft <= 0) throw err;
+      // Tunggu sebentar lalu coba 1x lagi (cold start GAS sering sembuh di percobaan ke-2)
+      return new Promise(function (resolve) { setTimeout(resolve, 1500); })
+        .then(function () { return fetchWithRetry_(url, options, retriesLeft - 1); });
+    });
+  }
+
   function createRunner(successCb, failCb) {
     return new Proxy({}, {
       get: function(_, action) {
@@ -643,7 +689,6 @@
           var url = WEB_APP_URL + '?action=' + encodeURIComponent(action);
           if (payload !== undefined) {
             var dataStr = typeof payload === 'string' ? payload : JSON.stringify(payload);
-            // Restore backup besar → POST; lainnya GET biar andal
             if (action === 'restoreBackupJson' || dataStr.length > 1800) {
               callWithPost_(action, payload, successCb, failCb);
               return;
@@ -651,22 +696,12 @@
             url += '&data=' + encodeURIComponent(dataStr);
           }
 
-          var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-          var timer = setTimeout(function(){ if (ctrl) try { ctrl.abort(); } catch(e) {} }, 18000);
-
-          fetch(url, { method: 'GET', redirect: 'follow', cache: 'no-store', signal: ctrl ? ctrl.signal : undefined })
-            .then(function(res) { return res.text(); })
-            .then(function(text) {
-              clearTimeout(timer);
-              var json;
-              try { json = JSON.parse(text); }
-              catch(e) { throw new Error('Respons server tidak valid'); }
-              if (!json.success) throw new Error(json.error || 'Gagal');
-              if (typeof successCb === 'function') successCb(json.data);
+          fetchWithRetry_(url, { method: 'GET' }, 1)
+            .then(function (data) {
+              if (typeof successCb === 'function') successCb(data);
             })
-            .catch(function(err) {
-              clearTimeout(timer);
-              var msg = (err && err.name === 'AbortError') ? 'Timeout — coba refresh' : (err.message || String(err));
+            .catch(function (err) {
+              var msg = friendlyApiError_(err);
               if (typeof failCb === 'function') failCb(new Error(msg));
               else console.error(err);
             });
@@ -676,26 +711,18 @@
   }
 
   function callWithPost_(action, payload, successCb, failCb) {
-    var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    var timer = setTimeout(function(){ if (ctrl) try { ctrl.abort(); } catch(e) {} }, 25000);
-    fetch(WEB_APP_URL, {
+    var opts = {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: action, data: payload }),
-      redirect: 'follow',
-      signal: ctrl ? ctrl.signal : undefined
-    })
-    .then(function(res) { return res.text(); })
-    .then(function(text) {
-      clearTimeout(timer);
-      var json = JSON.parse(text);
-      if (!json.success) throw new Error(json.error || 'Gagal');
-      if (typeof successCb === 'function') successCb(json.data);
-    })
-    .catch(function(err) {
-      clearTimeout(timer);
-      if (typeof failCb === 'function') failCb(err);
-    });
+      body: JSON.stringify({ action: action, data: payload })
+    };
+    fetchWithRetry_(WEB_APP_URL, opts, 1)
+      .then(function (data) {
+        if (typeof successCb === 'function') successCb(data);
+      })
+      .catch(function (err) {
+        if (typeof failCb === 'function') failCb(new Error(friendlyApiError_(err)));
+      });
   }
 
   var google = {
@@ -922,7 +949,7 @@
       onDataLoaded(data, false);
     }).withFailureHandler(function(err){
       if (paintedFromCache) {
-        try { toast('Gagal sync: ' + (err.message || err)); } catch(e) {}
+        try { toast(err.message || 'Belum bisa sync'); } catch(e) {}
       } else {
         // Fallback demo: biar UI tetap tampil di preview Grok / offline (tanpa deploy)
         console.warn('API gagal, masuk mode demo', err);
@@ -1043,7 +1070,10 @@
     toast(msg || 'Tersimpan');
     startRun(
       function(data){ if(data) refreshState(data); },
-      function(err){ toast('Gagal sinkron: ' + (err && err.message ? err.message : err)); }
+      function(err){
+        // Jangan panik: data lokal sudah terasa tersimpan; server sering delay cold-start
+        toast(err && err.message ? err.message : 'Belum tersimpan ke server');
+      }
     );
   }
 
@@ -2623,13 +2653,21 @@
     }).join('');
   }
 
+  // Kategori mulai dari nol (tidak ambil dari riwayat lama)
+  var KATEGORI_PENGELUARAN = ['Makan & Minum'];
+  var KATEGORI_PEMASUKAN = ['Gaji', 'Bonus', 'Lainnya'];
+  var PENGELUARAN_UNTUK = ['Pribadi', 'Istri', 'Anak', 'Bersama'];
+
   function kategoriDatalist(){
-    var seen = {}, list = [];
-    STATE.transaksi.forEach(function(t){
-      if(t.Kategori && !seen[t.Kategori]){ seen[t.Kategori] = true; list.push(t.Kategori); }
-    });
-    list.sort();
+    var list = trxJenis === 'Pemasukan' ? KATEGORI_PEMASUKAN : KATEGORI_PENGELUARAN;
     return '<datalist id="kategori-list">' + list.map(function(c){ return '<option value="' + esc(c) + '">'; }).join('') + '</datalist>';
+  }
+  function kategoriSelectHtml(selected){
+    var list = trxJenis === 'Pemasukan' ? KATEGORI_PEMASUKAN : KATEGORI_PENGELUARAN;
+    var opts = '<option value="">— Pilih kategori —</option>' + list.map(function(c){
+      return '<option value="' + esc(c) + '"' + (c===selected?' selected':'') + '>' + esc(c) + '</option>';
+    }).join('');
+    return '<select class="form-select" id="f-kategori">' + opts + '</select>';
   }
 
   // ---- Tambah Transaksi ----
@@ -2753,14 +2791,57 @@
       document.getElementById('f-reimburse-persen').addEventListener('input', updateReimbursePreview);
       updateReimbursePreview();
     } else {
-      el.innerHTML =
-        '<div class="form-group"><label class="form-label">Nominal</label><input class="form-input num num-input" id="f-nominal" type="text" inputmode="numeric" placeholder="0"></div>' +
+      var html =
+        '<div class="form-group"><label class="form-label">Nominal *</label><input class="form-input num num-input" id="f-nominal" type="text" inputmode="numeric" placeholder="0"></div>' +
         '<div class="row-2 form-group">' +
-          '<div><label class="form-label">Tanggal</label><input class="form-input" id="f-tanggal" type="date" value="' + today + '"></div>' +
-          '<div><label class="form-label">Akun</label><select class="form-select" id="f-akun">' + accountOptions() + '</select></div>' +
-        '</div>' +
-        '<div class="form-group"><label class="form-label">Kategori</label><input class="form-input" id="f-kategori" type="text" list="kategori-list" placeholder="Contoh: Makan, Gaji, Transport"></div>' + kategoriDatalist() +
-        '<div class="form-group"><label class="form-label">Catatan (opsional)</label><input class="form-input" id="f-catatan" type="text" placeholder="Catatan tambahan"></div>';
+          '<div><label class="form-label">Tanggal *</label><input class="form-input" id="f-tanggal" type="date" value="' + today + '"></div>' +
+          '<div><label class="form-label">Akun *</label><select class="form-select" id="f-akun">' + accountOptions() + '</select></div>' +
+        '</div>';
+      if(trxJenis === 'Pengeluaran'){
+        html +=
+          '<div class="form-group"><label class="form-label">Pengeluaran untuk *</label>' +
+            '<div class="toggle-pair" id="trx-untuk-toggle" style="flex-wrap:wrap;">' +
+              PENGELUARAN_UNTUK.map(function(u,i){
+                return '<button type="button" data-u="' + u + '" class="' + (i===0?'active':'') + '" style="min-width:calc(50% - 4px);">' + u + '</button>';
+              }).join('') +
+            '</div>' +
+          '</div>';
+      }
+      html +=
+        '<div class="form-group"><label class="form-label">Kategori *</label>' + kategoriSelectHtml('') + '</div>' +
+        '<div id="trx-kategori-detail"></div>' +
+        '<div class="form-group"><label class="form-label">Catatan tambahan</label><input class="form-input" id="f-catatan" type="text" placeholder="Opsional"></div>';
+      el.innerHTML = html;
+      if(trxJenis === 'Pengeluaran'){
+        window.__trxUntuk = 'Pribadi';
+        document.querySelectorAll('#trx-untuk-toggle button').forEach(function(b){
+          b.addEventListener('click', function(){
+            window.__trxUntuk = b.dataset.u;
+            document.querySelectorAll('#trx-untuk-toggle button').forEach(function(x){ x.classList.remove('active'); });
+            b.classList.add('active');
+          });
+        });
+      }
+      var katSel = document.getElementById('f-kategori');
+      if(katSel){
+        katSel.addEventListener('change', function(){ renderKategoriDetailFields_(); });
+        renderKategoriDetailFields_();
+      }
+    }
+  }
+
+  function renderKategoriDetailFields_(){
+    var box = document.getElementById('trx-kategori-detail');
+    if(!box) return;
+    var kat = (document.getElementById('f-kategori') || {}).value || '';
+    if(trxJenis === 'Pengeluaran' && kat === 'Makan & Minum'){
+      box.innerHTML =
+        '<div class="form-group"><label class="form-label">Makan / minum apa *</label>' +
+          '<input class="form-input" id="f-item-detail" type="text" placeholder="Contoh: Nasi goreng, Kopi susu"></div>' +
+        '<div class="form-group"><label class="form-label">Beli di mana *</label>' +
+          '<input class="form-input" id="f-tempat" type="text" placeholder="Contoh: Warung Bu Ani, Indomaret"></div>';
+    } else {
+      box.innerHTML = '';
     }
   }
 
@@ -2886,15 +2967,65 @@
       return;
     }
 
+    var akun = document.getElementById('f-akun').value;
+    var kategori = (document.getElementById('f-kategori').value || '').trim();
+    if(!akun){ toast('Pilih akun'); return; }
+    if(!kategori){ toast('Pilih kategori'); return; }
+
+    var catatanExtra = (document.getElementById('f-catatan') && document.getElementById('f-catatan').value) || '';
+    var catatanParts = [];
+
+    if(trxJenis === 'Pengeluaran'){
+      var untuk = window.__trxUntuk || 'Pribadi';
+      if(!untuk){ toast('Pilih pengeluaran untuk siapa'); return; }
+      catatanParts.push('Untuk: ' + untuk);
+
+      if(kategori === 'Makan & Minum'){
+        var item = (document.getElementById('f-item-detail') && document.getElementById('f-item-detail').value || '').trim();
+        var tempat = (document.getElementById('f-tempat') && document.getElementById('f-tempat').value || '').trim();
+        if(!item){ toast('Isi makan/minum apa'); return; }
+        if(!tempat){ toast('Isi beli di mana'); return; }
+        catatanParts.push('Menu: ' + item);
+        catatanParts.push('Tempat: ' + tempat);
+      }
+    }
+    if(catatanExtra.trim()) catatanParts.push(catatanExtra.trim());
+
     var payload = {
       jenis: trxJenis, nominal: nominal, tanggal: tanggal,
-      akun: document.getElementById('f-akun').value,
-      kategori: document.getElementById('f-kategori').value,
-      catatan: document.getElementById('f-catatan').value
+      akun: akun,
+      kategori: kategori,
+      catatan: catatanParts.join(' • ')
     };
-    saveOptimistic('Transaksi disimpan', function(ok, fail){
-      google.script.run.withSuccessHandler(ok).withFailureHandler(fail).addTransaksi(payload);
+
+    // Langsung tampil di list (optimistic), baru sync ke server
+    var tempId = 'local-' + Date.now();
+    var localRow = {
+      ID: tempId,
+      Tanggal: tanggal,
+      Jenis: trxJenis,
+      Kategori: kategori,
+      Akun: akun,
+      Nominal: nominal,
+      Catatan: payload.catatan
+    };
+    STATE.transaksi = [localRow].concat(STATE.transaksi || []);
+    // Update saldo rekening kasar di UI
+    STATE.rekening.forEach(function(r){
+      if(r.Nama === akun){
+        var s = Number(r.Saldo) || 0;
+        r.Saldo = trxJenis === 'Pemasukan' ? s + nominal : s - nominal;
+      }
     });
+    closeSheet();
+    toast('Transaksi disimpan');
+    renderAll();
+
+    google.script.run.withSuccessHandler(function(data){
+      if(data) refreshState(data);
+    }).withFailureHandler(function(err){
+      toast(err && err.message ? err.message : 'Belum tersimpan ke server');
+    }).addTransaksi(payload);
   }
 
   function openTrxDetail(id){
