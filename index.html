@@ -377,6 +377,15 @@
       border:1px solid rgba(226,232,240,.7);
     }
     .rekening-dot{width:10px; height:36px; border-radius:8px; flex:0 0 auto;}
+    .bank-logo{
+      width:42px; height:42px; border-radius:12px; flex:0 0 auto;
+      display:flex; align-items:center; justify-content:center;
+      font-size:11px; font-weight:800; color:#fff; letter-spacing:-0.3px;
+      box-shadow:0 2px 6px rgba(0,0,0,.12); overflow:hidden; text-align:center; line-height:1.1;
+      padding:2px; background:#fff;
+    }
+    .bank-logo img{width:100%; height:100%; object-fit:contain; display:block;}
+    .bank-logo.sm{width:28px; height:28px; border-radius:8px; font-size:9px;}
     .rekening-info{flex:1; min-width:0;}
     .rekening-info .nm{font-size:13.5px; font-weight:700;}
     .rekening-info .sd{font-size:16px; font-weight:800; margin-top:2px; color:var(--blue-dark);}
@@ -1996,6 +2005,52 @@
     return arr;
   }
 
+  // Logo / brand mark rekening (bank & e-wallet Indonesia)
+  function bankMeta_(nama){
+    var n = String(nama || '').toLowerCase().replace(/\s+/g, '');
+    var map = [
+      { keys: ['bca'], label: 'BCA', bg: '#FFFFFF', img: 'bank-bca.png' },
+      { keys: ['bni'], label: 'BNI', bg: '#F15A22' },
+      { keys: ['bri', 'brimo'], label: 'BRI', bg: '#003399' },
+      { keys: ['mandiri'], label: 'MDR', bg: '#003D79' },
+      { keys: ['btn'], label: 'BTN', bg: '#FFCC00', color: '#1a1a1a' },
+      { keys: ['cimb', 'cimbniaga'], label: 'CIMB', bg: '#EE1C25' },
+      { keys: ['permata'], label: 'PRM', bg: '#F47321' },
+      { keys: ['danamon'], label: 'DNM', bg: '#FF6600' },
+      { keys: ['seabank'], label: 'SEA', bg: '#FFFFFF', img: 'bank-seabank.png' },
+      { keys: ['jago'], label: 'JAGO', bg: '#E85D04' },
+      { keys: ['blu', 'blubybgc'], label: 'BLU', bg: '#00A3E0' },
+      { keys: ['gopay', 'gojek'], label: 'GOPAY', bg: '#FFFFFF', img: 'bank-gopay.png' },
+      { keys: ['ovo'], label: 'OVO', bg: '#4C3494' },
+      { keys: ['dana'], label: 'DANA', bg: '#118EEA' },
+      { keys: ['shopeepay', 'shopee'], label: 'SPAY', bg: '#EE4D2D' },
+      { keys: ['linkaja'], label: 'LINKA', bg: '#E30613' },
+      { keys: ['sakuku'], label: 'SK', bg: '#00A651' },
+      { keys: ['tunai', 'cash', 'uangtunai', 'dompet'], label: 'CASH', bg: '#10B981' },
+      { keys: ['reimburse'], label: 'RMB', bg: '#8B6DD9' },
+      { keys: ['kredit', 'non-kas', 'nonkas'], label: 'KR', bg: '#6E675F' }
+    ];
+    for(var i=0;i<map.length;i++){
+      for(var k=0;k<map[i].keys.length;k++){
+        if(n.indexOf(map[i].keys[k].replace(/\s+/g,'')) !== -1) return map[i];
+      }
+    }
+    // fallback: 2 huruf dari nama
+    var letters = String(nama || '?').replace(/[^a-zA-Z0-9]/g,'').slice(0,3).toUpperCase() || '?';
+    return { label: letters, bg: '#1A365D', color: '#fff' };
+  }
+  function bankLogoHtml(nama, sizeClass){
+    var m = bankMeta_(nama);
+    var cls = 'bank-logo' + (sizeClass ? ' ' + sizeClass : '');
+    var style = 'background:' + (m.bg || '#1A365D') + ';' + (m.color ? 'color:' + m.color + ';' : '');
+    if(m.img){
+      return '<div class="' + cls + '" style="' + style + 'padding:4px;" title="' + esc(nama) + '">' +
+        '<img src="' + esc(m.img) + '" alt="' + esc(m.label) + '">' +
+      '</div>';
+    }
+    return '<div class="' + cls + '" style="' + style + '" title="' + esc(nama) + '">' + esc(m.label) + '</div>';
+  }
+
   function renderRekening(){
     var el = document.getElementById('view-rekening');
     var total = 0;
@@ -2032,7 +2087,7 @@
         var tag = isReimburse ? '<span class="metode-tag" style="margin-left:6px;">Klaim</span>'
           : (isKreditNonKas ? '<span class="metode-tag" style="margin-left:6px;">Virtual</span>' : '');
         html += '<div class="rekening-card" data-id="' + r.ID + '" data-kind="rek">' +
-          '<div class="rekening-dot" style="background:' + r.Warna + '"></div>' +
+          bankLogoHtml(r.Nama) +
           '<div class="rekening-info"><div class="nm">' + esc(r.Nama) + tag + '</div><div class="sd num">' + fmtRupiah(r.Saldo) + '</div></div>' +
           '<div class="rekening-more">' +
             '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="5" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="12" cy="19" r="1.2"/></svg>' +
@@ -2653,17 +2708,40 @@
     }).join('');
   }
 
-  // Kategori mulai dari nol (tidak ambil dari riwayat lama)
-  var KATEGORI_PENGELUARAN = ['Makan & Minum'];
+  // Kategori dasar + kategori custom yang pernah disimpan user
+  var KATEGORI_PENGELUARAN_BASE = ['Makan & Minum', 'Lainnya'];
   var KATEGORI_PEMASUKAN = ['Gaji', 'Bonus', 'Lainnya'];
   var PENGELUARAN_UNTUK = ['Pribadi', 'Istri', 'Anak', 'Bersama'];
 
+  function loadCustomKategori_(){
+    try {
+      var arr = JSON.parse(localStorage.getItem('kasCustomKategori') || '[]');
+      return Array.isArray(arr) ? arr.filter(Boolean) : [];
+    } catch (e) { return []; }
+  }
+  function saveCustomKategori_(nama){
+    if(!nama || nama === 'Lainnya' || nama === 'Makan & Minum') return;
+    var list = loadCustomKategori_();
+    if(list.indexOf(nama) === -1){
+      list.push(nama);
+      try { localStorage.setItem('kasCustomKategori', JSON.stringify(list)); } catch(e) {}
+    }
+  }
+  function listKategoriPengeluaran_(){
+    // Urutan: dasar (tanpa Lainnya) → custom → Lainnya di paling bawah
+    var base = ['Makan & Minum'];
+    var custom = loadCustomKategori_().filter(function(c){
+      return base.indexOf(c) === -1 && c !== 'Lainnya';
+    });
+    return base.concat(custom).concat(['Lainnya']);
+  }
+
   function kategoriDatalist(){
-    var list = trxJenis === 'Pemasukan' ? KATEGORI_PEMASUKAN : KATEGORI_PENGELUARAN;
+    var list = trxJenis === 'Pemasukan' ? KATEGORI_PEMASUKAN : listKategoriPengeluaran_();
     return '<datalist id="kategori-list">' + list.map(function(c){ return '<option value="' + esc(c) + '">'; }).join('') + '</datalist>';
   }
   function kategoriSelectHtml(selected){
-    var list = trxJenis === 'Pemasukan' ? KATEGORI_PEMASUKAN : KATEGORI_PENGELUARAN;
+    var list = trxJenis === 'Pemasukan' ? KATEGORI_PEMASUKAN : listKategoriPengeluaran_();
     var opts = '<option value="">— Pilih kategori —</option>' + list.map(function(c){
       return '<option value="' + esc(c) + '"' + (c===selected?' selected':'') + '>' + esc(c) + '</option>';
     }).join('');
@@ -2868,6 +2946,10 @@
           '<input class="form-input" id="f-item-detail" type="text" placeholder="Contoh: Nasi goreng, Kopi susu"></div>' +
         '<div class="form-group"><label class="form-label">Beli di mana *</label>' +
           '<input class="form-input" id="f-tempat" type="text" placeholder="Contoh: Warung Bu Ani, Indomaret"></div>';
+    } else if(kat === 'Lainnya'){
+      box.innerHTML =
+        '<div class="form-group"><label class="form-label">Nama kategori baru *</label>' +
+          '<input class="form-input" id="f-kategori-custom" type="text" placeholder="Contoh: Transport, Belanja, Tagihan" autofocus></div>';
     } else {
       box.innerHTML = '';
     }
@@ -2999,6 +3081,15 @@
     var kategori = (document.getElementById('f-kategori').value || '').trim();
     if(!akun){ toast('Pilih akun'); return; }
     if(!kategori){ toast('Pilih kategori'); return; }
+
+    // Lainnya → input manual jadi kategori baru
+    if(kategori === 'Lainnya'){
+      var customKat = (document.getElementById('f-kategori-custom') && document.getElementById('f-kategori-custom').value || '').trim();
+      if(!customKat){ toast('Isi nama kategori baru'); return; }
+      if(customKat === 'Lainnya'){ toast('Pakai nama kategori yang lebih spesifik'); return; }
+      kategori = customKat;
+      saveCustomKategori_(kategori);
+    }
 
     var catatanExtra = (document.getElementById('f-catatan') && document.getElementById('f-catatan').value) || '';
     var catatanParts = [];
