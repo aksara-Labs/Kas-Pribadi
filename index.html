@@ -549,6 +549,20 @@
     .riwayat-del-btn{color:var(--ink-faint); flex:0 0 auto; padding:4px;}
     .riwayat-del-btn:active{color:var(--red);}
 
+
+    .liburan-banner{
+      margin:8px 14px 0; padding:12px 14px; border-radius:16px;
+      background:linear-gradient(145deg,#243B6B,var(--blue-dark)); color:#fff;
+      box-shadow:var(--shadow-sm);
+    }
+    .liburan-banner .lb-k{font-size:10px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; opacity:.8;}
+    .liburan-banner .lb-n{font-size:15px; font-weight:800; margin:2px 0 8px;}
+    .liburan-banner .lb-row{display:flex; justify-content:space-between; font-size:12px; font-weight:700;}
+    .liburan-track{height:6px; background:rgba(255,255,255,.2); border-radius:6px; overflow:hidden; margin-top:8px;}
+    .liburan-fill{height:100%; background:#34D399; border-radius:6px;}
+    .kantong-row{display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--line); font-size:13px;}
+    .kantong-row:last-child{border-bottom:none;}
+
     .form-section{
       border:1px solid var(--line); border-radius:16px; margin-bottom:14px; overflow:hidden;
       background:var(--input-bg);
@@ -1164,7 +1178,7 @@
   });
 
   // ================= STATE =================
-  var STATE = { transaksi: [], rekening: [], hutangPiutang: [], anggaran: [], recurring: [], tujuanNabung: [], dailyTriggerActive: false, userName: 'Pengguna' };
+  var STATE = { transaksi: [], rekening: [], hutangPiutang: [], anggaran: [], budgetLiburan: [], recurring: [], tujuanNabung: [], dailyTriggerActive: false, userName: 'Pengguna' };
   var currentTab = 'transaksi';
   var currentDate = new Date();
   var hutangFilter = 'Semua';
@@ -1287,10 +1301,12 @@
       ],
       rekening: [
         { ID: 'r1', Nama: 'Cash', SaldoAwal: 1000000, Warna: '#0D8A6A', Saldo: 3455000 },
-        { ID: 'r2', Nama: 'BCA', SaldoAwal: 500000, Warna: '#1B3A5F', Saldo: 500000 }
+        { ID: 'r2', Nama: 'BCA', SaldoAwal: 500000, Warna: '#1B3A5F', Saldo: 500000 },
+        { ID: 'r3', Nama: 'SeaBank', SaldoAwal: 0, Warna: '#F97316', Saldo: 0 }
       ],
       hutangPiutang: [],
       anggaran: [],
+      budgetLiburan: [],
       recurring: [],
       tujuanNabung: [],
       dailyTriggerActive: false,
@@ -1305,10 +1321,29 @@
     if (!Array.isArray(STATE.rekening)) STATE.rekening = [];
     if (!Array.isArray(STATE.hutangPiutang)) STATE.hutangPiutang = [];
     if (!Array.isArray(STATE.anggaran)) STATE.anggaran = [];
+    if (!Array.isArray(STATE.budgetLiburan)) STATE.budgetLiburan = [];
     if (!Array.isArray(STATE.recurring)) STATE.recurring = [];
     if (!Array.isArray(STATE.tujuanNabung)) STATE.tujuanNabung = [];
     if (!STATE.userName) STATE.userName = 'Pengguna';
     pinEnabled = !!STATE.hasPin;
+    // Normalisasi kantong budget liburan (server kirim Kantong / KantongJson)
+    STATE.budgetLiburan.forEach(function(b){
+      if (!b.Kantong || !b.Kantong.length) {
+        try {
+          var k = typeof b.KantongJson === 'string' ? JSON.parse(b.KantongJson || '[]') : (b.KantongJson || []);
+          b.Kantong = Array.isArray(k) ? k : [];
+        } catch (e) { b.Kantong = []; }
+      }
+      b.Plafon = Number(b.Plafon) || 0;
+    });
+    if (!STATE.budgetLiburan.length) {
+      try {
+        var loc = JSON.parse(localStorage.getItem('kasBudgetLiburan') || '[]');
+        if (Array.isArray(loc) && loc.length) STATE.budgetLiburan = loc;
+      } catch (e) {}
+    } else {
+      try { localStorage.setItem('kasBudgetLiburan', JSON.stringify(STATE.budgetLiburan)); } catch (e) {}
+    }
   }
   function showLockScreen(){
     document.getElementById('loading').style.display = 'none';
@@ -1638,6 +1673,7 @@
         settingsRow('btn-open-backup', 'Backup &amp; restore', '') +
         settingsRow('btn-export-csv', 'Export CSV (Excel)', '') +
         settingsRow('btn-open-anggaran', 'Anggaran', '') +
+        settingsRow('btn-open-liburan', 'Budget liburan', '') +
         settingsRow('btn-open-recurring', 'Transaksi berulang', '') +
         settingsRow('btn-open-notif-settings', 'Notifikasi HP', (typeof Notification!=='undefined' && Notification.permission==='granted' && (localStorage.getItem('kasNotifOn')==='1')) ? 'Aktif' : 'Nonaktif') +
         settingsRow('btn-open-reminder', 'Reminder otomatis', STATE.dailyTriggerActive ? 'Aktif' : 'Nonaktif') +
@@ -1658,6 +1694,7 @@
     document.getElementById('btn-open-backup').addEventListener('click', openBackupSheet);
     document.getElementById('btn-export-csv').addEventListener('click', exportTransaksiCsv_);
     document.getElementById('btn-open-anggaran').addEventListener('click', openAnggaranList);
+    document.getElementById('btn-open-liburan').addEventListener('click', openLiburanList);
     document.getElementById('btn-open-recurring').addEventListener('click', openRecurringList);
     document.getElementById('btn-open-notif-settings').addEventListener('click', openNotifSettingsSheet_);
     document.getElementById('btn-open-reminder').addEventListener('click', openReminderSheet);
@@ -2625,7 +2662,8 @@
   function renderTransaksi(){
     var el = document.getElementById('view-transaksi');
     var all = applyTrxFilter_(STATE.transaksi.slice());
-    var html = '<div class="section-header"><span class="t">Transaksi Terbaru</span>' +
+    var html = liburanHomeBannerHtml_();
+    html += '<div class="section-header"><span class="t">Transaksi Terbaru</span>' +
       '<button class="more" id="btn-lihat-semua">Cari <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg></button></div>';
     html += trxFilterBarHtml_();
 
@@ -2634,6 +2672,7 @@
         STATE.transaksi.length ? 'Coba ubah atau reset filter di atas.' : 'Catat pemasukan atau pengeluaran lewat tombol hijau/merah di atas.');
       el.innerHTML = html;
       wireTrxFilterBar_();
+      wireLiburanBanner_();
       var btnEmpty = document.getElementById('btn-lihat-semua');
       if(btnEmpty) btnEmpty.addEventListener('click', openSearchSheet);
       return;
@@ -2658,6 +2697,7 @@
 
     el.innerHTML = html;
     wireTrxFilterBar_();
+    wireLiburanBanner_();
     el.querySelectorAll('.item-card').forEach(function(card){
       card.addEventListener('click', function(){ openTrxDetail(card.dataset.id); });
     });
@@ -3616,6 +3656,424 @@
     else openRekeningForm();
   });
 
+
+  // ================= BUDGET LIBURAN =================
+  function persistBudgetLocal_(){
+    try { localStorage.setItem('kasBudgetLiburan', JSON.stringify(STATE.budgetLiburan || [])); } catch(e) {}
+    try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e) {}
+  }
+  function genLocalId_(prefix){
+    return (prefix || 'id') + '-' + Date.now() + '-' + Math.floor(Math.random()*9999);
+  }
+  function parseBudgetIdFromCatatan_(catatan){
+    var m = String(catatan || '').match(/LiburanID:([^\s•]+)/);
+    return m ? m[1] : '';
+  }
+  function activeBudgetsOn_(ymd){
+    return (STATE.budgetLiburan || []).filter(function(b){
+      return b.Status !== 'Selesai' && b.Dari && b.Sampai && ymd >= b.Dari && ymd <= b.Sampai;
+    });
+  }
+  function spentMapForBudget_(b){
+    var map = {};
+    (STATE.transaksi || []).forEach(function(t){
+      if(t.Jenis !== 'Pengeluaran') return;
+      if(isTransferLeg(t)) return;
+      if(parseBudgetIdFromCatatan_(t.Catatan) !== b.ID) return;
+      var akun = t.Akun || '';
+      map[akun] = (map[akun] || 0) + (Number(t.Nominal) || 0);
+    });
+    return map;
+  }
+  function budgetStats_(b){
+    var spentMap = spentMapForBudget_(b);
+    var kantong = (b.Kantong || []).map(function(k){
+      var terisi = Number(k.terisi) || 0;
+      var terpakai = spentMap[k.akun] || 0;
+      return { akun: k.akun, terisi: terisi, terpakai: terpakai, sisa: terisi - terpakai };
+    });
+    var terpakai = 0, terisi = 0;
+    kantong.forEach(function(k){ terpakai += k.terpakai; terisi += k.terisi; });
+    var plafon = Number(b.Plafon) || terisi;
+    return { kantong: kantong, terpakai: terpakai, terisi: terisi, plafon: plafon, sisa: plafon - terpakai };
+  }
+  function hutangOfBudget_(b){
+    if(!b.HutangId) return null;
+    for(var i=0;i<(STATE.hutangPiutang||[]).length;i++){
+      if(STATE.hutangPiutang[i].ID === b.HutangId) return STATE.hutangPiutang[i];
+    }
+    return null;
+  }
+  function isFullKasData_(data){
+    return data && Array.isArray(data.transaksi) && Array.isArray(data.rekening);
+  }
+  function applyCreateBudgetLocal_(payload){
+    var id = genLocalId_('bl');
+    var hutangId = '';
+    var pokok = Number(payload.pokok) || 0;
+    var cairKe = payload.cairKe;
+    var dari = payload.dari;
+    if(payload.pakaiHutang){
+      hutangId = genLocalId_('hp');
+      var bungaNominal = Number(payload.bungaNominal) || Number(payload.biayaLayanan) || 0;
+      var totalHutang = pokok + bungaNominal;
+      STATE.hutangPiutang.unshift({
+        ID: hutangId, Jenis: 'Hutang', Nama: payload.hutangNama || payload.nama,
+        Metode: payload.metode || 'Sekaligus', Bentuk: 'Tunai',
+        Pokok: pokok, BungaPersen: Number(payload.bungaPersen)||0, BungaNominal: bungaNominal,
+        Tenor: Number(payload.tenor)||1, NominalCicilan: totalHutang,
+        TotalHutang: totalHutang, SisaHutang: totalHutang, CicilanTerbayar: 0,
+        Tanggal: dari, JatuhTempo: payload.jatuhTempo || '', Status: 'Belum Lunas',
+        Akun: cairKe, Catatan: 'Pinjol untuk liburan: ' + payload.nama
+      });
+      STATE.transaksi.unshift({
+        ID: genLocalId_('trx'), Tanggal: dari, Jenis: 'Pemasukan',
+        Kategori: 'Terima Hutang', Akun: cairKe, Nominal: pokok,
+        Catatan: 'Hutang dari: ' + (payload.hutangNama || payload.nama) + ' • Liburan: ' + payload.nama
+      });
+      var rek = STATE.rekening.filter(function(r){ return r.Nama === cairKe; })[0];
+      if(rek) rek.Saldo = (Number(rek.Saldo)||0) + pokok;
+    }
+    (payload.splits || []).forEach(function(s){
+      var akun = s.akun, nom = Number(s.nominal)||0;
+      if(!akun || nom<=0 || akun === cairKe) return;
+      STATE.transaksi.unshift({
+        ID: genLocalId_('trx'), Tanggal: dari, Jenis: 'Pengeluaran',
+        Kategori: 'Transfer Keluar', Akun: cairKe, Nominal: nom,
+        Catatan: 'Transfer ke ' + akun + ' • Kantong liburan ' + payload.nama
+      });
+      STATE.transaksi.unshift({
+        ID: genLocalId_('trx'), Tanggal: dari, Jenis: 'Pemasukan',
+        Kategori: 'Transfer Masuk', Akun: akun, Nominal: nom,
+        Catatan: 'Transfer dari ' + cairKe + ' • Kantong liburan ' + payload.nama
+      });
+      STATE.rekening.forEach(function(r){
+        if(r.Nama === cairKe) r.Saldo = (Number(r.Saldo)||0) - nom;
+        if(r.Nama === akun) r.Saldo = (Number(r.Saldo)||0) + nom;
+      });
+    });
+    var kantong = (payload.splits||[]).filter(function(s){ return (Number(s.nominal)||0)>0 && s.akun; })
+      .map(function(s){ return { akun: s.akun, terisi: Number(s.nominal)||0 }; });
+    STATE.budgetLiburan.unshift({
+      ID: id, Nama: payload.nama, Dari: payload.dari, Sampai: payload.sampai,
+      Plafon: pokok, Status: 'Aktif', HutangId: hutangId, CairKe: cairKe,
+      Kantong: kantong, KantongJson: JSON.stringify(kantong),
+      Catatan: payload.catatan || '', TanggalBuat: dari
+    });
+    persistBudgetLocal_();
+    return STATE;
+  }
+
+  function openLiburanList(){
+    var html = '<div class="sheet-title">Budget liburan</div>' +
+      '<div style="font-size:12px; color:var(--ink-faint); margin:-4px 0 12px; line-height:1.45;">Kantong di dalam rekening yang sudah ada. Bunga pinjol tercatat di hutang, bukan di plafon.</div>' +
+      '<button class="btn-primary" id="btn-new-liburan" style="margin-top:0;">+ Budget liburan</button>';
+    var list = (STATE.budgetLiburan || []).slice();
+    if(!list.length){
+      html += emptyState('Belum ada budget liburan', 'Buat trip, set tanggal, lalu isi dari rekening atau pinjol.');
+    } else {
+      list.forEach(function(b){
+        var st = budgetStats_(b);
+        var pct = st.plafon ? Math.min(100, Math.round(st.terpakai / st.plafon * 100)) : 0;
+        html += '<div class="item-card" data-bid="' + b.ID + '" style="margin-top:10px; flex-direction:column; align-items:stretch; gap:8px;">' +
+          '<div style="display:flex; justify-content:space-between; align-items:center;">' +
+            '<div><div class="item-title">' + esc(b.Nama) + '</div>' +
+            '<div class="item-sub">' + esc(b.Dari) + ' → ' + esc(b.Sampai) + (b.Status==='Selesai'?' • Selesai':'') + '</div></div>' +
+            '<div class="item-amount num">' + fmtRupiah(st.sisa) + '</div></div>' +
+          '<div class="liburan-track" style="background:var(--line);"><div class="liburan-fill" style="width:' + pct + '%;"></div></div>' +
+          '<div style="font-size:11px; color:var(--ink-faint); font-weight:600;">Terpakai ' + fmtRupiah(st.terpakai) + ' / plafon ' + fmtRupiah(st.plafon) + '</div>' +
+        '</div>';
+      });
+    }
+    openSheet(html);
+    document.getElementById('btn-new-liburan').addEventListener('click', openLiburanCreateForm);
+    document.querySelectorAll('.item-card[data-bid]').forEach(function(card){
+      card.addEventListener('click', function(){ openLiburanDetail(card.dataset.bid); });
+    });
+  }
+
+  function openLiburanCreateForm(){
+    var today = toYMD(currentDate);
+    var rekOpts = accountOptions();
+    openSheet(
+      '<div class="sheet-title">Budget liburan baru</div>' +
+      '<details class="form-section" open><summary>1. Tanggal & nama</summary><div class="form-section-body">' +
+        '<div class="form-group"><label class="form-label">Nama trip *</label><input class="form-input" id="f-lib-nama" placeholder="Contoh: Bandung"></div>' +
+        '<div class="row-2 form-group">' +
+          '<div><label class="form-label">Mulai *</label><input class="form-input" id="f-lib-dari" type="date" value="' + today + '"></div>' +
+          '<div><label class="form-label">Selesai *</label><input class="form-input" id="f-lib-sampai" type="date" value="' + today + '"></div>' +
+        '</div>' +
+      '</div></details>' +
+      '<details class="form-section" open><summary>2. Dana (pokok, tanpa bunga)</summary><div class="form-section-body">' +
+        '<div class="form-group"><label class="form-label">Pokok / plafon belanja *</label><input class="form-input num num-input" id="f-lib-pokok" type="text" inputmode="numeric" placeholder="1.000.000"></div>' +
+        '<div class="form-group"><label class="form-label">Sumber dana</label>' +
+          '<div class="toggle-pair" id="lib-sumber">' +
+            '<button type="button" data-s="rekening" class="active">Rekening</button>' +
+            '<button type="button" data-s="pinjol">Pinjol / hutang</button>' +
+          '</div></div>' +
+        '<div id="lib-pinjol-box" style="display:none;">' +
+          '<div class="form-group"><label class="form-label">Nama pinjol / pemberi</label><input class="form-input" id="f-lib-hnama" placeholder="Contoh: SeaBank, Kredivo"></div>' +
+          '<div class="form-group"><label class="form-label">Metode</label>' +
+            '<div class="metode-grid" id="lib-metode-grid">' +
+              Object.keys(METODE_INFO).map(function(m){
+                return '<button type="button" class="metode-btn' + (m==='Sekaligus'?' active':'') + '" data-m="' + m + '">' + m + '<small>' + METODE_INFO[m] + '</small></button>';
+              }).join('') +
+            '</div></div>' +
+          '<div class="form-group"><label class="form-label">Bunga / admin (di luar budget)</label><input class="form-input num num-input" id="f-lib-bunga" type="text" inputmode="numeric" placeholder="0"></div>' +
+          '<div class="preview-box"><div class="pr"><span>Plafon belanja</span><b class="num" id="lib-prev-pokok">Rp 0</b></div>' +
+            '<div class="pr"><span>Bunga pinjol</span><b class="num" id="lib-prev-bunga">Rp 0</b></div>' +
+            '<div class="pr big"><span>Total hutang</span><b class="num" id="lib-prev-total">Rp 0</b></div></div>' +
+          '<div class="form-group"><label class="form-label">Jatuh tempo</label><input class="form-input" id="f-lib-tempo" type="date"></div>' +
+        '</div>' +
+        '<div class="form-group"><label class="form-label" id="f-lib-cair-lbl">Cair / sumber ke rekening *</label>' +
+          '<select class="form-select" id="f-lib-cair">' + rekOpts + '</select></div>' +
+      '</div></details>' +
+      '<details class="form-section" open><summary>3. Bagi kantong (jumlah = pokok)</summary><div class="form-section-body" id="lib-split-box"></div>' +
+        '<div style="font-size:11px; color:var(--ink-faint); margin:-4px 0 10px;">Contoh: BCA 700rb + tunai 300rb. Total harus sama dengan pokok.</div>' +
+      '</details>' +
+      '<button class="btn-primary" id="btn-save-liburan">Simpan sekali</button>' +
+      '<button class="btn-secondary" id="btn-back-lib">Kembali</button>'
+    );
+    var libSumber = 'rekening';
+    var libMetode = 'Sekaligus';
+    function rekVisible(){
+      return STATE.rekening.filter(function(r){ return r.Nama && r.Nama !== 'Kredit (Non-Kas)' && r.Nama !== 'Reimburse'; });
+    }
+    function renderSplits(){
+      var box = document.getElementById('lib-split-box');
+      if(!box) return;
+      box.innerHTML = rekVisible().map(function(r, i){
+        return '<div class="form-group" style="margin-bottom:8px;"><label class="form-label">' + esc(r.Nama) + '</label>' +
+          '<input class="form-input num num-input lib-split" data-akun="' + esc(r.Nama) + '" type="text" inputmode="numeric" placeholder="0"></div>';
+      }).join('') + '<div class="preview-box"><div class="pr big"><span>Total kantong</span><b class="num" id="lib-split-sum">Rp 0</b></div></div>';
+    }
+    function updateLibPrev(){
+      var pokok = rawNum('f-lib-pokok')||0;
+      var bunga = rawNum('f-lib-bunga')||0;
+      var elP = document.getElementById('lib-prev-pokok');
+      var elB = document.getElementById('lib-prev-bunga');
+      var elT = document.getElementById('lib-prev-total');
+      if(elP) elP.textContent = fmtRupiah(pokok);
+      if(elB) elB.textContent = fmtRupiah(bunga);
+      if(elT) elT.textContent = fmtRupiah(pokok+bunga);
+      var sum = 0;
+      document.querySelectorAll('.lib-split').forEach(function(inp){ sum += rawNum(inp); });
+      var elS = document.getElementById('lib-split-sum');
+      if(elS){
+        elS.textContent = fmtRupiah(sum);
+        elS.style.color = (pokok && Math.abs(sum-pokok)<1) ? 'var(--green)' : 'var(--red)';
+      }
+    }
+    renderSplits();
+    document.getElementById('sheet-content').addEventListener('input', function libIn(e){
+      if(e.target.id === 'f-lib-pokok' || e.target.id === 'f-lib-bunga' || (e.target.classList && e.target.classList.contains('lib-split'))) updateLibPrev();
+    });
+    document.querySelectorAll('#lib-sumber button').forEach(function(b){
+      b.addEventListener('click', function(){
+        libSumber = b.dataset.s;
+        document.querySelectorAll('#lib-sumber button').forEach(function(x){ x.classList.remove('active'); });
+        b.classList.add('active');
+        document.getElementById('lib-pinjol-box').style.display = libSumber === 'pinjol' ? '' : 'none';
+        document.getElementById('f-lib-cair-lbl').textContent = libSumber === 'pinjol' ? 'Cair ke rekening *' : 'Sumber rekening *';
+      });
+    });
+    document.querySelectorAll('#lib-metode-grid .metode-btn').forEach(function(b){
+      b.addEventListener('click', function(){
+        libMetode = b.dataset.m;
+        document.querySelectorAll('#lib-metode-grid .metode-btn').forEach(function(x){ x.classList.remove('active'); });
+        b.classList.add('active');
+      });
+    });
+    document.getElementById('btn-back-lib').addEventListener('click', openLiburanList);
+    document.getElementById('btn-save-liburan').addEventListener('click', function(){
+      var nama = (document.getElementById('f-lib-nama').value || '').trim();
+      var dari = document.getElementById('f-lib-dari').value;
+      var sampai = document.getElementById('f-lib-sampai').value;
+      var pokok = rawNum('f-lib-pokok');
+      var cairKe = document.getElementById('f-lib-cair').value;
+      if(!nama){ toast('Isi nama trip'); return; }
+      if(!dari || !sampai){ toast('Set tanggal liburan dulu'); return; }
+      if(sampai < dari){ toast('Tanggal selesai salah'); return; }
+      if(!pokok){ toast('Isi pokok / plafon'); return; }
+      if(!cairKe){ toast('Pilih rekening cair'); return; }
+      var splits = [];
+      document.querySelectorAll('.lib-split').forEach(function(inp){
+        var n = rawNum(inp);
+        if(n > 0) splits.push({ akun: inp.dataset.akun, nominal: n });
+      });
+      if(!splits.length){ toast('Bagi kantong dulu (minimal 1 rekening)'); return; }
+      var sum = splits.reduce(function(a,s){ return a + s.nominal; }, 0);
+      if(Math.abs(sum - pokok) > 1){ toast('Total kantong harus sama dengan pokok (tanpa bunga)'); return; }
+      var payload = {
+        nama: nama, dari: dari, sampai: sampai, pokok: pokok, cairKe: cairKe, splits: splits,
+        pakaiHutang: libSumber === 'pinjol',
+        hutangNama: (document.getElementById('f-lib-hnama') && document.getElementById('f-lib-hnama').value) || '',
+        metode: libMetode,
+        bungaNominal: rawNum('f-lib-bunga') || 0,
+        jatuhTempo: document.getElementById('f-lib-tempo') ? document.getElementById('f-lib-tempo').value : ''
+      };
+      saveOptimistic('Budget liburan disimpan', function(ok, fail){
+        google.script.run.withSuccessHandler(function(data){
+          if(isFullKasData_(data) && Array.isArray(data.budgetLiburan)){
+            ok(data); return;
+          }
+          applyCreateBudgetLocal_(payload);
+          ok(STATE);
+        }).withFailureHandler(function(err){
+          applyCreateBudgetLocal_(payload);
+          ok(STATE);
+        }).createBudgetLiburan(payload);
+      });
+    });
+  }
+
+  function openLiburanDetail(id){
+    var b = (STATE.budgetLiburan || []).filter(function(x){ return x.ID === id; })[0];
+    if(!b){ toast('Budget tidak ketemu'); return; }
+    var st = budgetStats_(b);
+    var hp = hutangOfBudget_(b);
+    var pct = st.plafon ? Math.min(100, Math.round(st.terpakai / st.plafon * 100)) : 0;
+    var html = '<div class="sheet-title">' + esc(b.Nama) + '</div>' +
+      '<div class="item-sub" style="margin-top:-8px; margin-bottom:12px;">' + esc(b.Dari) + ' → ' + esc(b.Sampai) + '</div>' +
+      '<div class="preview-box">' +
+        '<div class="pr"><span>Plafon belanja</span><b class="num">' + fmtRupiah(st.plafon) + '</b></div>' +
+        '<div class="pr"><span>Terpakai</span><b class="num">' + fmtRupiah(st.terpakai) + '</b></div>' +
+        '<div class="pr big"><span>Sisa budget</span><b class="num">' + fmtRupiah(st.sisa) + '</b></div>' +
+      '</div>' +
+      '<div class="liburan-track" style="background:var(--line); margin-bottom:14px;"><div class="liburan-fill" style="width:' + pct + '%;"></div></div>';
+    if(hp){
+      html += '<div class="preview-box" style="background:var(--amber-pale);">' +
+        '<div class="pr"><span>Hutang ' + esc(hp.Nama) + '</span><b class="num">' + fmtRupiah(hp.SisaHutang || hp.TotalHutang) + '</b></div>' +
+        '<div class="pr"><span>Bunga (di luar budget)</span><b class="num">' + fmtRupiah(hp.BungaNominal) + '</b></div>' +
+        '<div style="font-size:11px; color:var(--ink-faint); margin-top:4px;">Nyicil pinjol tidak memotong sisa liburan.</div></div>';
+    }
+    html += '<div class="riwayat-title">Kantong</div>';
+    st.kantong.forEach(function(k){
+      html += '<div class="kantong-row"><div><b>' + esc(k.akun) + '</b><div style="font-size:11px; color:var(--ink-faint);">Terpakai ' + fmtRupiah(k.terpakai) + '</div></div>' +
+        '<div class="num" style="font-weight:800;">' + fmtRupiah(k.sisa) + '</div></div>';
+    });
+    if(b.Status !== 'Selesai'){
+      html += '<button class="btn-primary" id="btn-lib-pindah" style="margin-top:14px;">Pindah kantong (mis. BCA → tunai)</button>' +
+        '<button class="btn-secondary" id="btn-lib-tutup">Tutup budget (sisa jadi uang harian)</button>';
+    }
+    html += '<button class="btn-secondary" id="btn-back-lib2">Kembali</button>';
+    var trx = STATE.transaksi.filter(function(t){ return parseBudgetIdFromCatatan_(t.Catatan) === b.ID && !isTransferLeg(t); });
+    if(trx.length){
+      html += '<div class="riwayat-title">Pengeluaran trip</div>';
+      trx.slice(0, 20).forEach(function(t){
+        html += '<div class="item-card"><div class="item-main"><div class="item-title">' + esc(t.Kategori) + '</div><div class="item-sub">' + esc(t.Akun) + ' • ' + esc(t.Tanggal) + '</div></div>' +
+          '<div class="item-amount red num">-' + fmtRupiah(t.Nominal) + '</div></div>';
+      });
+    }
+    openSheet(html);
+    document.getElementById('btn-back-lib2').addEventListener('click', openLiburanList);
+    var p = document.getElementById('btn-lib-pindah');
+    if(p) p.addEventListener('click', function(){ openPindahKantong(b); });
+    var c = document.getElementById('btn-lib-tutup');
+    if(c) c.addEventListener('click', function(){
+      if(!confirm('Tutup budget? Sisa uang tetap di rekening, kembali jadi dana harian.')) return;
+      b.Status = 'Selesai';
+      persistBudgetLocal_();
+      google.script.run.withSuccessHandler(function(data){
+        if(isFullKasData_(data)) refreshState(data);
+      }).withFailureHandler(function(){}).tutupBudgetLiburan(b.ID);
+      toast('Budget ditutup');
+      openLiburanList();
+    });
+  }
+
+  function openPindahKantong(b){
+    var st = budgetStats_(b);
+    var today = toYMD(currentDate);
+    openSheet(
+      '<div class="sheet-title">Pindah kantong</div>' +
+      '<div class="form-group"><label class="form-label">Dari</label><select class="form-select" id="f-pk-dari">' +
+        st.kantong.map(function(k){ return '<option value="' + esc(k.akun) + '">' + esc(k.akun) + ' (sisa ' + fmtRupiah(k.sisa) + ')</option>'; }).join('') +
+      '</select></div>' +
+      '<div class="form-group"><label class="form-label">Ke rekening</label><select class="form-select" id="f-pk-ke">' + accountOptions() + '</select></div>' +
+      '<div class="form-group"><label class="form-label">Nominal</label><input class="form-input num num-input" id="f-pk-nom" type="text" inputmode="numeric" placeholder="0"></div>' +
+      '<div class="form-group"><label class="form-label">Tanggal</label><input class="form-input" id="f-pk-tgl" type="date" value="' + today + '"></div>' +
+      '<button class="btn-primary" id="btn-pk-save">Pindahkan</button>' +
+      '<button class="btn-secondary" id="btn-pk-back">Kembali</button>'
+    );
+    document.getElementById('btn-pk-back').addEventListener('click', function(){ openLiburanDetail(b.ID); });
+    document.getElementById('btn-pk-save').addEventListener('click', function(){
+      var dariAkun = document.getElementById('f-pk-dari').value;
+      var keAkun = document.getElementById('f-pk-ke').value;
+      var nominal = rawNum('f-pk-nom');
+      var tanggal = document.getElementById('f-pk-tgl').value;
+      if(!nominal){ toast('Isi nominal'); return; }
+      var payload = { id: b.ID, dariAkun: dariAkun, keAkun: keAkun, nominal: nominal, tanggal: tanggal };
+      saveOptimistic('Kantong dipindah', function(ok, fail){
+        google.script.run.withSuccessHandler(function(data){
+          if(isFullKasData_(data)){ ok(data); return; }
+          applyPindahLocal_(b, payload); ok(STATE);
+        }).withFailureHandler(function(){
+          applyPindahLocal_(b, payload); ok(STATE);
+        }).pindahKantongLiburan(payload);
+      });
+    });
+  }
+  function applyPindahLocal_(b, payload){
+    var kantong = b.Kantong || [];
+    var from = kantong.filter(function(k){ return k.akun === payload.dariAkun; })[0];
+    if(!from) return;
+    from.terisi = (Number(from.terisi)||0) - payload.nominal;
+    var to = kantong.filter(function(k){ return k.akun === payload.keAkun; })[0];
+    if(!to){ to = { akun: payload.keAkun, terisi: 0 }; kantong.push(to); }
+    to.terisi = (Number(to.terisi)||0) + payload.nominal;
+    b.Kantong = kantong;
+    STATE.transaksi.unshift({
+      ID: genLocalId_('trx'), Tanggal: payload.tanggal, Jenis: 'Pengeluaran',
+      Kategori: 'Transfer Keluar', Akun: payload.dariAkun, Nominal: payload.nominal,
+      Catatan: 'Transfer ke ' + payload.keAkun + ' • Kantong liburan ' + b.Nama
+    });
+    STATE.transaksi.unshift({
+      ID: genLocalId_('trx'), Tanggal: payload.tanggal, Jenis: 'Pemasukan',
+      Kategori: 'Transfer Masuk', Akun: payload.keAkun, Nominal: payload.nominal,
+      Catatan: 'Transfer dari ' + payload.dariAkun + ' • Kantong liburan ' + b.Nama
+    });
+    STATE.rekening.forEach(function(r){
+      if(r.Nama === payload.dariAkun) r.Saldo = (Number(r.Saldo)||0) - payload.nominal;
+      if(r.Nama === payload.keAkun) r.Saldo = (Number(r.Saldo)||0) + payload.nominal;
+    });
+    persistBudgetLocal_();
+  }
+
+
+
+  function liburanHomeBannerHtml_(){
+    var ymd = toYMD(currentDate);
+    var list = activeBudgetsOn_(ymd);
+    if(!list.length) return '';
+    return list.map(function(b){
+      var st = budgetStats_(b);
+      var pct = st.plafon ? Math.min(100, Math.round(st.terpakai / st.plafon * 100)) : 0;
+      return '<button type="button" class="liburan-banner" data-bid="' + b.ID + '" style="width:100%; text-align:left; margin:0 0 12px;">' +
+        '<div class="lb-k">Budget liburan</div>' +
+        '<div class="lb-n">' + esc(b.Nama) + '</div>' +
+        '<div class="lb-row"><span>Sisa ' + fmtRupiah(st.sisa) + '</span><span>' + pct + '% terpakai</span></div>' +
+        '<div class="liburan-track"><div class="liburan-fill" style="width:' + pct + '%;"></div></div>' +
+      '</button>';
+    }).join('');
+  }
+  function wireLiburanBanner_(){
+    document.querySelectorAll('.liburan-banner[data-bid]').forEach(function(btn){
+      btn.addEventListener('click', function(){ openLiburanDetail(btn.dataset.bid); });
+    });
+  }
+  function budgetSelectHtml_(ymd){
+    var list = (STATE.budgetLiburan || []).filter(function(b){ return b.Status !== 'Selesai'; });
+    if(!list.length) return '';
+    var def = (activeBudgetsOn_(ymd)[0] || {}).ID || '';
+    var opts = '<option value="">Tidak pakai budget liburan</option>' + list.map(function(b){
+      return '<option value="' + esc(b.ID) + '"' + (b.ID===def?' selected':'') + '>' + esc(b.Nama) + '</option>';
+    }).join('');
+    return '<div class="form-group"><label class="form-label">Pakai budget liburan</label>' +
+      '<select class="form-select" id="f-liburan-id">' + opts + '</select>' +
+      '<div style="font-size:11px; color:var(--ink-faint); margin-top:4px;">Di tanggal trip, default ke budget itu. Bunga pinjol tidak terpotong dari sini.</div></div>';
+  }
+
   function accountOptions(selected){
     var list = STATE.rekening.filter(function(r){ return r.Nama !== 'Kredit (Non-Kas)'; });
     if(!list.length) return '<option value="">Belum ada rekening</option>';
@@ -3820,6 +4278,7 @@
               }).join('') +
             '</div>' +
           '</div>';
+        html += budgetSelectHtml_(today);
       }
       html +=
         '<div class="form-group"><label class="form-label">Kategori *</label>' + kategoriSelectHtml('') + '</div>' +
@@ -4040,6 +4499,12 @@
         if(!tempat){ toast('Isi beli di mana'); return; }
         catatanParts.push('Menu: ' + item);
         catatanParts.push('Tempat: ' + tempat);
+      }
+      var bidEl = document.getElementById('f-liburan-id');
+      if(bidEl && bidEl.value){
+        catatanParts.push('LiburanID:' + bidEl.value);
+        var bb = (STATE.budgetLiburan || []).filter(function(x){ return x.ID === bidEl.value; })[0];
+        if(bb) catatanParts.push('Liburan: ' + bb.Nama);
       }
     }
     if(catatanExtra.trim()) catatanParts.push(catatanExtra.trim());
