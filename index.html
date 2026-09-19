@@ -4,13 +4,13 @@
   <base target="_top">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#0F172A">
+  <meta name="theme-color" content="#0B1F36">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Catatan Kas">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -828,10 +828,37 @@
     }
 
     /* ---------- LOADING / TOAST ---------- */
+
     #loading{
-      position:fixed; inset:0; background:var(--bg); z-index:50; display:flex; align-items:center;
-      justify-content:center; flex-direction:column; gap:12px;
+      position:fixed; inset:0; z-index:50; display:flex; align-items:center;
+      justify-content:center; flex-direction:column; gap:0;
+      background:linear-gradient(165deg, #1A365D 0%, #0B1F36 55%, #071525 100%);
     }
+    .splash-brand{
+      width:168px; height:168px; border-radius:28px;
+      overflow:hidden;
+      box-shadow:0 20px 48px -14px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.1);
+      background:#0B1F36;
+    }
+    .splash-brand img{
+      width:100%; height:100%; object-fit:contain; display:block;
+      image-rendering:-webkit-optimize-contrast;
+    }
+    .splash-title{
+      margin-top:16px; font-size:20px; font-weight:800; color:#fff;
+      letter-spacing:-.4px;
+    }
+    .splash-sub{
+      margin-top:12px; font-size:12.5px; color:rgba(255,255,255,.55); font-weight:600;
+    }
+    .splash-powered{
+      position:absolute; bottom:28px; left:0; right:0; text-align:center;
+      font-size:11px; color:rgba(255,255,255,.35); font-weight:600; letter-spacing:.2px;
+    }
+    #loading .spinner{
+      border-color:rgba(255,255,255,.15); border-top-color:#60A5FA;
+    }
+
     #lockscreen{
       position:fixed; inset:0; background:var(--bg); z-index:70; display:none;
       align-items:center; justify-content:center;
@@ -1209,12 +1236,12 @@
 <body>
 
 <div id="loading">
-  <div class="skel-wrap">
-    <div class="skel-line lg"></div>
-    <div class="skel-line"></div>
-    <div class="skel-line sm"></div>
+  <div class="splash-brand">
+    <img src="splash-logo.png" alt="AksaraLabs — Catatan Kas" width="168" height="168" decoding="async">
   </div>
-  <div style="font-size:12.5px; color:var(--ink-faint); font-weight:600; margin-top:6px;">Memuat data…</div>
+  <div class="splash-title">Catatan Kas</div>
+  <div class="spinner" style="margin-top:18px;"></div>
+  <div class="splash-sub">Memuat data…</div>
 </div>
 
 <div id="lockscreen">
@@ -1787,7 +1814,9 @@
   }
   function onLoadError(err){
     document.getElementById('loading').innerHTML =
-      '<div style="text-align:center; padding:0 30px; color:var(--ink-soft); font-size:13.5px;">Gagal memuat data.<br>' + (err && err.message ? err.message : err) + '</div>';
+      '<div class="splash-brand"><img src="splash-logo.png" alt="AksaraLabs" width="168" height="168"></div>' +
+      '<div class="splash-title">Catatan Kas</div>' +
+      '<div style="text-align:center; padding:16px 30px 0; color:rgba(255,255,255,.7); font-size:13.5px; font-weight:600;">Gagal memuat data.<br>' + (err && err.message ? err.message : err) + '</div>';
   }
   function refreshState(data){
     applyState_(data);
@@ -2203,8 +2232,11 @@
     document.getElementById('loading').style.display = 'flex';
     document.getElementById('app').style.display = 'none';
     document.getElementById('loading').innerHTML =
-      '<div class="skel-wrap"><div class="skel-line lg"></div><div class="skel-line"></div><div class="skel-line sm"></div></div>' +
-      '<div style="font-size:12.5px; color:var(--ink-faint); font-weight:600;">Memuat ulang…</div>';
+      '<div class="splash-brand"><img src="splash-logo.png" alt="AksaraLabs" width="168" height="168" decoding="async"></div>' +
+      '<div class="splash-title">Catatan Kas</div>' +
+      '<div class="spinner" style="margin-top:18px;"></div>' +
+      '<div class="splash-sub">Memuat ulang…</div>' +
+      '';
     google.script.run.withSuccessHandler(function(data){
       onDataLoaded(data, false);
     }).withFailureHandler(function(err){
