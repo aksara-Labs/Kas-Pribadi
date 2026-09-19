@@ -106,7 +106,7 @@
 
     /* ---------- TOP BAR ---------- */
     #topbar{
-      flex:0 0 auto; color:#fff; padding:16px 18px 20px; position:relative; z-index:2;
+      flex:0 0 auto; color:#fff; padding:10px 16px 12px; position:relative; z-index:2;
       /* Fallback solid navy (offline-safe), foto opsional di atasnya */
       background:
         linear-gradient(165deg, rgba(11,31,54,.55) 0%, rgba(26,54,93,.75) 45%, rgba(11,31,54,.92) 100%),
@@ -122,7 +122,7 @@
     .topbar-row{display:flex; align-items:center; justify-content:space-between; width:100%;}
     .topbar-row h1{font-size:17px; font-weight:700; margin:0; letter-spacing:.2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
     .topbar-icon-btn{
-      width:36px; height:36px; flex:0 0 36px; display:flex; align-items:center; justify-content:center;
+      width:34px; height:34px; flex:0 0 34px; display:flex; align-items:center; justify-content:center;
       border-radius:50%; color:#fff; opacity:.95; background:rgba(255,255,255,.12);
     }
     .topbar-icon-btn:active{background:rgba(255,255,255,.22);}
@@ -139,7 +139,7 @@
     }
     #summary.cols-4{grid-template-columns:1fr 1fr; row-gap:10px;}
     #summary.hero-mode{
-      display:block; background:transparent; box-shadow:none; padding:0; margin:4px 0 0;
+      display:block; background:transparent; box-shadow:none; padding:0; margin:2px 0 0;
     }
     #summary .stat{text-align:center; padding:2px 3px; position:relative; min-width:0;}
     #summary .stat:not(:last-child)::after{
@@ -162,16 +162,29 @@
 
     /* ---------- GREETING + DATE ROW ---------- */
     .greeting-row{
-      display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
-      padding:4px 2px 12px; color:#fff;
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      padding:0 0 2px; color:#fff;
     }
-    .greeting-row .hello{font-size:13px; opacity:.8; font-weight:600; letter-spacing:.2px;}
-    .greeting-row .name{font-size:20px; font-weight:800; margin-top:2px; letter-spacing:-.3px;}
+
+    .wx-pill{
+      display:inline-flex; align-items:center; gap:4px;
+      background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.12);
+      border-radius:999px; padding:3px 9px; font-size:11px; font-weight:700;
+      color:#fff; white-space:nowrap; margin-left:6px; vertical-align:middle;
+      max-width:42vw; overflow:hidden; text-overflow:ellipsis;
+    }
+    .wx-pill .wx-ic{ font-size:12px; line-height:1; }
+    .wx-pill .wx-t{ opacity:.95; }
+    .wx-pill.loading{ opacity:.65; }
+    .hello-row{ display:flex; align-items:center; flex-wrap:wrap; gap:2px 0; }
+
+    .greeting-row .hello{font-size:12px; opacity:.8; font-weight:600; letter-spacing:.15px;}
+    .greeting-row .name{font-size:17px; font-weight:800; margin-top:1px; letter-spacing:-.25px; line-height:1.15;}
     .name-edit-btn{text-align:left; color:#fff;}
     .name-edit-btn:active{opacity:.8;}
     .date-pill{
-      display:flex; align-items:center; gap:7px; background:rgba(255,255,255,.14); color:#fff;
-      border-radius:14px; padding:10px 14px; font-size:12.5px; font-weight:700; white-space:nowrap; flex:0 0 auto;
+      display:flex; align-items:center; gap:6px; background:rgba(255,255,255,.14); color:#fff;
+      border-radius:12px; padding:8px 11px; font-size:11.5px; font-weight:700; white-space:nowrap; flex:0 0 auto;
       border:1px solid rgba(255,255,255,.12);
     }
     .date-pill:active{background:rgba(255,255,255,.26);}
@@ -179,7 +192,7 @@
 
     /* ---------- BALANCE HERO CARD ---------- */
     .balance-hero{
-      margin:0 16px; padding:18px 18px 16px; border-radius:22px; color:#fff;
+      margin:0 14px; padding:14px 16px 12px; border-radius:20px; color:#fff;
       background:
         radial-gradient(90% 120% at 100% 0%, rgba(255,255,255,.2), transparent 55%),
         radial-gradient(60% 80% at 0% 100%, rgba(59,130,246,.25), transparent 50%),
@@ -191,7 +204,7 @@
       opacity:.8; text-transform:uppercase;
     }
     .balance-hero .top-lbl button{color:#fff; opacity:.9; display:flex; align-items:center;}
-    .balance-hero .amount{font-size:28px; font-weight:800; margin:6px 0 14px; letter-spacing:-.6px; line-height:1.1;}
+    .balance-hero .amount{font-size:26px; font-weight:800; margin:4px 0 10px; letter-spacing:-.5px; line-height:1.1;}
     .balance-hero .pill-row{display:flex; gap:10px;}
     .balance-hero .pill{
       flex:1; display:flex; align-items:center; gap:10px; background:rgba(255,255,255,.12);
@@ -218,8 +231,8 @@
 
     /* ---------- QUICK ACTIONS ---------- */
     .quick-actions{
-      margin:14px 16px 8px; background:var(--card); border-radius:20px;
-      box-shadow:var(--shadow-sm); padding:16px 10px 14px; border:1px solid rgba(226,232,240,.55);
+      margin:10px 14px 6px; background:var(--card); border-radius:18px;
+      box-shadow:var(--shadow-sm); padding:12px 8px 10px; border:1px solid rgba(226,232,240,.55);
       display:grid; grid-template-columns:repeat(4,1fr); gap:4px;
     }
     .quick-actions button{
@@ -605,6 +618,32 @@
     .detail-row .v{font-weight:700; text-align:right; word-break:break-word; overflow-wrap:anywhere; min-width:0;}
 
 
+
+    .filter-one-btn{
+      width:100%; display:flex; align-items:center; gap:10px;
+      padding:12px 14px; border-radius:16px; border:1px solid rgba(226,232,240,.7);
+      background:var(--card); color:var(--ink); box-shadow:var(--shadow-sm);
+      font-family:inherit; text-align:left; font-size:13.5px; font-weight:700;
+      transition:transform .12s ease, background-color .12s ease;
+    }
+    .filter-one-btn:active{ transform:scale(.985); }
+    .filter-one-btn.on{
+      border-color:rgba(30,58,95,.35); background:var(--blue-pale); color:var(--blue-dark);
+    }
+    .filter-one-btn .fob-ic{
+      width:28px; height:28px; border-radius:10px; flex:0 0 auto;
+      display:flex; align-items:center; justify-content:center;
+      background:var(--input-bg); color:var(--ink-soft);
+    }
+    .filter-one-btn.on .fob-ic{ background:var(--blue); color:#fff; }
+    .filter-one-btn .fob-txt{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .filter-one-btn .fob-badge{
+      width:8px; height:8px; border-radius:50%; background:var(--blue); flex:0 0 auto;
+    }
+    .filter-one-btn .fob-chev{ color:var(--ink-faint); font-size:18px; font-weight:400; flex:0 0 auto; }
+    html.dark .filter-one-btn{ border-color:var(--line); }
+    html.dark .filter-one-btn.on{ background:rgba(59,130,246,.15); color:#93C5FD; border-color:rgba(59,130,246,.35); }
+
     /* Filter pills */
     .filter-scroll{
       display:flex; gap:8px; overflow-x:auto; -webkit-overflow-scrolling:touch;
@@ -804,24 +843,22 @@
   <!-- TOP BAR -->
   <header id="topbar">
     <div class="topbar-row" id="topbar-transaksi">
-      <span class="topbar-spacer"></span>
-      <span style="flex:1;"></span>
+      <div id="greeting-inline" style="flex:1; min-width:0;"></div>
       <button class="topbar-icon-btn" id="btn-search" aria-label="Cari">
-        <svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       </button>
       <button class="topbar-icon-btn" id="btn-notif" aria-label="Notifikasi">
-        <svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
         <span class="topbar-notif-badge" id="notif-badge" style="display:none;">0</span>
       </button>
     </div>
     <div class="topbar-row" id="topbar-title" style="display:none;">
       <button class="topbar-icon-btn" id="btn-settings-2" aria-label="Menu">
-        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
       <h1 id="page-title" style="flex:1; text-align:center;"></h1>
       <span class="topbar-spacer"></span>
     </div>
-    <div id="greeting-row" style="display:none;"></div>
   </header>
 
   <!-- SUMMARY -->
@@ -1686,7 +1723,8 @@
       kasDarkMode: localStorage.getItem('kasDarkMode'),
       kasShowBalance: localStorage.getItem('kasShowBalance'),
       kasViewMode: localStorage.getItem('kasViewMode'),
-      kasNotifOn: localStorage.getItem('kasNotifOn')
+      kasNotifOn: localStorage.getItem('kasNotifOn'),
+      kasWeatherV1: localStorage.getItem('kasWeatherV1')
     };
     try {
       // Hapus key app yang dikenal
@@ -2115,29 +2153,128 @@
     });
   }
 
+
+  // ---- Cuaca lokal (Open-Meteo, tanpa API key) ----
+  var WX_CACHE_KEY = 'kasWeatherV1';
+  var WX_CACHE_MS = 45 * 60 * 1000; // 45 menit
+  function wxCodeLabel_(code){
+    var c = Number(code);
+    if(c === 0) return { ic:'☀️', t:'Cerah' };
+    if(c <= 3) return { ic:'⛅', t:'Berawan' };
+    if(c <= 48) return { ic:'🌫️', t:'Berkabut' };
+    if(c <= 57) return { ic:'🌦️', t:'Gerimis' };
+    if(c <= 67) return { ic:'🌧️', t:'Hujan' };
+    if(c <= 77) return { ic:'🌨️', t:'Salju' };
+    if(c <= 82) return { ic:'🌧️', t:'Hujan deras' };
+    if(c <= 86) return { ic:'🌨️', t:'Salju deras' };
+    if(c <= 99) return { ic:'⛈️', t:'Badai' };
+    return { ic:'🌡️', t:'—' };
+  }
+  function readWxCache_(){
+    try {
+      var raw = JSON.parse(localStorage.getItem(WX_CACHE_KEY) || 'null');
+      if(!raw || !raw.ts || (Date.now() - raw.ts > WX_CACHE_MS)) return null;
+      return raw;
+    } catch(e){ return null; }
+  }
+  function writeWxCache_(data){
+    try { localStorage.setItem(WX_CACHE_KEY, JSON.stringify(Object.assign({ ts: Date.now() }, data))); } catch(e) {}
+  }
+  function renderWxPillHtml_(data, loading){
+    if(loading) return '<span class="wx-pill loading" id="wx-pill">…</span>';
+    if(!data || data.temp == null) return '';
+    var meta = wxCodeLabel_(data.code);
+    var place = data.place ? (' · ' + data.place) : '';
+    return '<span class="wx-pill" id="wx-pill" title="' + esc(meta.t + place) + '">' +
+      '<span class="wx-ic">' + meta.ic + '</span>' +
+      '<span class="wx-t">' + Math.round(data.temp) + '°' + (data.place ? ' ' + esc(data.place) : '') + '</span>' +
+    '</span>';
+  }
+  function applyWxToDom_(data, loading){
+    var el = document.getElementById('wx-slot');
+    if(!el) return;
+    el.innerHTML = renderWxPillHtml_(data, loading);
+  }
+  function reverseGeocode_(lat, lon, cb){
+    // Open-Meteo geocoding reverse via bigdatacloud style free endpoint
+    var url = 'https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=' +
+      encodeURIComponent(lat) + '&longitude=' + encodeURIComponent(lon) + '&localityLanguage=id';
+    fetch(url).then(function(r){ return r.json(); }).then(function(j){
+      var place = j.city || j.locality || j.principalSubdivision || '';
+      // pendekkan
+      if(place && place.length > 14) place = place.slice(0, 13) + '…';
+      cb(place || '');
+    }).catch(function(){ cb(''); });
+  }
+  function fetchWeatherAt_(lat, lon){
+    var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat +
+      '&longitude=' + lon + '&current=temperature_2m,weather_code&timezone=auto';
+    return fetch(url).then(function(r){ return r.json(); }).then(function(j){
+      var cur = j.current || {};
+      return { temp: cur.temperature_2m, code: cur.weather_code, lat: lat, lon: lon };
+    });
+  }
+  function loadWeather_(){
+    if(!navigator.onLine) return;
+    var cached = readWxCache_();
+    if(cached){
+      applyWxToDom_(cached, false);
+      return;
+    }
+    applyWxToDom_(null, true);
+    if(!navigator.geolocation){
+      applyWxToDom_(null, false);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(function(pos){
+      var lat = pos.coords.latitude;
+      var lon = pos.coords.longitude;
+      fetchWeatherAt_(lat, lon).then(function(data){
+        reverseGeocode_(lat, lon, function(place){
+          data.place = place;
+          writeWxCache_(data);
+          applyWxToDom_(data, false);
+        });
+      }).catch(function(){ applyWxToDom_(null, false); });
+    }, function(){
+      // izin ditolak / gagal — coba IP approx via open-meteo tanpa lat? skip
+      applyWxToDom_(null, false);
+    }, { enableHighAccuracy: false, timeout: 12000, maximumAge: 30 * 60 * 1000 });
+  }
+
+
   function renderTopbar(){
     var isTrx = currentTab === 'transaksi';
     document.getElementById('topbar-transaksi').style.display = isTrx ? 'flex' : 'none';
     document.getElementById('topbar-title').style.display = isTrx ? 'none' : 'flex';
     document.getElementById('page-title').textContent = currentTab === 'hutang' ? 'Hutang & Piutang' : currentTab === 'rekap' ? 'Rekap' : 'Rekening';
 
-    var greetEl = document.getElementById('greeting-row');
-    greetEl.style.display = isTrx ? 'block' : 'none';
-    if(isTrx){
-      var name = STATE.userName || 'Pengguna';
-      var hour = new Date().getHours();
-      var sapaan = hour < 11 ? 'Selamat pagi' : hour < 15 ? 'Selamat siang' : hour < 19 ? 'Selamat sore' : 'Selamat malam';
-      var dateStr = DAYS_SHORT[currentDate.getDay()] + ', ' + currentDate.getDate() + ' ' + MONTHS_SHORT[currentDate.getMonth()] + ' ' + currentDate.getFullYear();
-      greetEl.innerHTML =
-        '<div class="greeting-row">' +
-          '<div><div class="hello">' + sapaan + ',</div><div class="name">' + esc(name) + '</div></div>' +
-          '<button class="date-pill" id="btn-date-jump">' +
-            '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg>' +
-            '<span>' + dateStr + '</span>' +
-            '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>' +
-          '</button>' +
-        '</div>';
-      document.getElementById('btn-date-jump').addEventListener('click', openDateJumpPicker);
+    var greetEl = document.getElementById('greeting-inline');
+    if(greetEl){
+      if(isTrx){
+        var name = STATE.userName || 'Pengguna';
+        var hour = new Date().getHours();
+        var sapaan = hour < 11 ? 'Selamat pagi' : hour < 15 ? 'Selamat siang' : hour < 19 ? 'Selamat sore' : 'Selamat malam';
+        var dateStr = DAYS_SHORT[currentDate.getDay()] + ', ' + currentDate.getDate() + ' ' + MONTHS_SHORT[currentDate.getMonth()];
+        var wxCached = readWxCache_();
+        greetEl.innerHTML =
+          '<div class="greeting-row" style="padding:0;">' +
+            '<div style="min-width:0; flex:1;">' +
+              '<div class="hello hello-row">' + sapaan + ', <span id="wx-slot">' + renderWxPillHtml_(wxCached, !wxCached) + '</span></div>' +
+              '<button type="button" class="name name-edit-btn" id="btn-edit-name-inline" style="display:block; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + esc(name) + '</button>' +
+            '</div>' +
+            '<button class="date-pill" id="btn-date-jump">' +
+              '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>' +
+              '<span>' + dateStr + '</span>' +
+            '</button>' +
+          '</div>';
+        document.getElementById('btn-date-jump').addEventListener('click', openDateJumpPicker);
+        var en = document.getElementById('btn-edit-name-inline');
+        if(en) en.addEventListener('click', function(){ try{ openRenameSheet(); }catch(e){} });
+        loadWeather_();
+      } else {
+        greetEl.innerHTML = '';
+      }
     }
 
     var overdueUpcoming = 0;
@@ -2199,6 +2336,12 @@
         if(t.Jenis==='Pemasukan') masuk += Number(t.Nominal); else keluar += Number(t.Nominal);
       });
       var selisih = masuk - keluar;
+      var trxHariIni = 0;
+      STATE.transaksi.forEach(function(t){
+        if(t.Tanggal < range.from || t.Tanggal > range.to) return;
+        if(isTransferLeg(t)) return;
+        trxHariIni++;
+      });
       el.innerHTML =
         '<div class="balance-hero">' +
           '<div class="top-lbl"><span>Total Saldo</span><button id="btn-toggle-balance">' +
@@ -2213,7 +2356,7 @@
           '</div>' +
           '<div class="cashflow-row">' +
             '<div><div class="l">Selisih (Cashflow)</div><div class="v num">' + (selisih>=0?'+ ':'') + maskRupiah(fmtRupiah(selisih)) + '</div></div>' +
-            '<span class="cashflow-tag">Hari ini</span>' +
+            '<span class="cashflow-tag">' + (trxHariIni ? (trxHariIni + ' trx · hari ini') : 'Hari ini') + '</span>' +
           '</div>' +
         '</div>' +
         '<div class="quick-actions">' +
@@ -2387,19 +2530,23 @@
       return true;
     });
   }
+  function trxFilterSummaryLabel_(){
+    var parts = [];
+    if(trxFilter.untuk) parts.push(trxFilter.untuk === 'Belum' ? 'Belum ditandai' : trxFilter.untuk);
+    if(trxFilter.akun) parts.push(trxFilter.akun);
+    if(trxFilter.kategori) parts.push(trxFilter.kategori);
+    return parts.length ? parts.join(' · ') : 'Semua transaksi';
+  }
   function trxFilterBarHtml_(){
     var active = !!(trxFilter.akun || trxFilter.kategori || trxFilter.untuk);
-    var untukLbl = trxFilter.untuk ? (trxFilter.untuk === 'Belum' ? 'Belum ditandai' : trxFilter.untuk) : 'Untuk';
-    var akunLbl = trxFilter.akun || 'Rekening';
-    var katLbl = trxFilter.kategori || 'Kategori';
-    var html = '<div class="filter-scroll" id="filter-compact-row">';
-    html += '<button type="button" class="filter-chip' + (active?' on':'') + '" id="btn-open-filter">Filter' + (active?' •':'') + '</button>';
-    html += '<button type="button" class="filter-chip' + (trxFilter.untuk?' on':'') + '" data-fgroup="untuk" data-fopen="1">' + esc(untukLbl) + '</button>';
-    html += '<button type="button" class="filter-chip' + (trxFilter.akun?' on':'') + '" data-fgroup="akun" data-fopen="1">' + esc(akunLbl) + '</button>';
-    html += '<button type="button" class="filter-chip' + (trxFilter.kategori?' on':'') + '" data-fgroup="kategori" data-fopen="1">' + esc(katLbl) + '</button>';
-    if(active) html += '<button type="button" class="filter-chip ghost" id="btn-filter-reset">Reset</button>';
-    html += '</div>';
-    return html;
+    var label = active ? ('Filter: ' + trxFilterSummaryLabel_()) : 'Filter transaksi';
+    return '<div style="margin:0 0 12px;">' +
+      '<button type="button" class="filter-one-btn' + (active?' on':'') + '" id="btn-open-filter">' +
+        '<span class="fob-ic"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg></span>' +
+        '<span class="fob-txt">' + esc(label) + '</span>' +
+        (active ? '<span class="fob-badge"></span>' : '') +
+        '<span class="fob-chev">›</span>' +
+      '</button></div>';
   }
 
   function openTrxFilterSheet_(focusGroup){
@@ -2478,8 +2625,7 @@
   function renderTransaksi(){
     var el = document.getElementById('view-transaksi');
     var all = applyTrxFilter_(STATE.transaksi.slice());
-    var html = todaySummaryHtml_();
-    html += '<div class="section-header"><span class="t">Transaksi Terbaru</span>' +
+    var html = '<div class="section-header"><span class="t">Transaksi Terbaru</span>' +
       '<button class="more" id="btn-lihat-semua">Cari <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg></button></div>';
     html += trxFilterBarHtml_();
 
@@ -2523,15 +2669,6 @@
   function wireTrxFilterBar_(){
     var openBtn = document.getElementById('btn-open-filter');
     if(openBtn) openBtn.addEventListener('click', function(){ openTrxFilterSheet_(); });
-    document.querySelectorAll('.filter-chip[data-fopen]').forEach(function(btn){
-      btn.addEventListener('click', function(){ openTrxFilterSheet_(btn.dataset.fgroup); });
-    });
-    var r = document.getElementById('btn-filter-reset');
-    if(r) r.addEventListener('click', function(){
-      trxFilter = { akun: '', kategori: '', untuk: '' };
-      saveTrxFilter_();
-      renderTransaksi();
-    });
   }
 
   function emptyState(t1, t2){
@@ -4075,28 +4212,43 @@
     openSheet(
       '<div class="sheet-title">Tambah Hutang / Piutang</div>' +
       '<div class="toggle-pair form-group" id="hp-toggle">' +
-        '<button type="button" data-v="Hutang" class="hutang' + (hpJenis==='Hutang'?' active':'') + '">Hutang (Saya Terima Uang)</button>' +
-        '<button type="button" data-v="Piutang" class="piutang' + (hpJenis==='Piutang'?' active':'') + '">Piutang (Saya Beri Uang)</button>' +
+        '<button type="button" data-v="Hutang" class="hutang' + (hpJenis==='Hutang'?' active':'') + '">Hutang</button>' +
+        '<button type="button" data-v="Piutang" class="piutang' + (hpJenis==='Piutang'?' active':'') + '">Piutang</button>' +
       '</div>' +
-      '<div class="form-group"><label class="form-label">Nama</label><input class="form-input" id="f-nama" type="text" placeholder="Nama orang / pihak terkait"></div>' +
-      '<div class="form-group"><label class="form-label">Bentuk</label>' +
-        '<div class="toggle-pair" id="hp-bentuk-toggle">' +
-          '<button type="button" data-b="Tunai" class="active">Uang Tunai</button>' +
-          '<button type="button" data-b="Barang">Barang / Jasa</button>' +
+      '<details class="form-section" open>' +
+        '<summary>Data utama</summary>' +
+        '<div class="form-section-body">' +
+          '<div class="form-group"><label class="form-label">Nama</label><input class="form-input" id="f-nama" type="text" placeholder="Nama orang / pihak terkait"></div>' +
+          '<div class="form-group"><label class="form-label">Bentuk</label>' +
+            '<div class="toggle-pair" id="hp-bentuk-toggle">' +
+              '<button type="button" data-b="Tunai" class="active">Uang Tunai</button>' +
+              '<button type="button" data-b="Barang">Barang / Jasa</button>' +
+            '</div>' +
+            '<div style="font-size:11px; color:var(--ink-faint); margin-top:6px;" id="f-bentuk-hint">Uang benar-benar berpindah, jadi dicatat otomatis di rekening.</div>' +
+          '</div>' +
+          '<div class="form-group" id="f-akun-group"><label class="form-label" id="f-akun-label">Rekening Sumber (uang masuk ke sini)</label>' +
+            '<select class="form-select" id="f-akun-hp">' + accountOptions() + '</select></div>' +
         '</div>' +
-        '<div style="font-size:11px; color:var(--ink-faint); margin-top:6px;" id="f-bentuk-hint">Uang benar-benar berpindah, jadi dicatat otomatis di rekening.</div>' +
-      '</div>' +
-      '<div class="form-group" id="f-akun-group"><label class="form-label" id="f-akun-label">Rekening Sumber (uang masuk ke sini)</label>' +
-        '<select class="form-select" id="f-akun-hp">' + accountOptions() + '</select></div>' +
-      '<div class="form-group"><label class="form-label">Metode</label>' +
-        '<div class="metode-grid" id="hp-metode-grid">' +
-          Object.keys(METODE_INFO).map(function(m){
-            return '<button type="button" class="metode-btn' + (m===hpMetode?' active':'') + '" data-m="' + m + '">' + m + '<small>' + METODE_INFO[m] + '</small></button>';
-          }).join('') +
+      '</details>' +
+      '<details class="form-section" open>' +
+        '<summary>Metode &amp; nominal</summary>' +
+        '<div class="form-section-body">' +
+          '<div class="form-group"><label class="form-label">Metode</label>' +
+            '<div class="metode-grid" id="hp-metode-grid">' +
+              Object.keys(METODE_INFO).map(function(m){
+                return '<button type="button" class="metode-btn' + (m===hpMetode?' active':'') + '" data-m="' + m + '">' + m + '<small>' + METODE_INFO[m] + '</small></button>';
+              }).join('') +
+            '</div>' +
+          '</div>' +
+          '<div id="metode-fields"></div>' +
         '</div>' +
-      '</div>' +
-      '<div id="metode-fields"></div>' +
-      '<div class="form-group"><label class="form-label">Catatan (opsional)</label><input class="form-input" id="f-catatan" type="text" placeholder="Contoh: Mobil Avanza 2023, Motor Beat, dll"></div>' +
+      '</details>' +
+      '<details class="form-section">' +
+        '<summary>Catatan (opsional)</summary>' +
+        '<div class="form-section-body">' +
+          '<div class="form-group" style="margin-bottom:0;"><input class="form-input" id="f-catatan" type="text" placeholder="Contoh: Mobil Avanza 2023, Motor Beat, dll"></div>' +
+        '</div>' +
+      '</details>' +
       '<button class="btn-primary" id="btn-save-hp">Simpan</button>'
     );
     var hpBentuk = 'Tunai';
