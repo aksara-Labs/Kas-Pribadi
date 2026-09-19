@@ -506,6 +506,40 @@
       padding:0 1px;
     }
     .nav-icon-wrap{ position:relative; display:inline-flex; align-items:center; justify-content:center; }
+
+    #bottomnav button.nav-add{
+      flex:0 0 auto; width:56px; padding:0; margin:0 2px;
+      background:transparent; color:inherit;
+    }
+    #bottomnav button.nav-add:active{ background:transparent; transform:scale(.94); }
+    #bottomnav button.nav-add .nav-add-ic{
+      width:48px; height:48px; border-radius:50%;
+      display:flex; align-items:center; justify-content:center;
+      background:linear-gradient(145deg,#3B82F6,#1E3A5F);
+      box-shadow:0 6px 16px rgba(30,58,95,.35);
+      margin-top:-18px;
+    }
+    html.dark #bottomnav button.nav-add .nav-add-ic{
+      background:linear-gradient(145deg,#60A5FA,#1E3A5F);
+    }
+    .add-action-list{ display:flex; flex-direction:column; gap:8px; margin-top:4px; }
+    .add-action-btn{
+      display:flex; align-items:center; gap:12px; width:100%;
+      padding:14px 14px; border-radius:16px; border:1px solid var(--line);
+      background:var(--card); text-align:left; font-family:inherit;
+      transition:transform .12s ease, background-color .12s ease;
+    }
+    .add-action-btn:active{ transform:scale(.98); background:var(--input-bg); }
+    .add-action-btn .aa-ic{
+      width:40px; height:40px; border-radius:12px; flex:0 0 auto;
+      display:flex; align-items:center; justify-content:center; color:#fff;
+    }
+    .add-action-btn .aa-ic.in{ background:linear-gradient(145deg,#34D399,#059669); }
+    .add-action-btn .aa-ic.out{ background:linear-gradient(145deg,#F87171,#DC2626); }
+    .add-action-btn .aa-ic.tf{ background:linear-gradient(145deg,#60A5FA,#1E3A5F); }
+    .add-action-btn .aa-t{ font-size:14px; font-weight:800; color:var(--ink); }
+    .add-action-btn .aa-s{ font-size:12px; color:var(--ink-faint); font-weight:500; margin-top:2px; }
+
     .nav-badge{
       position:absolute; top:-5px; right:-9px; min-width:15px; height:15px; padding:0 4px;
       border-radius:8px; background:var(--red); color:#fff; font-size:9px; font-weight:800;
@@ -858,20 +892,20 @@
   <header id="topbar">
     <div class="topbar-row" id="topbar-transaksi">
       <div id="greeting-inline" style="flex:1; min-width:0;"></div>
-      <button class="topbar-icon-btn" id="btn-search" aria-label="Cari">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      </button>
       <button class="topbar-icon-btn" id="btn-notif" aria-label="Notifikasi">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
         <span class="topbar-notif-badge" id="notif-badge" style="display:none;">0</span>
       </button>
+      <button class="topbar-icon-btn" id="btn-settings" aria-label="Pengaturan">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      </button>
     </div>
     <div class="topbar-row" id="topbar-title" style="display:none;">
-      <button class="topbar-icon-btn" id="btn-settings-2" aria-label="Menu">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-      </button>
-      <h1 id="page-title" style="flex:1; text-align:center;"></h1>
       <span class="topbar-spacer"></span>
+      <h1 id="page-title" style="flex:1; text-align:center;"></h1>
+      <button class="topbar-icon-btn" id="btn-settings-2" aria-label="Pengaturan">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      </button>
     </div>
   </header>
 
@@ -903,6 +937,11 @@
         <span class="nav-badge" id="hutang-badge" style="display:none;">0</span>
       </span>
       <span class="nav-label">Hutang</span>
+    </button>
+    <button type="button" id="btn-nav-add" class="nav-add" aria-label="Tambah">
+      <span class="nav-add-ic">
+        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </span>
     </button>
     <button data-tab="rekening">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
@@ -1454,9 +1493,9 @@
   }
 
   // ================= NAV =================
-  document.querySelectorAll('#bottomnav button').forEach(function(btn){
+  document.querySelectorAll('#bottomnav button[data-tab]').forEach(function(btn){
     btn.addEventListener('click', function(){
-      document.querySelectorAll('#bottomnav button').forEach(function(b){ b.classList.remove('active'); });
+      document.querySelectorAll('#bottomnav button[data-tab]').forEach(function(b){ b.classList.remove('active'); });
       btn.classList.add('active');
       document.querySelectorAll('.view').forEach(function(v){ v.classList.remove('active'); });
       currentTab = btn.dataset.tab;
@@ -1466,9 +1505,38 @@
     });
   });
 
+  function openAddActionSheet(){
+    openSheet(
+      '<div class="sheet-title">Tambah</div>' +
+      '<div class="add-action-list">' +
+        '<button type="button" class="add-action-btn" id="aa-in">' +
+          '<span class="aa-ic in">' + iconTiny(ICON_PLUS) + '</span>' +
+          '<span><div class="aa-t">Pemasukan</div><div class="aa-s">Catat uang masuk</div></span>' +
+        '</button>' +
+        '<button type="button" class="add-action-btn" id="aa-out">' +
+          '<span class="aa-ic out">' + iconTiny(ICON_MINUS) + '</span>' +
+          '<span><div class="aa-t">Pengeluaran</div><div class="aa-s">Catat uang keluar</div></span>' +
+        '</button>' +
+        '<button type="button" class="add-action-btn" id="aa-tf">' +
+          '<span class="aa-ic tf">' + iconTiny(ICON_TRANSFER) + '</span>' +
+          '<span><div class="aa-t">Transfer</div><div class="aa-s">Pindah antar rekening</div></span>' +
+        '</button>' +
+      '</div>'
+    );
+    document.getElementById('aa-in').addEventListener('click', function(){ openTrxForm('Pemasukan'); });
+    document.getElementById('aa-out').addEventListener('click', function(){ openTrxForm('Pengeluaran'); });
+    document.getElementById('aa-tf').addEventListener('click', function(){
+      if(STATE.rekening.length < 2){ toast('Tambahkan minimal 2 rekening dulu untuk transfer'); return; }
+      openTransferForm();
+    });
+  }
+  var btnNavAdd = document.getElementById('btn-nav-add');
+  if(btnNavAdd) btnNavAdd.addEventListener('click', openAddActionSheet);
+
+  var btnSet = document.getElementById('btn-settings');
+  if(btnSet) btnSet.addEventListener('click', openSettingsSheet);
   var btnSet2 = document.getElementById('btn-settings-2');
   if(btnSet2) btnSet2.addEventListener('click', openSettingsSheet);
-  document.getElementById('btn-search').addEventListener('click', openSearchSheet);
   document.getElementById('btn-notif').addEventListener('click', openNotifSheet);
 
   var jumpDateInput = document.getElementById('jump-date-input');
@@ -2395,21 +2463,8 @@
             '<div><div class="l">Selisih (Cashflow)</div><div class="v num">' + (selisih>=0?'+ ':'') + maskRupiah(fmtRupiah(selisih)) + '</div></div>' +
             '<span class="cashflow-tag">' + (trxHariIni ? (trxHariIni + ' trx · hari ini') : 'Hari ini') + '</span>' +
           '</div>' +
-        '</div>' +
-        '<div class="quick-actions">' +
-          '<button id="qa-in"><span class="qa-ic in">' + iconTiny(ICON_PLUS) + '</span><span class="qa-lbl">Pemasukan</span><span class="qa-sub">Tambah masuk</span></button>' +
-          '<button id="qa-out"><span class="qa-ic out">' + iconTiny(ICON_MINUS) + '</span><span class="qa-lbl">Pengeluaran</span><span class="qa-sub">Tambah keluar</span></button>' +
-          '<button id="qa-transfer"><span class="qa-ic transfer">' + iconTiny(ICON_TRANSFER) + '</span><span class="qa-lbl">Transfer</span><span class="qa-sub">Pindah dana</span></button>' +
-          '<button id="qa-more"><span class="qa-ic more">' + iconTiny(ICON_DOTS) + '</span><span class="qa-lbl">Setting</span><span class="qa-sub">Pengaturan</span></button>' +
         '</div>';
       document.getElementById('btn-toggle-balance').addEventListener('click', toggleShowBalance);
-      document.getElementById('qa-in').addEventListener('click', function(){ openTrxForm('Pemasukan'); });
-      document.getElementById('qa-out').addEventListener('click', function(){ openTrxForm('Pengeluaran'); });
-      document.getElementById('qa-transfer').addEventListener('click', function(){
-        if(STATE.rekening.length < 2){ toast('Tambahkan minimal 2 rekening dulu untuk transfer'); return; }
-        openTransferForm();
-      });
-      document.getElementById('qa-more').addEventListener('click', openSettingsSheet);
     } else if(currentTab === 'hutang'){
       var hutang = 0, piutang = 0;
       STATE.hutangPiutang.forEach(function(h){
