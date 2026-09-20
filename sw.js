@@ -23,7 +23,7 @@ self.addEventListener('message', function (e) {
       self.registration.showNotification(data.title, {
         body: data.body || '',
         icon: data.icon || './icon-192.png',
-        badge: data.badge || './icon-192.png',
+        badge: data.badge || './badge-72.png',
         tag: data.tag || 'kas-notif',
         renotify: !!data.renotify,
         data: data.url ? { url: data.url } : {},
@@ -73,7 +73,7 @@ self.addEventListener('push', function (e) {
     self.registration.showNotification(title, {
       body: body,
       icon: './icon-192.png',
-      badge: './icon-192.png',
+      badge: './badge-72.png',
       tag: tag
     })
   );
