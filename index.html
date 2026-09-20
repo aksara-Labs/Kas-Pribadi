@@ -886,7 +886,7 @@
       transform:none !important;
     }
     .splash-brand{
-      width:min(72vw, 280px); height:min(72vw, 280px);
+      width:min(78vw, 300px); height:min(78vw, 300px);
       border-radius:0;
       overflow:visible;
       background:transparent;
@@ -894,9 +894,11 @@
     }
     .splash-brand img{
       width:100%; height:100%; object-fit:contain; display:block;
-      image-rendering:auto;
+      image-rendering:-webkit-optimize-contrast;
+      image-rendering:crisp-edges;
       -webkit-backface-visibility:hidden;
       backface-visibility:hidden;
+      transform:translateZ(0);
     }
     .splash-title{
       margin-top:8px; font-size:18px; font-weight:800; color:#fff;
@@ -1468,16 +1470,73 @@
     }
 
     #fab{ display:none !important; }
+
+    /* —— Rapikan tampilan (v11 polish) —— */
+    #loading{
+      background: linear-gradient(165deg, #0a1628 0%, #0f2744 55%, #0c1e36 100%);
+    }
+    .splash-sub{
+      margin-top: 14px;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: .02em;
+      color: rgba(255,255,255,.55);
+    }
+    .form-input:focus, .form-select:focus{
+      outline: none;
+      border-color: var(--blue-mid) !important;
+      box-shadow: 0 0 0 3px rgba(37,99,235,.15);
+    }
+    .btn-primary{
+      letter-spacing: -.01em;
+      box-shadow: 0 4px 14px rgba(13, 60, 120, .22);
+    }
+    .btn-secondary{
+      transition: background .12s ease, transform .12s ease;
+    }
+    .btn-secondary:active{ transform: scale(.98); }
+    #toast{
+      max-width: min(92vw, 360px);
+      text-align: center;
+      line-height: 1.35;
+    }
+    #bottomnav{
+      padding-bottom: max(8px, env(safe-area-inset-bottom));
+    }
+    #content{
+      padding-bottom: calc(88px + env(safe-area-inset-bottom));
+    }
+    .item-card{
+      border-radius: 14px;
+    }
+    .sheet-title{
+      font-size: 18px;
+      margin-bottom: 14px;
+    }
+    #summary .stat .val{
+      font-variant-numeric: tabular-nums;
+    }
+    .empty-state{
+      padding: 28px 20px;
+    }
+    .empty-state .t1{ margin-top: 4px; }
+    /* Hilangkan double border aneh di dark */
+    html.dark .item-card,
+    html.dark .settings-list,
+    html.dark .insight-strip{
+      border-color: rgba(255,255,255,.06);
+    }
+
   </style>
 </head>
 <body>
 
 <div id="loading">
   <div class="splash-brand">
-    <img src="splash-logo.jpg" alt="AksaraLabs" width="280" height="280" decoding="sync" fetchpriority="high">
+    <img src="splash-logo.png" alt="AksaraLabs" width="280" height="280" decoding="sync" fetchpriority="high">
   </div>
   <div class="spinner" style="margin-top:20px;"></div>
-  <div class="splash-sub">Memuat data…</div>
+  <div class="splash-sub">Sebentar ya…</div>
 </div>
 
 <div id="lockscreen">
@@ -1775,7 +1834,7 @@
 
   document.addEventListener('visibilitychange', function(){
     if(document.visibilityState === 'visible'){
-      try { fireDueNotifs_(false); } catch(e) {}
+      try { fireDueNotifs_(false); fireTrxReminders_(false); startTrxRemindScheduler_(); } catch(e) {}
     }
   });
 
@@ -2090,19 +2149,55 @@
     }
     if (!fromCache && !window.__kasDemoMode) {
       try { localStorage.setItem('kasCacheV1', JSON.stringify(data)); } catch(e) {}
-      setTimeout(function(){ try { fireDueNotifs_(); } catch(e) {} }, 800);
+      setTimeout(function(){ try { fireDueNotifs_(); fireTrxReminders_(false); startTrxRemindScheduler_(); } catch(e) {} }, 800);
     }
   }
   function onLoadError(err){
+    var msg = (err && err.message) ? err.message : String(err || 'Coba lagi');
     document.getElementById('loading').innerHTML =
-      '<div class="splash-brand"><img src="splash-logo.jpg" alt="AksaraLabs" width="280" height="280"></div>' +
+      '<div class="splash-brand"><img src="splash-logo.png" alt="AksaraLabs" width="280" height="280"></div>' +
       '<div class="splash-title">Catatan Kas</div>' +
-      '<div style="text-align:center; padding:16px 30px 0; color:rgba(255,255,255,.7); font-size:13.5px; font-weight:600;">Gagal memuat data.<br>' + (err && err.message ? err.message : err) + '</div>';
+      '<div style="text-align:center; padding:18px 28px 0; color:rgba(255,255,255,.75); font-size:14px; font-weight:600; line-height:1.5;">Gagal memuat data.<br><span style="font-size:12.5px;font-weight:500;opacity:.85">' + msg + '</span></div>' +
+      '<button type="button" onclick="location.reload()" style="margin-top:22px;padding:12px 28px;border:none;border-radius:12px;background:#fff;color:#0f2744;font-weight:800;font-size:14px;cursor:pointer;">Coba lagi</button>';
+  }
+  function applyDelta_(d){
+    if(!d || typeof d !== 'object') return;
+    if(Array.isArray(d.transaksi)) STATE.transaksi = d.transaksi;
+    if(Array.isArray(d.rekening)) STATE.rekening = d.rekening;
+    if(Array.isArray(d.hutangPiutang)) STATE.hutangPiutang = d.hutangPiutang;
+    if(Array.isArray(d.anggaran)) STATE.anggaran = d.anggaran;
+    if(Array.isArray(d.budgetLiburan)){
+      STATE.budgetLiburan = d.budgetLiburan;
+      STATE.budgetLiburan.forEach(function(b){
+        if (!b.Kantong || !b.Kantong.length) {
+          try {
+            var k = typeof b.KantongJson === 'string' ? JSON.parse(b.KantongJson || '[]') : (b.KantongJson || []);
+            b.Kantong = Array.isArray(k) ? k : [];
+          } catch (e) { b.Kantong = []; }
+        }
+        b.Plafon = Number(b.Plafon) || 0;
+      });
+      try { localStorage.setItem('kasBudgetLiburan', JSON.stringify(STATE.budgetLiburan)); } catch (e) {}
+    }
+    if(Array.isArray(d.recurring)) STATE.recurring = d.recurring;
+    if(Array.isArray(d.tujuanNabung)) STATE.tujuanNabung = d.tujuanNabung;
+    if(d.userName) STATE.userName = d.userName;
+    if(typeof d.hasPin === 'boolean'){ STATE.hasPin = d.hasPin; pinEnabled = d.hasPin; }
+    if(typeof d.dailyTriggerActive === 'boolean') STATE.dailyTriggerActive = d.dailyTriggerActive;
+  }
+  function absorbServerData_(data, arrayKey){
+    if(data && data.delta){ applyDelta_(data); return; }
+    if(Array.isArray(data) && arrayKey){ STATE[arrayKey] = data; return; }
+    if(data && typeof data === 'object' && !Array.isArray(data)){ applyState_(data); }
   }
   function refreshState(data){
-    applyState_(data);
+    if(data && data.delta){
+      applyDelta_(data);
+    } else if(data){
+      applyState_(data);
+    }
     try { renderAll(); } catch(e) { console.error(e); }
-    try { localStorage.setItem('kasCacheV1', JSON.stringify(data)); } catch(e) {}
+    try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e) {}
   }
 
   // Optimistic save: tutup sheet + toast dulu, server jalan di background.
@@ -2112,6 +2207,24 @@
     if(!el) return;
     if(__kasSyncing > 0){ el.classList.add('on'); el.style.display = ''; el.textContent = 'Menyimpan…'; }
     else { el.classList.remove('on'); el.style.display = 'none'; }
+  }
+  function withBusyBtn_(btn, work){
+    if(!btn){ work(function(){}); return; }
+    if(btn.dataset.busy === '1') return;
+    btn.dataset.busy = '1';
+    btn.disabled = true;
+    var prev = btn.textContent;
+    btn.textContent = 'Menyimpan…';
+    var released = false;
+    function release(){
+      if(released) return;
+      released = true;
+      btn.dataset.busy = '0';
+      btn.disabled = false;
+      btn.textContent = prev;
+    }
+    setTimeout(release, 12000);
+    try { work(release); } catch(e){ release(); throw e; }
   }
   function saveOptimistic(msg, startRun){
     closeSheet();
@@ -2285,33 +2398,26 @@
   }
   function showLocalNotif_(title, body, tag){
     if(!('Notification' in window) || Notification.permission !== 'granted') return Promise.resolve(false);
-    var opts = {
-      type: 'SHOW_NOTIFICATION',
-      title: title,
+    var iconUrl = new URL('icon-192.png', location.href).href;
+    var badgeUrl = new URL('badge-72.png', location.href).href;
+    var appUrl = new URL('./', location.href).href;
+    var nopts = {
       body: body || '',
+      icon: iconUrl,
+      badge: badgeUrl,
       tag: tag || 'kas-notif',
-      icon: './icon-192.png',
-      badge: './icon-192.png',
-      renotify: true
+      renotify: true,
+      requireInteraction: false,
+      data: { url: appUrl }
     };
-    // Lebih andal di Android PWA lewat Service Worker
     if(navigator.serviceWorker && navigator.serviceWorker.ready){
       return navigator.serviceWorker.ready.then(function(reg){
-        if(reg.active){
-          reg.active.postMessage(opts);
-          return true;
-        }
-        // fallback
-        return reg.showNotification(title, {
-          body: body || '',
-          icon: './icon-192.png',
-          tag: tag || 'kas-notif'
-        }).then(function(){ return true; });
+        return reg.showNotification(title, nopts).then(function(){ return true; });
       }).catch(function(){
-        try { new Notification(title, { body: body || '', tag: tag }); return true; } catch(e){ return false; }
+        try { new Notification(title, nopts); return true; } catch(e){ return false; }
       });
     }
-    try { new Notification(title, { body: body || '', tag: tag }); return Promise.resolve(true); }
+    try { new Notification(title, nopts); return Promise.resolve(true); }
     catch(e){ return Promise.resolve(false); }
   }
   function requestDueNotifPermission_(){
@@ -2349,6 +2455,66 @@
     try { localStorage.setItem(key, JSON.stringify(sent)); } catch(e) {}
     return n;
   }
+
+  // Pengingat pencatatan: 10, 12, 15, 18, 21
+  var TRX_REMIND_HOURS = [10, 12, 15, 18, 21];
+  var __trxRemindTimer = null;
+
+  function trxRemindEnabled_(){
+    try {
+      if(localStorage.getItem('kasTrxRemindOff') === '1') return false;
+      return notifEnabled_();
+    } catch(e){ return false; }
+  }
+  function setTrxRemindEnabled_(on){
+    try {
+      if(on) localStorage.removeItem('kasTrxRemindOff');
+      else localStorage.setItem('kasTrxRemindOff', '1');
+    } catch(e){}
+  }
+  function fireTrxReminders_(force){
+    if(!('Notification' in window) || Notification.permission !== 'granted') return;
+    if(!force && !trxRemindEnabled_()) return;
+    var now = new Date();
+    var ymd = toYMD(now);
+    var h = now.getHours();
+    var mi = now.getMinutes();
+    TRX_REMIND_HOURS.forEach(function(hour){
+      if(h !== hour || mi > 4) return;
+      var key = 'kasTrxRemind-' + ymd + '-' + hour;
+      try { if(localStorage.getItem(key) === '1') return; } catch(e){}
+      var label = hour <= 10 ? 'pagi' : hour <= 12 ? 'siang' : hour <= 15 ? 'sore' : hour <= 18 ? 'petang' : 'malam';
+      showLocalNotif_(
+        'Catat transaksi dulu',
+        'Pengingat ' + label + ' · Sudah catat kas jam ' + (hour < 10 ? '0' : '') + hour + ':00?',
+        'kas-trx-remind-' + hour
+      );
+      try { localStorage.setItem(key, '1'); } catch(e){}
+    });
+  }
+  function fireTrxRemindNow_(){
+    if(!('Notification' in window)){
+      toast('Browser tidak mendukung notifikasi');
+      return;
+    }
+    if(Notification.permission !== 'granted'){
+      toast('Aktifkan izin notifikasi dulu');
+      return;
+    }
+    showLocalNotif_(
+      'Catat transaksi dulu',
+      'Pengingat uji · Ketuk untuk buka Catatan Kas',
+      'kas-trx-remind-test'
+    ).then(function(ok){
+      toast(ok ? 'Notifikasi uji terkirim — cek laci notif HP' : 'Gagal kirim notifikasi');
+    });
+  }
+  function startTrxRemindScheduler_(){
+    if(__trxRemindTimer) return;
+    fireTrxReminders_(false);
+    __trxRemindTimer = setInterval(function(){ fireTrxReminders_(false); }, 60000);
+  }
+
 
   function openSearchSheet(){
     openSheet(
@@ -2431,7 +2597,7 @@
           settingsRow('btn-open-rename', 'Nama tampilan', esc(STATE.userName || 'Pengguna'), false, 'Dipakai di header') +
           '<button type="button" class="settings-row" id="btn-theme-toggle">' +
             '<span class="sr-left"><span class="sr-label">Mode tampilan</span><span class="sr-hint">Terang atau gelap</span></span>' +
-            '<span class="sr-value" id="theme-value-slot">' + themeVal + '<span class="sr-chev" aria-hidden="true">›</span></span>' +
+            '<span class="sr-value" data-theme-slot="1">' + themeVal + '<span class="sr-chev" aria-hidden="true">›</span></span>' +
           '</button>' +
           settingsRow('btn-open-zoom', 'Ukuran tampilan', Math.round(uiScale * 100) + '%', false, '70% – 100%')
         ) +
@@ -2455,7 +2621,7 @@
           settingsRow('btn-clear-cache', 'Hapus cache', '', false, 'Data server tetap aman') +
           settingsRow('btn-open-reset', 'Reset semua data', '', true, 'Tidak bisa dibatalkan')
         ) +
-        '<div class="settings-foot" id="btn-about-build">Catatan Kas · AksaraLabs · v9</div>' +
+        '<div class="settings-foot" id="btn-about-build">Catatan Kas · AksaraLabs</div>' +
       '</div>';
 
     openSheet(html);
@@ -2464,13 +2630,22 @@
     var root = document.getElementById('sheet-content');
     if(root){
       root.onclick = function(ev){
-        var btn = ev.target.closest ? ev.target.closest('[id]') : null;
-        if(!btn || !root.contains(btn)) return;
+        // Jangan pakai closest('[id]') — anak seperti #theme-value-slot mencuri klik
+        var el = ev.target;
+        var btn = null;
+        while(el && el !== root){
+          if(el.id && (el.id.indexOf('btn-') === 0 || el.classList && el.classList.contains('settings-row'))){
+            btn = el;
+            break;
+          }
+          el = el.parentElement;
+        }
+        if(!btn || !btn.id) return;
         switch(btn.id){
           case 'btn-open-rename': openRenameSheet(); break;
           case 'btn-theme-toggle':
             setDarkMode(!isDarkMode);
-            var slot = document.getElementById('theme-value-slot');
+            var slot = document.querySelector('[data-theme-slot]');
             if(slot) slot.innerHTML = '<span class="sr-badge">' + (isDarkMode ? 'Gelap' : 'Terang') + '</span><span class="sr-chev" aria-hidden="true">›</span>';
             toast(isDarkMode ? 'Mode malam' : 'Mode terang');
             break;
@@ -2487,7 +2662,7 @@
           case 'btn-view-mode': openViewModeSheet_(); break;
           case 'btn-clear-cache': clearAppCache_(); break;
           case 'btn-open-reset': openResetConfirm(); break;
-          case 'btn-about-build': toast('Catatan Kas · AksaraLabs · build v9'); break;
+          case 'btn-about-build': toast('Catatan Kas by AksaraLabs'); break;
         }
       };
     }
@@ -2577,7 +2752,7 @@
     document.getElementById('loading').style.display = 'flex';
     document.getElementById('app').style.display = 'none';
     document.getElementById('loading').innerHTML =
-      '<div class="splash-brand"><img src="splash-logo.jpg" alt="AksaraLabs" width="280" height="280" decoding="async"></div>' +
+      '<div class="splash-brand"><img src="splash-logo.png" alt="AksaraLabs" width="280" height="280" decoding="async"></div>' +
       '<div class="splash-title">Catatan Kas</div>' +
       '<div class="spinner" style="margin-top:18px;"></div>' +
       '<div class="splash-sub">Memuat ulang…</div>' +
@@ -2655,12 +2830,19 @@
     if(changePinBtn) changePinBtn.addEventListener('click', function(){ openPinSetupForm(true); });
     if(removePinBtn) removePinBtn.addEventListener('click', function(){
       if(!confirm('Nonaktifkan kunci PIN?')) return;
+      var pin = prompt('Masukkan PIN saat ini untuk menonaktifkan:');
+      if(pin === null) return;
+      pin = String(pin).trim();
+      if(!pin){ toast('PIN wajib diisi'); return; }
       google.script.run.withSuccessHandler(function(){
         pinEnabled = false;
-        try{ sessionStorage.removeItem('kasPinUnlocked'); }catch(e){}
+        try{
+          sessionStorage.removeItem('kasPinUnlocked');
+          setSession_('');
+        }catch(e){}
         toast('Kunci PIN dinonaktifkan');
         openSettingsSheet();
-      }).withFailureHandler(function(err){ toast('Gagal: ' + err.message); }).removePin();
+      }).withFailureHandler(function(err){ toast('Gagal: ' + (err.message||err)); }).removePin(pin);
     });
     document.getElementById('btn-back-settings').addEventListener('click', openSettingsSheet);
   }
@@ -2710,6 +2892,8 @@
   }
 
   function openNotifSettingsSheet_(){
+    var sc = document.getElementById('sheet-content');
+    if(sc) sc.onclick = null; // cegah delegasi Settings menelan klik
     var perm = (typeof Notification !== 'undefined') ? Notification.permission : 'denied';
     var on = notifEnabled_() && perm === 'granted';
     var trxOn = trxRemindEnabled_() && perm === 'granted';
@@ -2949,7 +3133,7 @@
       if(!limit || limit <= 0){ toast('Limit harus diisi'); return; }
       var btn = document.getElementById('btn-save-anggaran'); btn.textContent = 'Menyimpan…';
       google.script.run.withSuccessHandler(function(list){
-        STATE.anggaran = list; toast('Anggaran ditambahkan'); openAnggaranList();
+        absorbServerData_(list, 'anggaran'); toast('Anggaran ditambahkan'); openAnggaranList();
       }).withFailureHandler(function(err){ btn.textContent='Tambah Anggaran'; toast('Gagal: ' + err.message); }).addAnggaran({ kategori: kategori, limitBulanan: limit });
     });
     document.querySelectorAll('.riwayat-del-btn').forEach(function(btn){
@@ -2957,7 +3141,7 @@
         e.stopPropagation();
         if(!confirm('Hapus anggaran ini?')) return;
         google.script.run.withSuccessHandler(function(list){
-          STATE.anggaran = list; toast('Anggaran dihapus'); openAnggaranList();
+          absorbServerData_(list, 'anggaran'); toast('Anggaran dihapus'); openAnggaranList();
         }).withFailureHandler(function(err){ toast('Gagal: ' + err.message); }).deleteAnggaran(btn.dataset.id);
       });
     });
@@ -3007,7 +3191,7 @@
       var payload = { jenis: recJenis, nominal: nominal, tanggalPerBulan: tanggal, akun: document.getElementById('f-rec-akun').value, kategori: document.getElementById('f-rec-kategori').value };
       var btn = document.getElementById('btn-save-recurring'); btn.textContent = 'Menyimpan…';
       google.script.run.withSuccessHandler(function(list){
-        STATE.recurring = list; toast('Transaksi berulang ditambahkan'); openRecurringList();
+        absorbServerData_(list, 'recurring'); toast('Transaksi berulang ditambahkan'); openRecurringList();
       }).withFailureHandler(function(err){ btn.textContent='Tambah'; toast('Gagal: ' + err.message); }).addRecurring(payload);
     });
     document.querySelectorAll('.riwayat-del-btn').forEach(function(btn){
@@ -3015,7 +3199,7 @@
         e.stopPropagation();
         if(!confirm('Hapus transaksi berulang ini?')) return;
         google.script.run.withSuccessHandler(function(list){
-          STATE.recurring = list; toast('Dihapus'); openRecurringList();
+          absorbServerData_(list, 'recurring'); toast('Dihapus'); openRecurringList();
         }).withFailureHandler(function(err){ toast('Gagal: ' + err.message); }).deleteRecurring(btn.dataset.id);
       });
     });
@@ -4527,7 +4711,15 @@
   var __sheetPrevFocus = null;
   function openSheet(html){
     __sheetPrevFocus = document.activeElement;
-    document.getElementById('sheet-content').innerHTML = html;
+    var sc = document.getElementById('sheet-content');
+    sc.onclick = null; // reset delegasi tiap buka sheet
+    sc.innerHTML = html;
+    // a11y: label sheet dari judul
+    var titleEl = sc.querySelector('.sheet-title');
+    if(titleEl){
+      if(!titleEl.id) titleEl.id = 'sheet-title-live';
+      sheet.setAttribute('aria-labelledby', titleEl.id);
+    }
     sheet.setAttribute('role', 'dialog');
     sheet.setAttribute('aria-modal', 'true');
     sheet.setAttribute('aria-label', 'Panel');
