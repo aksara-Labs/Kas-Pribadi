@@ -907,14 +907,85 @@
     }
 
     #lockscreen{
-      position:fixed; inset:0; background:var(--bg); z-index:70; display:none;
+      position:fixed; inset:0; z-index:70; display:none;
       align-items:center; justify-content:center;
+      background: linear-gradient(165deg, #0a1628 0%, #0f2744 45%, #1a365d 100%);
+      padding: 24px 20px;
     }
-    .lock-box{width:100%; max-width:320px; padding:0 24px; text-align:center;}
-    .lock-icon{color:var(--blue); margin-bottom:10px;}
-    .lock-title{font-size:19px; font-weight:800; color:var(--ink); margin-bottom:4px;}
-    .lock-sub{font-size:13px;color:var(--ink-faint);font-weight:600;margin-bottom:14px;line-height:1.4;}
-    #lock-error{color:var(--red); font-size:12.5px; font-weight:600; min-height:18px; margin-bottom:4px;}
+    .lock-box{
+      width:100%; max-width:340px; padding:36px 28px 32px; text-align:center;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 28px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      box-shadow: 0 24px 64px rgba(0,0,0,.35);
+    }
+    .lock-brand{
+      font-size:12px; font-weight:700; letter-spacing:.12em; text-transform:uppercase;
+      color: rgba(255,255,255,.45); margin-bottom:18px;
+    }
+    .lock-icon{
+      width:72px; height:72px; margin:0 auto 18px;
+      border-radius:22px;
+      display:flex; align-items:center; justify-content:center;
+      background: linear-gradient(145deg, rgba(96,165,250,.25), rgba(37,99,235,.15));
+      border: 1px solid rgba(147,197,253,.25);
+      color:#93C5FD;
+    }
+    .lock-title{
+      font-size:24px; font-weight:800; color:#fff; margin-bottom:8px;
+      letter-spacing:-.03em;
+    }
+    .lock-sub{
+      font-size:14px; color:rgba(255,255,255,.55); font-weight:500;
+      margin-bottom:28px; line-height:1.5;
+    }
+    .lock-bio-main{
+      width:100%; border:none; cursor:pointer;
+      padding:16px 20px; border-radius:16px;
+      background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);
+      color:#fff; font-weight:800; font-size:15.5px; letter-spacing:-.01em;
+      box-shadow: 0 8px 28px rgba(37,99,235,.4);
+      display:flex; align-items:center; justify-content:center; gap:10px;
+      transition: transform .12s ease, opacity .12s ease;
+    }
+    .lock-bio-main:active{ transform: scale(.98); opacity:.92; }
+    .lock-bio-main svg{ flex:0 0 auto; }
+    .lock-pin-link{
+      display:inline-block; margin-top:20px; padding:10px 14px;
+      background:none; border:none; cursor:pointer;
+      color: rgba(255,255,255,.7); font-size:14px; font-weight:700;
+      text-decoration: underline; text-underline-offset: 3px;
+    }
+    .lock-pin-link:active{ color:#fff; }
+    #lock-pin-panel{
+      margin-top:18px; text-align:left;
+      animation: lockPinIn .2s ease;
+    }
+    @keyframes lockPinIn{ from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:none;} }
+    #lock-pin-panel .form-input{
+      background: rgba(255,255,255,.1) !important;
+      color:#fff !important;
+      border: 1.5px solid rgba(255,255,255,.15) !important;
+      text-align:center;
+      letter-spacing:10px;
+      font-size:22px;
+      margin-bottom:12px;
+    }
+    #lock-pin-panel .form-input::placeholder{ color:rgba(255,255,255,.35); letter-spacing:2px; font-size:14px; }
+    #lock-pin-panel .btn-primary{
+      background: rgba(255,255,255,.15) !important;
+      box-shadow: none !important;
+      border: 1px solid rgba(255,255,255,.2);
+    }
+    #lock-error{
+      color:#FCA5A5; font-size:13px; font-weight:600; min-height:20px;
+      margin:12px 0 0; text-align:center;
+    }
+    .lock-footer{
+      margin-top:28px; font-size:11px; color:rgba(255,255,255,.3); font-weight:600;
+    }
     .spinner{
       width:34px; height:34px; border:3px solid var(--blue-pale); border-top-color:var(--blue);
       border-radius:50%; animation:spin .7s linear infinite;
@@ -1856,15 +1927,23 @@
 
 <div id="lockscreen">
   <div class="lock-box">
+    <div class="lock-brand">Catatan Kas</div>
     <div class="lock-icon">
-      <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+      <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 11c1.66 0 3-1.2 3-2.7V6.7C15 5.2 13.66 4 12 4S9 5.2 9 6.7v1.6c0 1.5 1.34 2.7 3 2.7z"/><path d="M8.5 11v1.2c0 2.1 1.57 3.8 3.5 3.8s3.5-1.7 3.5-3.8V11"/><circle cx="12" cy="18.5" r="1.2"/><path d="M5 11h14v9a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-9z"/></svg>
     </div>
-    <div class="lock-title">Buka Catatan Kas</div>
-    <div class="lock-sub" id="lock-sub">Masukkan PIN atau sidik jari</div>
-    <button type="button" id="lock-bio-btn" class="btn-primary" style="display:none;margin-bottom:12px;">Buka dengan sidik jari / wajah</button>
-    <input id="lock-pin-input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" class="form-input" style="text-align:center; letter-spacing:10px; font-size:24px; margin:12px 0;" placeholder="PIN" autocomplete="one-time-code">
+    <div class="lock-title">Selamat datang</div>
+    <div class="lock-sub" id="lock-sub">Buka dengan sidik jari untuk masuk</div>
+    <button type="button" id="lock-bio-btn" class="lock-bio-main" style="display:none;">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 11c0-2 1.5-3 3-3"/><path d="M9 8a4 4 0 0 1 6.5 3"/><path d="M7.5 10.5A6 6 0 0 1 18 14"/><path d="M6 13a8 8 0 0 1 12.5 4"/><path d="M12 14v3"/><path d="M10 18.5c.5.8 1.2 1.5 2 1.5s1.5-.7 2-1.5"/></svg>
+      Gunakan sidik jari
+    </button>
+    <button type="button" id="lock-show-pin" class="lock-pin-link">Login dengan PIN</button>
+    <div id="lock-pin-panel" style="display:none;">
+      <input id="lock-pin-input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" class="form-input" placeholder="Masukkan PIN" autocomplete="one-time-code">
+      <button id="lock-submit" class="btn-primary" type="button">Masuk</button>
+    </div>
     <div id="lock-error"></div>
-    <button id="lock-submit" class="btn-primary">Buka dengan PIN</button>
+    <div class="lock-footer">Dilindungi · AksaraLabs</div>
   </div>
 </div>
 
@@ -2165,9 +2244,23 @@
   }
 
   document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState === 'hidden'){
+      // Keluar / minimize app → kunci otomatis
+      if(pinEnabled){
+        try { clearUnlocked_(); } catch(e){}
+      }
+    }
     if(document.visibilityState === 'visible'){
+      try {
+        if(pinEnabled && !isUnlocked_()){
+          lockAppNow_();
+        }
+      } catch(e){}
       try { fireDueNotifs_(false); fireTrxReminders_(false); startTrxRemindScheduler_(); } catch(e) {}
     }
+  });
+  window.addEventListener('pagehide', function(){
+    if(pinEnabled) try { clearUnlocked_(); } catch(e){}
   });
 
   function fitViewport(){
@@ -2300,7 +2393,7 @@
 
   // ================= INIT =================
   var pinEnabled = false;
-  try { pinEnabled = localStorage.getItem('kasHasPin') === '1'; } catch(e){}
+  try { pinEnabled = localStorage.getItem('kasHasPin') === '1' || !!localStorage.getItem('kasPinHash'); } catch(e){}
 
   function patchCacheHasPin_(v){
     try {
@@ -2311,7 +2404,59 @@
       }
     } catch(e){}
   }
+  function localPinHash_(pin){
+    // Hash lokal sederhana + salt tetap per-install (cukup untuk kunci layar HP)
+    var salt = '';
+    try { salt = localStorage.getItem('kasPinSalt') || ''; } catch(e){}
+    if(!salt){
+      salt = 'kas' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+      try { localStorage.setItem('kasPinSalt', salt); } catch(e){}
+    }
+    var s = salt + '|' + String(pin || '');
+    var h = 5381;
+    for(var i = 0; i < s.length; i++){
+      h = ((h << 5) + h) + s.charCodeAt(i);
+      h = h | 0;
+    }
+    // mix kedua
+    var h2 = 0;
+    for(var j = 0; j < s.length; j++){
+      h2 = (h2 * 31 + s.charCodeAt(j)) | 0;
+    }
+    return (h >>> 0).toString(16) + '-' + (h2 >>> 0).toString(16) + '-' + s.length;
+  }
+  function hasLocalPin_(){
+    try { return !!localStorage.getItem('kasPinHash'); } catch(e){ return false; }
+  }
+  function setLocalPin_(pin){
+    try {
+      localStorage.setItem('kasPinHash', localPinHash_(pin));
+      localStorage.setItem('kasHasPin', '1');
+    } catch(e){}
+    pinEnabled = true;
+  }
+  function clearLocalPin_(){
+    try {
+      localStorage.removeItem('kasPinHash');
+      localStorage.removeItem('kasHasPin');
+      localStorage.removeItem('kasUnlockUntil');
+    } catch(e){}
+    pinEnabled = false;
+  }
+  function verifyLocalPin_(pin){
+    try {
+      var stored = localStorage.getItem('kasPinHash');
+      if(!stored) return false;
+      return stored === localPinHash_(pin);
+    } catch(e){ return false; }
+  }
   function syncPinFlag_(on){
+    // Jangan biarkan server mematikan PIN kalau hash lokal masih ada
+    if(!on && hasLocalPin_()){
+      pinEnabled = true;
+      try { localStorage.setItem('kasHasPin', '1'); } catch(e){}
+      return;
+    }
     pinEnabled = !!on;
     try {
       if(on) localStorage.setItem('kasHasPin', '1');
@@ -2321,11 +2466,27 @@
       }
     } catch(e){}
   }
+  function applyServerPinFlag_(serverHasPin){
+    // Server hanya boleh MENYALAKAN; mematikan hanya lewat tombol Nonaktifkan (+ clear lokal)
+    if(serverHasPin){
+      pinEnabled = true;
+      try { localStorage.setItem('kasHasPin', '1'); } catch(e){}
+      return;
+    }
+    // server false: tetap hormati PIN lokal
+    if(hasLocalPin_()){
+      pinEnabled = true;
+      try { localStorage.setItem('kasHasPin', '1'); } catch(e){}
+    } else {
+      pinEnabled = false;
+      try { localStorage.removeItem('kasHasPin'); } catch(e){}
+    }
+  }
   function markUnlocked_(){
     try {
+      // Hanya untuk sesi aktif di memori — keluar app = terkunci lagi
       sessionStorage.setItem('kasPinUnlocked', '1');
-      // Tetap terbuka di HP ini sampai 12 jam (supaya tidak “hilang” tiap keluar app)
-      localStorage.setItem('kasUnlockUntil', String(Date.now() + 12 * 60 * 60 * 1000));
+      localStorage.removeItem('kasUnlockUntil');
     } catch(e){}
   }
   function clearUnlocked_(){
@@ -2336,14 +2497,17 @@
   }
   function isUnlocked_(){
     try {
-      if(sessionStorage.getItem('kasPinUnlocked') === '1') return true;
-      var until = Number(localStorage.getItem('kasUnlockUntil') || 0);
-      if(until > Date.now()){
-        sessionStorage.setItem('kasPinUnlocked', '1');
-        return true;
-      }
+      return sessionStorage.getItem('kasPinUnlocked') === '1';
+    } catch(e){ return false; }
+  }
+  function lockAppNow_(){
+    if(!pinEnabled) return;
+    clearUnlocked_();
+    try {
+      document.getElementById('app').style.display = 'none';
+      closeSheet();
     } catch(e){}
-    return false;
+    showLockScreen();
   }
 
   function initApp(){
@@ -2394,8 +2558,14 @@
         return;
       }
       if(data && typeof data.hasPin === 'boolean'){
-        syncPinFlag_(!!data.hasPin);
-        if(!data.hasPin){ clearBio_(); clearUnlocked_(); }
+        applyServerPinFlag_(!!data.hasPin);
+        // Hanya clear unlock/bio jika benar-benar tidak ada PIN (lokal+server)
+        if(!pinEnabled){
+          clearBio_();
+          clearUnlocked_();
+        }
+      } else if(hasLocalPin_()){
+        pinEnabled = true;
       }
       try { localStorage.setItem('kasCacheV1', JSON.stringify(data)); } catch(e) {}
       onDataLoaded(data, false);
@@ -2463,11 +2633,9 @@
     if (!Array.isArray(STATE.tujuanNabung)) STATE.tujuanNabung = [];
     if (!STATE.userName) STATE.userName = 'Pengguna';
     if(typeof STATE.hasPin === 'boolean'){
-      syncPinFlag_(!!STATE.hasPin);
-      if(!STATE.hasPin){
-        // Server bilang tidak ada PIN — jangan kunci layar
-        clearUnlocked_();
-      }
+      applyServerPinFlag_(!!STATE.hasPin);
+    } else if(hasLocalPin_()){
+      pinEnabled = true;
     }
     // Normalisasi kantong budget liburan (server kirim Kantong / KantongJson)
     STATE.budgetLiburan.forEach(function(b){
@@ -2589,48 +2757,81 @@
 
   function showLockScreen(){
     document.getElementById('loading').style.display = 'none';
+    try { document.getElementById('app').style.display = 'none'; } catch(e){}
     var ls = document.getElementById('lockscreen');
     ls.style.display = 'flex';
     var input = document.getElementById('lock-pin-input');
-    input.value = '';
+    if(input) input.value = '';
     document.getElementById('lock-error').textContent = '';
     var bioBtn = document.getElementById('lock-bio-btn');
     var sub = document.getElementById('lock-sub');
+    var pinPanel = document.getElementById('lock-pin-panel');
+    var showPinBtn = document.getElementById('lock-show-pin');
+    if(pinPanel) pinPanel.style.display = 'none';
+    if(showPinBtn) showPinBtn.style.display = '';
+
+    var canBio = bioSupported_() && bioEnabled_();
     if(bioBtn){
-      if(bioSupported_() && bioEnabled_()){
+      if(canBio){
         bioBtn.style.display = '';
-        if(sub) sub.textContent = 'Sidik jari / wajah atau PIN';
-        // Coba biometrik otomatis sekali
+        if(sub) sub.textContent = 'Sentuh sensor untuk membuka dengan aman';
         setTimeout(function(){
           if(document.getElementById('lockscreen').style.display === 'flex'){
             unlockWithBiometric_().catch(function(){});
           }
-        }, 350);
+        }, 400);
       } else {
         bioBtn.style.display = 'none';
-        if(sub) sub.textContent = 'Masukkan PIN untuk membuka';
+        if(sub) sub.textContent = 'Masukkan PIN untuk melanjutkan';
+        // Langsung tampilkan panel PIN jika tidak ada biometrik
+        if(pinPanel) pinPanel.style.display = '';
+        if(showPinBtn) showPinBtn.style.display = 'none';
+        setTimeout(function(){ try{ input && input.focus(); }catch(e){} }, 200);
       }
     }
-    setTimeout(function(){ try{ input.focus(); }catch(e){} }, 200);
   }
   function trySubmitPin(){
     var pin = document.getElementById('lock-pin-input').value;
     if(!pin) return;
     var btn = document.getElementById('lock-submit');
     btn.textContent = 'Memeriksa…';
-    google.script.run.withSuccessHandler(function(res){
+
+    function unlockOk_(session){
+      markUnlocked_();
+      if(session) setSession_(session);
+      document.getElementById('lockscreen').style.display = 'none';
+      try { document.getElementById('app').style.display = 'flex'; } catch(e){}
+      btn.textContent = 'Masuk';
+      loadData();
+    }
+    function unlockFail_(){
       btn.textContent = 'Buka dengan PIN';
+      document.getElementById('lock-error').textContent = 'PIN salah, coba lagi.';
+      document.getElementById('lock-pin-input').value = '';
+      document.getElementById('lock-pin-input').focus();
+    }
+
+    // 1) Cek PIN lokal dulu (tidak tergantung server)
+    if(hasLocalPin_()){
+      if(!verifyLocalPin_(pin)){ unlockFail_(); return; }
+      // lokal benar — coba sync session server (opsional)
+      google.script.run.withSuccessHandler(function(res){
+        var ok = (res === true) || (res && res.ok);
+        unlockOk_(ok && res && res.session ? res.session : null);
+      }).withFailureHandler(function(){
+        // server gagal: tetap buka karena PIN lokal benar
+        unlockOk_(null);
+      }).checkPin(pin);
+      return;
+    }
+
+    // 2) Tidak ada hash lokal — andalkan server
+    google.script.run.withSuccessHandler(function(res){
       var ok = (res === true) || (res && res.ok);
       if(ok){
-        markUnlocked_();
-        if(res && res.session) setSession_(res.session);
-        document.getElementById('lockscreen').style.display = 'none';
-        loadData();
-      } else {
-        document.getElementById('lock-error').textContent = 'PIN salah, coba lagi.';
-        document.getElementById('lock-pin-input').value = '';
-        document.getElementById('lock-pin-input').focus();
-      }
+        setLocalPin_(pin); // simpan lokal biar tidak hilang lagi
+        unlockOk_(res && res.session ? res.session : null);
+      } else unlockFail_();
     }).withFailureHandler(function(err){
       btn.textContent = 'Buka dengan PIN';
       document.getElementById('lock-error').textContent = (err && err.message) ? err.message : 'Gagal';
@@ -2639,14 +2840,26 @@
   document.getElementById('lock-submit').addEventListener('click', trySubmitPin);
   document.getElementById('lock-pin-input').addEventListener('keydown', function(e){ if(e.key === 'Enter') trySubmitPin(); });
   (function(){
+    var showPin = document.getElementById('lock-show-pin');
+    if(showPin) showPin.addEventListener('click', function(){
+      var panel = document.getElementById('lock-pin-panel');
+      if(panel) panel.style.display = '';
+      showPin.style.display = 'none';
+      var sub = document.getElementById('lock-sub');
+      if(sub) sub.textContent = 'Masukkan PIN Anda';
+      setTimeout(function(){
+        try { document.getElementById('lock-pin-input').focus(); } catch(e){}
+      }, 100);
+    });
     var bioBtn = document.getElementById('lock-bio-btn');
     if(bioBtn) bioBtn.addEventListener('click', function(){
       document.getElementById('lock-error').textContent = '';
-      bioBtn.textContent = 'Menunggu…';
+      var prev = bioBtn.innerHTML;
+      bioBtn.innerHTML = 'Menunggu sensor…';
       unlockWithBiometric_().then(function(){
-        bioBtn.textContent = 'Buka dengan sidik jari / wajah';
+        bioBtn.innerHTML = prev;
       }).catch(function(err){
-        bioBtn.textContent = 'Buka dengan sidik jari / wajah';
+        bioBtn.innerHTML = prev;
         var msg = (err && err.name === 'NotAllowedError') ? 'Dibatalkan / tidak dikenali' : ((err && err.message) || 'Gagal biometrik');
         document.getElementById('lock-error').textContent = msg;
       });
@@ -2710,7 +2923,7 @@
     if(Array.isArray(d.recurring)) STATE.recurring = d.recurring;
     if(Array.isArray(d.tujuanNabung)) STATE.tujuanNabung = d.tujuanNabung;
     if(d.userName) STATE.userName = d.userName;
-    if(typeof d.hasPin === 'boolean'){ STATE.hasPin = d.hasPin; syncPinFlag_(d.hasPin); }
+    if(typeof d.hasPin === 'boolean'){ STATE.hasPin = d.hasPin; applyServerPinFlag_(d.hasPin); }
     if(typeof d.dailyTriggerActive === 'boolean') STATE.dailyTriggerActive = d.dailyTriggerActive;
   }
   function absorbServerData_(data, arrayKey){
@@ -3413,16 +3626,25 @@
       if(pin === null) return;
       pin = String(pin).trim();
       if(!pin){ toast('PIN wajib diisi'); return; }
+      // Nonaktifkan di HP selalu (asal PIN lokal benar, atau tidak ada hash lokal)
+      if(hasLocalPin_() && !verifyLocalPin_(pin)){
+        toast('PIN salah');
+        return;
+      }
+      clearLocalPin_();
+      clearBio_();
+      clearUnlocked_();
+      setSession_('');
+      patchCacheHasPin_(false);
+      STATE.hasPin = false;
       google.script.run.withSuccessHandler(function(){
-        syncPinFlag_(false);
-        patchCacheHasPin_(false);
-        STATE.hasPin = false;
-        clearBio_();
-        clearUnlocked_();
-        setSession_('');
-        toast('Kunci PIN dinonaktifkan — tidak diminta lagi');
+        toast('Kunci PIN dinonaktifkan');
         openSettingsSheet();
-      }).withFailureHandler(function(err){ toast('Gagal: ' + (err.message||err)); }).removePin(pin);
+      }).withFailureHandler(function(err){
+        // lokal sudah mati; server boleh gagal
+        toast('PIN dimatikan di HP' + (err && err.message ? ' (server: ' + err.message + ')' : ''));
+        openSettingsSheet();
+      }).removePin(pin);
     });
     document.getElementById('btn-back-settings').addEventListener('click', openSettingsSheet);
   }
@@ -3666,15 +3888,27 @@
       var btn = document.getElementById('btn-save-pin');
       if(btn && btn.dataset.busy==='1') return;
       if(btn){ btn.dataset.busy='1'; btn.disabled=true; btn.textContent='Menyimpan…'; }
+      // Simpan di HP dulu — biar tidak "aneh hilang" meski server gagal
+      setLocalPin_(p1);
+      markUnlocked_();
       google.script.run.withSuccessHandler(function(res){
-        syncPinFlag_(true);
-        markUnlocked_();
         if(res && res.session) setSession_(res.session);
-        closeSheet(); toast('Kunci PIN aktif');
+        patchCacheHasPin_(true);
+        STATE.hasPin = true;
+        if(btn){ btn.dataset.busy='0'; btn.disabled=false; }
+        closeSheet(); toast('Kunci PIN aktif di HP ini');
         if(bioSupported_() && !bioEnabled_() && confirm('Aktifkan juga sidik jari / Face ID?')){
           registerBiometric_().then(function(){ toast('Biometrik aktif'); }).catch(function(){});
         }
-      }).withFailureHandler(function(err){ btn.textContent='Simpan PIN'; toast('Gagal: ' + (err.message||err)); }).setPin(p1);
+      }).withFailureHandler(function(err){
+        // PIN lokal tetap aktif
+        if(btn){ btn.dataset.busy='0'; btn.disabled=false; btn.textContent='Simpan PIN'; }
+        closeSheet();
+        toast('PIN aktif di HP (server: ' + ((err && err.message) || 'gagal sync') + ')');
+        if(bioSupported_() && !bioEnabled_() && confirm('Aktifkan juga sidik jari / Face ID?')){
+          registerBiometric_().then(function(){ toast('Biometrik aktif'); }).catch(function(){});
+        }
+      }).setPin(p1);
     });
   }
 
