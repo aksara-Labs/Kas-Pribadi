@@ -2009,7 +2009,7 @@
     if (/Terlalu banyak/i.test(m)) return 'Terlalu sering menyimpan, tunggu sebentar';
     if (/PIN salah/i.test(m)) return 'PIN salah';
     if (/Sesi berakhir|belum unlock/i.test(m)) {
-      try { sessionStorage.removeItem('kasPinUnlocked'); setSession_(''); } catch(e) {}
+      try { clearUnlocked_(); setSession_(''); } catch(e) {}
       setTimeout(function(){ try { showLockScreen(); } catch(e) {} }, 300);
       return 'Sesi habis, masukkan PIN lagi';
     }
@@ -2300,6 +2300,52 @@
 
   // ================= INIT =================
   var pinEnabled = false;
+  try { pinEnabled = localStorage.getItem('kasHasPin') === '1'; } catch(e){}
+
+  function patchCacheHasPin_(v){
+    try {
+      var c = JSON.parse(localStorage.getItem('kasCacheV1') || 'null');
+      if(c && typeof c === 'object'){
+        c.hasPin = !!v;
+        localStorage.setItem('kasCacheV1', JSON.stringify(c));
+      }
+    } catch(e){}
+  }
+  function syncPinFlag_(on){
+    pinEnabled = !!on;
+    try {
+      if(on) localStorage.setItem('kasHasPin', '1');
+      else {
+        localStorage.removeItem('kasHasPin');
+        localStorage.removeItem('kasUnlockUntil');
+      }
+    } catch(e){}
+  }
+  function markUnlocked_(){
+    try {
+      sessionStorage.setItem('kasPinUnlocked', '1');
+      // Tetap terbuka di HP ini sampai 12 jam (supaya tidak “hilang” tiap keluar app)
+      localStorage.setItem('kasUnlockUntil', String(Date.now() + 12 * 60 * 60 * 1000));
+    } catch(e){}
+  }
+  function clearUnlocked_(){
+    try {
+      sessionStorage.removeItem('kasPinUnlocked');
+      localStorage.removeItem('kasUnlockUntil');
+    } catch(e){}
+  }
+  function isUnlocked_(){
+    try {
+      if(sessionStorage.getItem('kasPinUnlocked') === '1') return true;
+      var until = Number(localStorage.getItem('kasUnlockUntil') || 0);
+      if(until > Date.now()){
+        sessionStorage.setItem('kasPinUnlocked', '1');
+        return true;
+      }
+    } catch(e){}
+    return false;
+  }
+
   function initApp(){
     // Langsung load data (1 request). Status PIN ikut di dalam getInitialData.
     // Hindari 2x round-trip ke GAS (hasPin + getInitialData) yang bikin 8+ detik.
@@ -2317,7 +2363,7 @@
     if (cached && Array.isArray(cached.transaksi)) {
       try {
         applyState_(cached);
-        if (!(pinEnabled && sessionStorage.getItem('kasPinUnlocked') !== '1')) {
+        if (!(pinEnabled && !isUnlocked_())) {
           document.getElementById('loading').style.display = 'none';
           document.getElementById('app').style.display = 'flex';
           renderAll();
@@ -2336,10 +2382,20 @@
       var ban = document.getElementById('offline-banner');
       if(ban) ban.style.display = 'none';
       if (data && data.needsPin) {
-        pinEnabled = true;
+        syncPinFlag_(true);
         document.getElementById('loading').style.display = 'none';
-        showLockScreen();
+        if(isUnlocked_()){
+          // Sudah unlock di HP ini — coba lagi dengan session; kalau tetap gagal, minta PIN
+          clearUnlocked_();
+          showLockScreen();
+        } else {
+          showLockScreen();
+        }
         return;
+      }
+      if(data && typeof data.hasPin === 'boolean'){
+        syncPinFlag_(!!data.hasPin);
+        if(!data.hasPin){ clearBio_(); clearUnlocked_(); }
       }
       try { localStorage.setItem('kasCacheV1', JSON.stringify(data)); } catch(e) {}
       onDataLoaded(data, false);
@@ -2406,7 +2462,13 @@
     if (!Array.isArray(STATE.recurring)) STATE.recurring = [];
     if (!Array.isArray(STATE.tujuanNabung)) STATE.tujuanNabung = [];
     if (!STATE.userName) STATE.userName = 'Pengguna';
-    pinEnabled = !!STATE.hasPin;
+    if(typeof STATE.hasPin === 'boolean'){
+      syncPinFlag_(!!STATE.hasPin);
+      if(!STATE.hasPin){
+        // Server bilang tidak ada PIN — jangan kunci layar
+        clearUnlocked_();
+      }
+    }
     // Normalisasi kantong budget liburan (server kirim Kantong / KantongJson)
     STATE.budgetLiburan.forEach(function(b){
       if (!b.Kantong || !b.Kantong.length) {
@@ -2462,14 +2524,15 @@
     crypto.getRandomValues(challenge);
     var userId = new Uint8Array(16);
     crypto.getRandomValues(userId);
-    return navigator.credentials.create({
+    // platform + residentKey discouraged = sidik jari HP lokal, bukan passkey Google
+    var opts = {
       publicKey: {
         challenge: challenge,
         rp: { name: 'Catatan Kas', id: location.hostname },
         user: {
           id: userId,
-          name: 'catatan-kas',
-          displayName: (STATE && STATE.userName) ? STATE.userName : 'Pengguna'
+          name: 'catatan-kas-local',
+          displayName: 'Catatan Kas'
         },
         pubKeyCredParams: [
           { alg: -7, type: 'public-key' },
@@ -2478,11 +2541,14 @@
         authenticatorSelection: {
           authenticatorAttachment: 'platform',
           userVerification: 'required',
-          residentKey: 'preferred'
+          residentKey: 'discouraged',
+          requireResidentKey: false
         },
+        attestation: 'none',
         timeout: 90000
       }
-    }).then(function(cred){
+    };
+    return navigator.credentials.create(opts).then(function(cred){
       if(!cred) throw new Error('Dibatalkan');
       var id = bufToB64url_(cred.rawId);
       localStorage.setItem('kasBioCredId', id);
@@ -2495,9 +2561,11 @@
     var id = localStorage.getItem('kasBioCredId');
     var challenge = new Uint8Array(32);
     crypto.getRandomValues(challenge);
+    // allowCredentials + transports internal = pakai sensor HP, bukan akun Google
     return navigator.credentials.get({
       publicKey: {
         challenge: challenge,
+        rpId: location.hostname,
         allowCredentials: [{
           type: 'public-key',
           id: b64urlToBuf_(id),
@@ -2505,11 +2573,11 @@
         }],
         userVerification: 'required',
         timeout: 90000
-      }
+      },
+      mediation: 'optional'
     }).then(function(assertion){
       if(!assertion) throw new Error('Dibatalkan');
-      try { sessionStorage.setItem('kasPinUnlocked', '1'); } catch(e){}
-      // restore session token for server if masih ada
+      markUnlocked_();
       try {
         var s = localStorage.getItem('kasSessionPersist');
         if(s) sessionStorage.setItem('kasSession', s);
@@ -2554,7 +2622,7 @@
       btn.textContent = 'Buka dengan PIN';
       var ok = (res === true) || (res && res.ok);
       if(ok){
-        try{ sessionStorage.setItem('kasPinUnlocked', '1'); }catch(e){}
+        markUnlocked_();
         if(res && res.session) setSession_(res.session);
         document.getElementById('lockscreen').style.display = 'none';
         loadData();
@@ -2588,7 +2656,7 @@
 
   function onDataLoaded(data, fromCache){
     applyState_(data);
-    if (pinEnabled && sessionStorage.getItem('kasPinUnlocked') !== '1' && !fromCache) {
+    if (pinEnabled && !isUnlocked_() && !fromCache) {
       document.getElementById('loading').style.display = 'none';
       showLockScreen();
       return;
@@ -2642,7 +2710,7 @@
     if(Array.isArray(d.recurring)) STATE.recurring = d.recurring;
     if(Array.isArray(d.tujuanNabung)) STATE.tujuanNabung = d.tujuanNabung;
     if(d.userName) STATE.userName = d.userName;
-    if(typeof d.hasPin === 'boolean'){ STATE.hasPin = d.hasPin; pinEnabled = d.hasPin; }
+    if(typeof d.hasPin === 'boolean'){ STATE.hasPin = d.hasPin; syncPinFlag_(d.hasPin); }
     if(typeof d.dailyTriggerActive === 'boolean') STATE.dailyTriggerActive = d.dailyTriggerActive;
   }
   function absorbServerData_(data, arrayKey){
@@ -3346,13 +3414,13 @@
       pin = String(pin).trim();
       if(!pin){ toast('PIN wajib diisi'); return; }
       google.script.run.withSuccessHandler(function(){
-        pinEnabled = false;
+        syncPinFlag_(false);
+        patchCacheHasPin_(false);
+        STATE.hasPin = false;
         clearBio_();
-        try{
-          sessionStorage.removeItem('kasPinUnlocked');
-          setSession_('');
-        }catch(e){}
-        toast('Kunci PIN dinonaktifkan');
+        clearUnlocked_();
+        setSession_('');
+        toast('Kunci PIN dinonaktifkan — tidak diminta lagi');
         openSettingsSheet();
       }).withFailureHandler(function(err){ toast('Gagal: ' + (err.message||err)); }).removePin(pin);
     });
@@ -3599,8 +3667,8 @@
       if(btn && btn.dataset.busy==='1') return;
       if(btn){ btn.dataset.busy='1'; btn.disabled=true; btn.textContent='Menyimpan…'; }
       google.script.run.withSuccessHandler(function(res){
-        pinEnabled = true;
-        try{ sessionStorage.setItem('kasPinUnlocked', '1'); }catch(e){}
+        syncPinFlag_(true);
+        markUnlocked_();
         if(res && res.session) setSession_(res.session);
         closeSheet(); toast('Kunci PIN aktif');
         if(bioSupported_() && !bioEnabled_() && confirm('Aktifkan juga sidik jari / Face ID?')){
