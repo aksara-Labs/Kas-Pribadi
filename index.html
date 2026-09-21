@@ -913,6 +913,7 @@
     .lock-box{width:100%; max-width:320px; padding:0 24px; text-align:center;}
     .lock-icon{color:var(--blue); margin-bottom:10px;}
     .lock-title{font-size:19px; font-weight:800; color:var(--ink); margin-bottom:4px;}
+    .lock-sub{font-size:13px;color:var(--ink-faint);font-weight:600;margin-bottom:14px;line-height:1.4;}
     #lock-error{color:var(--red); font-size:12.5px; font-weight:600; min-height:18px; margin-bottom:4px;}
     .spinner{
       width:34px; height:34px; border:3px solid var(--blue-pale); border-top-color:var(--blue);
@@ -1858,10 +1859,12 @@
     <div class="lock-icon">
       <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
     </div>
-    <div class="lock-title">Masukkan PIN</div>
-    <input id="lock-pin-input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" class="form-input" style="text-align:center; letter-spacing:10px; font-size:24px; margin:16px 0;">
+    <div class="lock-title">Buka Catatan Kas</div>
+    <div class="lock-sub" id="lock-sub">Masukkan PIN atau sidik jari</div>
+    <button type="button" id="lock-bio-btn" class="btn-primary" style="display:none;margin-bottom:12px;">Buka dengan sidik jari / wajah</button>
+    <input id="lock-pin-input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" class="form-input" style="text-align:center; letter-spacing:10px; font-size:24px; margin:12px 0;" placeholder="PIN" autocomplete="one-time-code">
     <div id="lock-error"></div>
-    <button id="lock-submit" class="btn-primary">Buka</button>
+    <button id="lock-submit" class="btn-primary">Buka dengan PIN</button>
   </div>
 </div>
 
@@ -1968,12 +1971,19 @@
     } catch(e){}
   }
   function getSession_(){
-    try { return sessionStorage.getItem('kasSession') || ''; } catch(e){ return ''; }
+    try {
+      return sessionStorage.getItem('kasSession') || localStorage.getItem('kasSessionPersist') || '';
+    } catch(e){ return ''; }
   }
   function setSession_(v){
     try {
-      if(v) sessionStorage.setItem('kasSession', String(v));
-      else sessionStorage.removeItem('kasSession');
+      if(v){
+        sessionStorage.setItem('kasSession', String(v));
+        localStorage.setItem('kasSessionPersist', String(v));
+      } else {
+        sessionStorage.removeItem('kasSession');
+        localStorage.removeItem('kasSessionPersist');
+      }
     } catch(e){}
   }
   function authQuery_(){
@@ -2416,6 +2426,99 @@
       try { localStorage.setItem('kasBudgetLiburan', JSON.stringify(STATE.budgetLiburan)); } catch (e) {}
     }
   }
+
+  // —— Biometric (sidik jari / Face ID) via WebAuthn — gratis ——
+  function bioSupported_(){
+    return !!(window.PublicKeyCredential && navigator.credentials && window.isSecureContext);
+  }
+  function bioEnabled_(){
+    try {
+      return localStorage.getItem('kasBioOn') === '1' && !!localStorage.getItem('kasBioCredId');
+    } catch(e){ return false; }
+  }
+  function clearBio_(){
+    try {
+      localStorage.removeItem('kasBioOn');
+      localStorage.removeItem('kasBioCredId');
+    } catch(e){}
+  }
+  function bufToB64url_(buf){
+    var bytes = new Uint8Array(buf);
+    var s = '';
+    for(var i=0;i<bytes.length;i++) s += String.fromCharCode(bytes[i]);
+    return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  }
+  function b64urlToBuf_(str){
+    var s = str.replace(/-/g,'+').replace(/_/g,'/');
+    while(s.length % 4) s += '=';
+    var bin = atob(s);
+    var out = new Uint8Array(bin.length);
+    for(var i=0;i<bin.length;i++) out[i] = bin.charCodeAt(i);
+    return out.buffer;
+  }
+  function registerBiometric_(){
+    if(!bioSupported_()) return Promise.reject(new Error('HP/browser tidak mendukung biometrik'));
+    var challenge = new Uint8Array(32);
+    crypto.getRandomValues(challenge);
+    var userId = new Uint8Array(16);
+    crypto.getRandomValues(userId);
+    return navigator.credentials.create({
+      publicKey: {
+        challenge: challenge,
+        rp: { name: 'Catatan Kas', id: location.hostname },
+        user: {
+          id: userId,
+          name: 'catatan-kas',
+          displayName: (STATE && STATE.userName) ? STATE.userName : 'Pengguna'
+        },
+        pubKeyCredParams: [
+          { alg: -7, type: 'public-key' },
+          { alg: -257, type: 'public-key' }
+        ],
+        authenticatorSelection: {
+          authenticatorAttachment: 'platform',
+          userVerification: 'required',
+          residentKey: 'preferred'
+        },
+        timeout: 90000
+      }
+    }).then(function(cred){
+      if(!cred) throw new Error('Dibatalkan');
+      var id = bufToB64url_(cred.rawId);
+      localStorage.setItem('kasBioCredId', id);
+      localStorage.setItem('kasBioOn', '1');
+      return true;
+    });
+  }
+  function unlockWithBiometric_(){
+    if(!bioEnabled_()) return Promise.reject(new Error('Biometrik belum diaktifkan'));
+    var id = localStorage.getItem('kasBioCredId');
+    var challenge = new Uint8Array(32);
+    crypto.getRandomValues(challenge);
+    return navigator.credentials.get({
+      publicKey: {
+        challenge: challenge,
+        allowCredentials: [{
+          type: 'public-key',
+          id: b64urlToBuf_(id),
+          transports: ['internal']
+        }],
+        userVerification: 'required',
+        timeout: 90000
+      }
+    }).then(function(assertion){
+      if(!assertion) throw new Error('Dibatalkan');
+      try { sessionStorage.setItem('kasPinUnlocked', '1'); } catch(e){}
+      // restore session token for server if masih ada
+      try {
+        var s = localStorage.getItem('kasSessionPersist');
+        if(s) sessionStorage.setItem('kasSession', s);
+      } catch(e){}
+      document.getElementById('lockscreen').style.display = 'none';
+      loadData();
+    });
+  }
+
   function showLockScreen(){
     document.getElementById('loading').style.display = 'none';
     var ls = document.getElementById('lockscreen');
@@ -2423,17 +2526,36 @@
     var input = document.getElementById('lock-pin-input');
     input.value = '';
     document.getElementById('lock-error').textContent = '';
-    setTimeout(function(){ input.focus(); }, 100);
+    var bioBtn = document.getElementById('lock-bio-btn');
+    var sub = document.getElementById('lock-sub');
+    if(bioBtn){
+      if(bioSupported_() && bioEnabled_()){
+        bioBtn.style.display = '';
+        if(sub) sub.textContent = 'Sidik jari / wajah atau PIN';
+        // Coba biometrik otomatis sekali
+        setTimeout(function(){
+          if(document.getElementById('lockscreen').style.display === 'flex'){
+            unlockWithBiometric_().catch(function(){});
+          }
+        }, 350);
+      } else {
+        bioBtn.style.display = 'none';
+        if(sub) sub.textContent = 'Masukkan PIN untuk membuka';
+      }
+    }
+    setTimeout(function(){ try{ input.focus(); }catch(e){} }, 200);
   }
   function trySubmitPin(){
     var pin = document.getElementById('lock-pin-input').value;
     if(!pin) return;
     var btn = document.getElementById('lock-submit');
     btn.textContent = 'Memeriksa…';
-    google.script.run.withSuccessHandler(function(ok){
-      btn.textContent = 'Buka';
+    google.script.run.withSuccessHandler(function(res){
+      btn.textContent = 'Buka dengan PIN';
+      var ok = (res === true) || (res && res.ok);
       if(ok){
         try{ sessionStorage.setItem('kasPinUnlocked', '1'); }catch(e){}
+        if(res && res.session) setSession_(res.session);
         document.getElementById('lockscreen').style.display = 'none';
         loadData();
       } else {
@@ -2441,10 +2563,27 @@
         document.getElementById('lock-pin-input').value = '';
         document.getElementById('lock-pin-input').focus();
       }
-    }).withFailureHandler(function(err){ btn.textContent = 'Buka'; document.getElementById('lock-error').textContent = 'Gagal: ' + err.message; }).checkPin(pin);
+    }).withFailureHandler(function(err){
+      btn.textContent = 'Buka dengan PIN';
+      document.getElementById('lock-error').textContent = (err && err.message) ? err.message : 'Gagal';
+    }).checkPin(pin);
   }
   document.getElementById('lock-submit').addEventListener('click', trySubmitPin);
   document.getElementById('lock-pin-input').addEventListener('keydown', function(e){ if(e.key === 'Enter') trySubmitPin(); });
+  (function(){
+    var bioBtn = document.getElementById('lock-bio-btn');
+    if(bioBtn) bioBtn.addEventListener('click', function(){
+      document.getElementById('lock-error').textContent = '';
+      bioBtn.textContent = 'Menunggu…';
+      unlockWithBiometric_().then(function(){
+        bioBtn.textContent = 'Buka dengan sidik jari / wajah';
+      }).catch(function(err){
+        bioBtn.textContent = 'Buka dengan sidik jari / wajah';
+        var msg = (err && err.name === 'NotAllowedError') ? 'Dibatalkan / tidak dikenali' : ((err && err.message) || 'Gagal biometrik');
+        document.getElementById('lock-error').textContent = msg;
+      });
+    });
+  })();
   // initApp() dipanggil di akhir script (setelah semua ICON_* terdefinisi)
 
   function onDataLoaded(data, fromCache){
@@ -3160,22 +3299,46 @@
   }
 
   function openPinSettingsSheet(){
+    var bioOn = bioEnabled_();
+    var bioOk = bioSupported_();
     openSheet(
       '<div class="sheet-title">Kunci PIN</div>' +
-      '<div style="font-size:13px; color:var(--ink-soft); margin-bottom:14px;">Status: <b>' + (pinEnabled ? 'Aktif' : 'Nonaktif') + '</b></div>' +
+      '<div style="font-size:13px; color:var(--ink-soft); margin-bottom:14px;">Status PIN: <b>' + (pinEnabled ? 'Aktif' : 'Nonaktif') + '</b></div>' +
       '<div class="settings-list">' +
         (pinEnabled
           ? '<button type="button" class="settings-row" id="btn-change-pin"><span class="sr-label">Ubah PIN</span><span class="sr-chev">›</span></button>' +
+            (bioOk
+              ? '<button type="button" class="settings-row" id="btn-bio-toggle"><span class="sr-left"><span class="sr-label">Sidik jari / Face ID</span><span class="sr-hint">' + (bioOn ? 'Aktif di HP ini' : 'Buka app tanpa ketik PIN') + '</span></span><span class="sr-value">' + (bioOn ? '<span class="sr-badge on">Aktif</span>' : '<span class="sr-badge off">Off</span>') + '<span class="sr-chev">›</span></span></button>'
+              : '<div class="settings-row" style="cursor:default;"><span class="sr-label">Sidik jari / Face ID</span><span class="sr-value">Tidak didukung</span></div>') +
             '<button type="button" class="settings-row danger" id="btn-remove-pin"><span class="sr-label">Nonaktifkan PIN</span><span class="sr-chev">›</span></button>'
           : '<button type="button" class="settings-row" id="btn-set-pin"><span class="sr-label">Aktifkan PIN</span><span class="sr-chev">›</span></button>') +
       '</div>' +
+      '<div style="font-size:11.5px;color:var(--ink-faint);margin-top:12px;line-height:1.45;">Biometrik hanya di HP ini. PIN tetap diperlukan sebagai cadangan &amp; jika sesi server habis.</div>' +
       '<button class="btn-secondary" id="btn-back-settings" style="margin-top:12px; width:auto; padding:10px 18px;">Kembali</button>'
     );
     var setPinBtn = document.getElementById('btn-set-pin');
     var changePinBtn = document.getElementById('btn-change-pin');
     var removePinBtn = document.getElementById('btn-remove-pin');
+    var bioToggle = document.getElementById('btn-bio-toggle');
     if(setPinBtn) setPinBtn.addEventListener('click', function(){ openPinSetupForm(false); });
     if(changePinBtn) changePinBtn.addEventListener('click', function(){ openPinSetupForm(true); });
+    if(bioToggle) bioToggle.addEventListener('click', function(){
+      if(bioEnabled_()){
+        if(!confirm('Matikan sidik jari / Face ID?')) return;
+        clearBio_();
+        toast('Biometrik dimatikan');
+        openPinSettingsSheet();
+        return;
+      }
+      toast('Ikuti arahan di layar HP…');
+      registerBiometric_().then(function(){
+        toast('Sidik jari / Face ID aktif');
+        openPinSettingsSheet();
+      }).catch(function(err){
+        var msg = (err && err.name === 'NotAllowedError') ? 'Dibatalkan' : ((err && err.message) || 'Gagal mengaktifkan');
+        toast(msg);
+      });
+    });
     if(removePinBtn) removePinBtn.addEventListener('click', function(){
       if(!confirm('Nonaktifkan kunci PIN?')) return;
       var pin = prompt('Masukkan PIN saat ini untuk menonaktifkan:');
@@ -3184,6 +3347,7 @@
       if(!pin){ toast('PIN wajib diisi'); return; }
       google.script.run.withSuccessHandler(function(){
         pinEnabled = false;
+        clearBio_();
         try{
           sessionStorage.removeItem('kasPinUnlocked');
           setSession_('');
@@ -3439,6 +3603,9 @@
         try{ sessionStorage.setItem('kasPinUnlocked', '1'); }catch(e){}
         if(res && res.session) setSession_(res.session);
         closeSheet(); toast('Kunci PIN aktif');
+        if(bioSupported_() && !bioEnabled_() && confirm('Aktifkan juga sidik jari / Face ID?')){
+          registerBiometric_().then(function(){ toast('Biometrik aktif'); }).catch(function(){});
+        }
       }).withFailureHandler(function(err){ btn.textContent='Simpan PIN'; toast('Gagal: ' + (err.message||err)); }).setPin(p1);
     });
   }
