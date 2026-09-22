@@ -3093,6 +3093,32 @@
     };
   }
 
+
+  function mergeTransaksiKeepLocal_(serverList){
+    var server = Array.isArray(serverList) ? serverList.slice() : [];
+    var local = (STATE && STATE.transaksi) ? STATE.transaksi : [];
+    var pending = local.filter(function(x){
+      return x && String(x.ID || '').indexOf('local-') === 0;
+    });
+    if(!pending.length) return server;
+    pending.forEach(function(p){
+      var found = server.some(function(s){
+        if(!s) return false;
+        return String(s.Tanggal||'') === String(p.Tanggal||'')
+          && String(s.Jenis||'') === String(p.Jenis||'')
+          && String(s.Kategori||'') === String(p.Kategori||'')
+          && String(s.Akun||'') === String(p.Akun||'')
+          && Number(s.Nominal) === Number(p.Nominal);
+      });
+      if(!found) server.unshift(p);
+    });
+    return server;
+  }
+  function safeApplyTransaksi_(list){
+    if(!Array.isArray(list)) return;
+    STATE.transaksi = mergeTransaksiKeepLocal_(list);
+  }
+
   function applyState_(data){
     var pendingLocal = [];
     try {
@@ -3460,7 +3486,7 @@
   }
   function applyDelta_(d){
     if(!d || typeof d !== 'object') return;
-    if(Array.isArray(d.transaksi)) STATE.transaksi = d.transaksi;
+    if(Array.isArray(d.transaksi)) safeApplyTransaksi_(d.transaksi);
     if(Array.isArray(d.rekening)) STATE.rekening = d.rekening;
     if(Array.isArray(d.hutangPiutang)) STATE.hutangPiutang = d.hutangPiutang;
     if(Array.isArray(d.anggaran)) STATE.anggaran = d.anggaran;
