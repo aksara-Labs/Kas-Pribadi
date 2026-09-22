@@ -2962,8 +2962,8 @@
           } catch(e){}
           return;
         }
-        try { localStorage.setItem('kasCacheV1', JSON.stringify(data)); } catch(e){}
-        try { applyState_(data); } catch(e){}
+        saveCacheSafe_(data);
+        try { applyStateSafe_(data); } catch(e){}
       }).withFailureHandler(function(){}).getInitialData();
     } catch(e){}
   }
@@ -3038,8 +3038,9 @@
       } else if(hasLocalPin_()){
         pinEnabled = true;
       }
-      try { localStorage.setItem('kasCacheV1', JSON.stringify(data)); } catch(e) {}
-      onDataLoaded(data, false);
+      if(!isEmptyPayload_(data)){ saveCacheSafe_(data); onDataLoaded(data, false); }
+      else if(cacheHasData_(readCache_())){ onDataLoaded(readCache_(), true); toast('Menampilkan data tersimpan di HP'); }
+      else { onDataLoaded(data, false); }
     }).withFailureHandler(function(err){
       if (paintedFromCache) {
         window.__kasOffline = true;
@@ -3094,6 +3095,43 @@
   }
 
 
+
+  function isEmptyPayload_(d){
+    if(!d || typeof d !== 'object') return true;
+    if(d.needsPin) return true;
+    var t = d.transaksi, r = d.rekening;
+    var nt = Array.isArray(t) ? t.length : 0;
+    var nr = Array.isArray(r) ? r.length : 0;
+    return nt === 0 && nr === 0;
+  }
+  function readCache_(){
+    try { return JSON.parse(localStorage.getItem('kasCacheV1') || 'null'); } catch(e){ return null; }
+  }
+  function cacheHasData_(c){
+    if(!c || typeof c !== 'object') return false;
+    return (Array.isArray(c.transaksi) && c.transaksi.length > 0) || (Array.isArray(c.rekening) && c.rekening.length > 0);
+  }
+  function saveCacheSafe_(data){
+    if(!data || data.needsPin) return false;
+    if(isEmptyPayload_(data) && cacheHasData_(readCache_())){
+      console.warn('Tolak timpa cache dengan data kosong');
+      return false;
+    }
+    try {
+      localStorage.setItem('kasCacheV1', JSON.stringify(data));
+      return true;
+    } catch(e){ return false; }
+  }
+  function applyStateSafe_(data){
+    if(!data || data.needsPin) return false;
+    if(isEmptyPayload_(data) && cacheHasData_(readCache_())){
+      // Pertahankan data HP / cache
+      var c = readCache_();
+      if(c){ applyState_(c); return false; }
+    }
+    applyState_(data);
+    return true;
+  }
   function mergeTransaksiKeepLocal_(serverList){
     var server = Array.isArray(serverList) ? serverList.slice() : [];
     var local = (STATE && STATE.transaksi) ? STATE.transaksi : [];
@@ -3291,19 +3329,21 @@
     }
 
     // Soft refresh di background (tidak blokir UI)
+    // Selalu tarik data dari Spreadsheet (sumber kebenaran)
     try {
       google.script.run.withSuccessHandler(function(data){
         if(!data || data.needsPin) return;
-        if(typeof __kasSyncing === 'number' && __kasSyncing > 0) return;
         if(typeof data.hasPin === 'boolean') applyServerPinFlag_(!!data.hasPin);
-        // Merge, jangan timpa buta (bisa hilangkan trx hari ini)
-        if(Array.isArray(data.transaksi)) safeApplyTransaksi_(data.transaksi);
-        if(Array.isArray(data.rekening)) STATE.rekening = data.rekening;
-        if(Array.isArray(data.hutangPiutang)) STATE.hutangPiutang = data.hutangPiutang;
-        try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e){}
+        if(isEmptyPayload_(data)){
+          toast('Server mengembalikan data kosong — cek Spreadsheet di Pengaturan');
+          return;
+        }
+        applyState_(data);
+        saveCacheSafe_(data);
         try { renderAll(); } catch(e){}
-      }).withFailureHandler(function(){
-        // diam saja — user sudah lihat cache
+        toast('Data dimuat dari Spreadsheet');
+      }).withFailureHandler(function(err){
+        if(!painted) toast((err && err.message) || 'Gagal muat data');
       }).getInitialData();
     } catch(e){}
   }
@@ -3515,13 +3555,21 @@
     if(data && typeof data === 'object' && !Array.isArray(data)){ applyState_(data); }
   }
   function refreshState(data){
+    if(data && data.needsPin) return;
     if(data && data.delta){
       applyDelta_(data);
     } else if(data){
+      if(isEmptyPayload_(data) && cacheHasData_(readCache_())){
+        // jangan timpa state bagus dengan kosong
+        try { renderAll(); } catch(e) {}
+        return;
+      }
       applyState_(data);
     }
     try { renderAll(); } catch(e) { console.error(e); }
-    try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e) {}
+    if(!isEmptyPayload_(STATE)){
+      try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e) {}
+    }
   }
 
   // Optimistic save: tutup sheet + toast dulu, server jalan di background.
@@ -3984,6 +4032,7 @@
         ) +
         settingsSection_('Keamanan',
           settingsRow('btn-open-pin', 'Kunci PIN', settingsBadge_(pinEnabled), false, 'Kunci app saat dibuka') +
+          settingsRow('btn-open-sheet', 'Spreadsheet data', '', false, 'Buka Google Sheet yang dipakai app') +
           settingsRow('btn-open-api-token', 'Token API', settingsBadge_(!!getAppToken_(), 'Diset', 'Kosong'), false, 'Disarankan · kunci akses server')
         ) +
         settingsSection_('Keuangan',
@@ -4033,6 +4082,7 @@
             break;
           case 'btn-open-zoom': openZoomSheet(); break;
           case 'btn-open-pin': openPinSettingsSheet(); break;
+          case 'btn-open-sheet': openSpreadsheetInfo_(); break;
           case 'btn-open-api-token': openApiTokenSheet(); break;
           case 'btn-load-full-history': loadFullHistory_(); break;
           case 'btn-open-backup': openBackupSheet(); break;
@@ -4207,6 +4257,29 @@
     });
   }
 
+
+  function openSpreadsheetInfo_(){
+    openSheet('<div class="sheet-title">Spreadsheet data</div><div class="sheet-hint">Memuat info…</div>');
+    google.script.run.withSuccessHandler(function(info){
+      openSheet(
+        '<div class="sheet-title">Spreadsheet data</div>' +
+        '<div class="sheet-hint">Ini file Google Sheet yang benar-benar dipakai app. Kalau beda dari yang kamu cek, itulah penyebab data tidak cocok.</div>' +
+        '<div class="detail-row"><span class="k">Nama</span><span class="v">' + esc((info && info.name) || '-') + '</span></div>' +
+        '<div class="detail-row"><span class="k">ID</span><span class="v" style="font-size:11px;word-break:break-all;">' + esc((info && info.id) || '-') + '</span></div>' +
+        (info && info.url ? '<a class="btn-primary" href="' + esc(info.url) + '" target="_blank" rel="noopener" style="display:block;text-align:center;text-decoration:none;margin-top:16px;">Buka Spreadsheet</a>' : '') +
+        '<button class="btn-secondary" id="btn-back-settings" style="margin-top:12px;width:auto;padding:10px 18px;">Kembali</button>'
+      );
+      var b = document.getElementById('btn-back-settings');
+      if(b) b.addEventListener('click', openSettingsSheet);
+    }).withFailureHandler(function(err){
+      openSheet(
+        '<div class="sheet-title">Spreadsheet data</div>' +
+        '<div style="color:var(--red);font-weight:600;">' + esc(err.message || err) + '</div>' +
+        '<button class="btn-secondary" id="btn-back-settings" style="margin-top:12px;">Kembali</button>'
+      );
+      document.getElementById('btn-back-settings').addEventListener('click', openSettingsSheet);
+    }).getSpreadsheetInfo();
+  }
   function openPinSettingsSheet(){
     var bioOn = bioEnabled_();
     var bioOk = bioSupported_();
