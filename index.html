@@ -2950,13 +2950,20 @@
     try {
       google.script.run.withSuccessHandler(function(data){
         if(!data || data.needsPin) return;
+        // Jangan timpa kalau user sudah unlock & sedang/sudah input
+        if(typeof __kasSyncing === 'number' && __kasSyncing > 0) return;
+        if(isUnlocked_()){
+          // Hanya merge transaksi, jangan buang input lokal
+          try {
+            if(Array.isArray(data.transaksi)) safeApplyTransaksi_(data.transaksi);
+            if(Array.isArray(data.rekening)) STATE.rekening = data.rekening;
+            try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e){}
+            try { renderAll(); } catch(e){}
+          } catch(e){}
+          return;
+        }
         try { localStorage.setItem('kasCacheV1', JSON.stringify(data)); } catch(e){}
         try { applyState_(data); } catch(e){}
-        if(isUnlocked_() && document.getElementById('app') && document.getElementById('app').style.display === 'flex'){
-          try { refreshState(data); } catch(e){
-            try { onDataLoaded(data, false); } catch(e2){}
-          }
-        }
       }).withFailureHandler(function(){}).getInitialData();
     } catch(e){}
   }
@@ -3087,8 +3094,28 @@
   }
 
   function applyState_(data){
+    var pendingLocal = [];
+    try {
+      pendingLocal = (STATE.transaksi || []).filter(function(x){
+        return x && String(x.ID || '').indexOf('local-') === 0;
+      });
+    } catch(e){}
     STATE = data || {};
     if (!Array.isArray(STATE.transaksi)) STATE.transaksi = [];
+    if(pendingLocal.length){
+      STATE.transaksi = mergeTransaksiKeepLocal_(STATE.transaksi);
+      // re-merge explicit pending if merge used STATE before assign
+      pendingLocal.forEach(function(p){
+        var found = STATE.transaksi.some(function(s){
+          return s && String(s.Tanggal||'') === String(p.Tanggal||'')
+            && String(s.Jenis||'') === String(p.Jenis||'')
+            && String(s.Kategori||'') === String(p.Kategori||'')
+            && String(s.Akun||'') === String(p.Akun||'')
+            && Number(s.Nominal) === Number(p.Nominal);
+        });
+        if(!found) STATE.transaksi.unshift(p);
+      });
+    }
     if (!Array.isArray(STATE.rekening)) STATE.rekening = [];
     if (!Array.isArray(STATE.hutangPiutang)) STATE.hutangPiutang = [];
     if (!Array.isArray(STATE.anggaran)) STATE.anggaran = [];
@@ -3241,11 +3268,14 @@
     try {
       google.script.run.withSuccessHandler(function(data){
         if(!data || data.needsPin) return;
+        if(typeof __kasSyncing === 'number' && __kasSyncing > 0) return;
         if(typeof data.hasPin === 'boolean') applyServerPinFlag_(!!data.hasPin);
-        try { localStorage.setItem('kasCacheV1', JSON.stringify(data)); } catch(e){}
-        try { refreshState(data); } catch(e){
-          try { onDataLoaded(data, false); } catch(e2){}
-        }
+        // Merge, jangan timpa buta (bisa hilangkan trx hari ini)
+        if(Array.isArray(data.transaksi)) safeApplyTransaksi_(data.transaksi);
+        if(Array.isArray(data.rekening)) STATE.rekening = data.rekening;
+        if(Array.isArray(data.hutangPiutang)) STATE.hutangPiutang = data.hutangPiutang;
+        try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e){}
+        try { renderAll(); } catch(e){}
       }).withFailureHandler(function(){
         // diam saja — user sudah lihat cache
       }).getInitialData();
@@ -7252,6 +7282,7 @@
         r.Saldo = trxJenis === 'Pemasukan' ? s + nominal : s - nominal;
       }
     });
+    try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e){}
     closeSheet();
     __kasSyncing++;
     updateSyncPill_();
@@ -7261,7 +7292,18 @@
     google.script.run.withSuccessHandler(function(data){
       __kasSyncing = Math.max(0, __kasSyncing - 1);
       updateSyncPill_();
-      if(data) refreshState(data);
+      if(data){
+        // Hapus temp local- yang sudah match server, lalu apply
+        if(data.delta && Array.isArray(data.transaksi)){
+          STATE.transaksi = (STATE.transaksi || []).filter(function(x){ return x.ID !== tempId; });
+          safeApplyTransaksi_(data.transaksi);
+          if(Array.isArray(data.rekening)) STATE.rekening = data.rekening;
+          try { renderAll(); } catch(e){}
+          try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e){}
+        } else {
+          refreshState(data);
+        }
+      }
       toast('Transaksi tersimpan');
     }).withFailureHandler(function(err){
       __kasSyncing = Math.max(0, __kasSyncing - 1);
