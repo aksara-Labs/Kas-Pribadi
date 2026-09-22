@@ -3364,15 +3364,21 @@
       document.getElementById('lock-pin-input').focus();
     }
 
-    // 1) Cek PIN lokal dulu — langsung masuk, jangan tunggu server
+    // 1) Cek PIN lokal dulu — masuk UI cepat, tapi WAJIB ambil sesi server biar bisa tulis ke Spreadsheet
     if(hasLocalPin_()){
       if(!verifyLocalPin_(pin)){ unlockFail_(); return; }
       unlockOk_(null);
-      // session server di background
       google.script.run.withSuccessHandler(function(res){
-        if(res && res.session) setSession_(res.session);
-        else if(res === true || (res && res.ok)){ /* ok */ }
-      }).withFailureHandler(function(){}).checkPin(pin);
+        var ok = (res === true) || (res && res.ok);
+        if(ok && res && res.session) setSession_(res.session);
+        else if(ok){ /* server ok tanpa session object */ }
+        else {
+          // PIN lokal benar tapi server beda — tetap bisa lihat cache; tulis akan minta PIN lagi
+          console.warn('checkPin server menolak');
+        }
+      }).withFailureHandler(function(err){
+        console.warn('checkPin gagal', err);
+      }).checkPin(pin);
       return;
     }
 
@@ -3528,6 +3534,51 @@
       return false;
     }
     return true;
+  }
+
+  var __pendingWrite_ = null;
+  function ensureServerSession_(onReady, onFail){
+    if(getSession_()){ if(onReady) onReady(); return; }
+    if(!pinEnabled && !hasLocalPin_()){ if(onReady) onReady(); return; }
+    // Minta PIN sekali untuk dapat sesi server
+    openSheet(
+      '<div class="sheet-title">Sinkron ke Spreadsheet</div>' +
+      '<div class="sheet-hint">Data sudah di HP. Masukkan PIN agar tersimpan ke Google Sheet.</div>' +
+      '<div class="form-group"><label class="form-label">PIN</label>' +
+        '<input class="form-input" id="f-sync-pin" type="password" inputmode="numeric" maxlength="6" style="text-align:center;letter-spacing:8px;font-size:20px;"></div>' +
+      '<div id="f-sync-err" style="color:var(--red);font-size:13px;font-weight:600;min-height:18px;"></div>' +
+      '<button class="btn-primary" id="btn-sync-pin">Simpan ke Spreadsheet</button>'
+    );
+    document.getElementById('btn-sync-pin').addEventListener('click', function(){
+      var pin = (document.getElementById('f-sync-pin').value || '').trim();
+      if(!pin){ document.getElementById('f-sync-err').textContent = 'Isi PIN'; return; }
+      if(hasLocalPin_() && !verifyLocalPin_(pin)){
+        document.getElementById('f-sync-err').textContent = 'PIN salah';
+        return;
+      }
+      var btn = document.getElementById('btn-sync-pin');
+      btn.textContent = 'Memeriksa…';
+      google.script.run.withSuccessHandler(function(res){
+        var ok = (res === true) || (res && res.ok);
+        if(ok){
+          if(res && res.session) setSession_(res.session);
+          markUnlocked_();
+          closeSheet();
+          if(onReady) onReady();
+        } else {
+          btn.textContent = 'Simpan ke Spreadsheet';
+          document.getElementById('f-sync-err').textContent = 'PIN salah (server)';
+        }
+      }).withFailureHandler(function(err){
+        btn.textContent = 'Simpan ke Spreadsheet';
+        document.getElementById('f-sync-err').textContent = (err && err.message) || 'Gagal';
+        if(onFail) onFail(err);
+      }).checkPin(pin);
+    });
+  }
+  function isSessionError_(err){
+    var m = String((err && err.message) || err || '');
+    return /Sesi|session|belum unlock|PIN lagi/i.test(m);
   }
   function saveOptimistic(msg, startRun){
     if(!guardOnline_()) return;
@@ -7289,36 +7340,51 @@
     toast('Menyimpan…');
     renderAll();
 
-    google.script.run.withSuccessHandler(function(data){
-      __kasSyncing = Math.max(0, __kasSyncing - 1);
-      updateSyncPill_();
-      if(data){
-        // Hapus temp local- yang sudah match server, lalu apply
-        if(data.delta && Array.isArray(data.transaksi)){
-          STATE.transaksi = (STATE.transaksi || []).filter(function(x){ return x.ID !== tempId; });
-          safeApplyTransaksi_(data.transaksi);
-          if(Array.isArray(data.rekening)) STATE.rekening = data.rekening;
-          try { renderAll(); } catch(e){}
-          try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e){}
+    function pushTrxToServer_(){
+      google.script.run.withSuccessHandler(function(data){
+        __kasSyncing = Math.max(0, __kasSyncing - 1);
+        updateSyncPill_();
+        if(data){
+          if(data.delta && Array.isArray(data.transaksi)){
+            STATE.transaksi = (STATE.transaksi || []).filter(function(x){ return x.ID !== tempId; });
+            safeApplyTransaksi_(data.transaksi);
+            if(Array.isArray(data.rekening)) STATE.rekening = data.rekening;
+            try { renderAll(); } catch(e){}
+            try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e){}
+          } else {
+            refreshState(data);
+          }
+          toast('Tersimpan ke Spreadsheet');
         } else {
-          refreshState(data);
+          toast('Server tidak mengembalikan data');
         }
-      }
-      toast('Transaksi tersimpan');
-    }).withFailureHandler(function(err){
-      __kasSyncing = Math.max(0, __kasSyncing - 1);
-      updateSyncPill_();
-      // Rollback item lokal + saldo kalau server gagal
-      STATE.transaksi = (STATE.transaksi || []).filter(function(t){ return t.ID !== tempId; });
-      STATE.rekening.forEach(function(r){
-        if(r.Nama === akun){
-          var s = Number(r.Saldo) || 0;
-          r.Saldo = trxJenis === 'Pemasukan' ? s - nominal : s + nominal;
+      }).withFailureHandler(function(err){
+        __kasSyncing = Math.max(0, __kasSyncing - 1);
+        updateSyncPill_();
+        if(isSessionError_(err)){
+          // Tetap tampil di HP — minta PIN untuk sesi, lalu kirim ulang
+          toast('Perlu PIN untuk simpan ke Spreadsheet');
+          ensureServerSession_(function(){
+            __kasSyncing++;
+            updateSyncPill_();
+            toast('Mengirim ulang…');
+            pushTrxToServer_();
+          });
+          return;
         }
+        // Gagal lain: biarkan tetap di HP (local-*) supaya tidak hilang, tandai belum sync
+        try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e){}
+        toast((err && err.message ? err.message : 'Gagal ke server') + ' — masih di HP');
+      }).addTransaksi(payload);
+    }
+    // Jika PIN aktif tapi belum ada sesi server → minta PIN dulu
+    if((pinEnabled || hasLocalPin_()) && !getSession_()){
+      ensureServerSession_(function(){
+        pushTrxToServer_();
       });
-      renderAll();
-      toast(err && err.message ? err.message : 'Belum tersimpan ke server');
-    }).addTransaksi(payload);
+    } else {
+      pushTrxToServer_();
+    }
   }
 
   function openTrxDetail(id){
