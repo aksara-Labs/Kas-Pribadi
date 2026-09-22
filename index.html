@@ -6753,6 +6753,21 @@
       if(!splits.length){ toast('Bagi kantong dulu (minimal 1 rekening)'); return; }
       var sum = splits.reduce(function(a,s){ return a + s.nominal; }, 0);
       if(Math.abs(sum - pokok) > 1){ toast('Total kantong harus sama dengan pokok (tanpa bunga)'); return; }
+      // Tanpa pinjol: cek saldo sumber
+      if(libSumber !== 'pinjol'){
+        var rekSrc = (STATE.rekening || []).filter(function(r){ return r.Nama === cairKe; })[0];
+        var saldoSrc = rekSrc ? (Number(rekSrc.Saldo) || 0) : 0;
+        if(pokok > saldoSrc + 0.5){
+          toast('Saldo ' + cairKe + ' tidak cukup (Rp' + Math.round(saldoSrc).toLocaleString('id-ID') + '). Kurangi plafon atau pakai pinjol.');
+          return;
+        }
+        var outLain = 0;
+        splits.forEach(function(s){ if(s.akun !== cairKe) outLain += s.nominal; });
+        if(outLain > saldoSrc + 0.5){
+          toast('Saldo ' + cairKe + ' tidak cukup untuk transfer ke kantong lain');
+          return;
+        }
+      }
       var payload = {
         nama: nama, dari: dari, sampai: sampai, pokok: pokok, cairKe: cairKe, splits: splits,
         pakaiHutang: libSumber === 'pinjol',
