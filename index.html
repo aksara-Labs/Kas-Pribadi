@@ -2945,13 +2945,36 @@
     showLockScreen();
   }
 
+  function softPrefetchWhileLocked_(){
+    // Ambil data di belakang saat user masih di layar PIN — biar unlock langsung masuk
+    try {
+      google.script.run.withSuccessHandler(function(data){
+        if(!data || data.needsPin) return;
+        try { localStorage.setItem('kasCacheV1', JSON.stringify(data)); } catch(e){}
+        try { applyState_(data); } catch(e){}
+        if(isUnlocked_() && document.getElementById('app') && document.getElementById('app').style.display === 'flex'){
+          try { refreshState(data); } catch(e){
+            try { onDataLoaded(data, false); } catch(e2){}
+          }
+        }
+      }).withFailureHandler(function(){}).getInitialData();
+    } catch(e){}
+  }
   function initApp(){
-    // Langsung load data (1 request). Status PIN ikut di dalam getInitialData.
-    // Hindari 2x round-trip ke GAS (hasPin + getInitialData) yang bikin 8+ detik.
+    // PIN aktif + belum unlock → layar kunci LANGSUNG (tanpa nunggu server)
+    if(pinEnabled && !isUnlocked_()){
+      try { document.getElementById('loading').style.display = 'none'; } catch(e){}
+      showLockScreen();
+      softPrefetchWhileLocked_();
+      return;
+    }
     loadData();
   }
   function loadData(){
-    document.getElementById('lockscreen').style.display = 'none';
+    // Jangan tutup lockscreen kalau masih perlu PIN
+    if(!(pinEnabled && !isUnlocked_())){
+      try { document.getElementById('lockscreen').style.display = 'none'; } catch(e){}
+    }
 
     var cached = null;
     try { cached = JSON.parse(localStorage.getItem('kasCacheV1') || 'null'); } catch(e) {}
@@ -2972,8 +2995,12 @@
         paintedFromCache = false;
       }
     }
-    if(!paintedFromCache){
+    // Hanya tampilkan splash loading kalau belum unlock PIN & belum ada cache
+    if(!paintedFromCache && !(pinEnabled && !isUnlocked_())){
       document.getElementById('loading').style.display = 'flex';
+    } else if(pinEnabled && !isUnlocked_()){
+      try { document.getElementById('loading').style.display = 'none'; } catch(e){}
+      showLockScreen();
     }
 
     // Server: sumber kebenaran — satu kali render bersih
