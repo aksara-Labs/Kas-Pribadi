@@ -2542,7 +2542,21 @@
   }
 
   // Polyfill google.script.run — GET + 1x retry (GAS sering cold-start / lambat)
-  var API_TIMEOUT_MS = 28000;
+  var API_TIMEOUT_MS = 22000;
+  var API_WRITE_TIMEOUT_MS = 20000;
+  var __warmTimer = 0;
+  function warmServer_(){
+    try {
+      google.script.run.withSuccessHandler(function(){}).withFailureHandler(function(){}).ping();
+    } catch(e){}
+  }
+  function startWarmLoop_(){
+    try { clearInterval(__warmTimer); } catch(e){}
+    warmServer_();
+    __warmTimer = setInterval(function(){
+      if(document.visibilityState === 'visible' && isUnlocked_()) warmServer_();
+    }, 180000); // 3 menit — jaga GAS tetap hangat
+  }
 
   function friendlyApiError_(err) {
     if (!err) return 'Koneksi gagal, coba lagi';
@@ -2592,7 +2606,7 @@
     return fetchOnce_(url, options).catch(function (err) {
       if (retriesLeft <= 0) throw err;
       // Tunggu sebentar lalu coba 1x lagi (cold start GAS sering sembuh di percobaan ke-2)
-      return new Promise(function (resolve) { setTimeout(resolve, 700); })
+      return new Promise(function (resolve) { setTimeout(resolve, 400); })
         .then(function () { return fetchWithRetry_(url, options, retriesLeft - 1); });
     });
   }
@@ -3079,6 +3093,7 @@
       if(!isEmptyPayload_(data)){
         applyStateFromSheet_(data);
         onDataLoaded(STATE, false);
+        try { startWarmLoop_(); } catch(e){}
       } else if(cacheHasData_(readCache_())){
         onDataLoaded(readCache_(), true);
         toast('Sheet kosong/terkunci — cache HP sementara');
@@ -3386,6 +3401,8 @@
       loadData();
       return;
     }
+
+    try { startWarmLoop_(); } catch(e){}
 
     // Soft refresh di background (tidak blokir UI)
     // Selalu tarik data dari Spreadsheet (sumber kebenaran)
@@ -7661,7 +7678,7 @@
     closeSheet();
     __kasSyncing++;
     updateSyncPill_();
-    toast('Menyimpan…');
+    // Data sudah tampil — tidak toast "Menyimpan…" biar terasa instan
     renderAll();
 
     function pushTrxToServer_(){
@@ -7669,16 +7686,24 @@
         __kasSyncing = Math.max(0, __kasSyncing - 1);
         updateSyncPill_();
         if(data){
-          // Hapus temp lokal
           STATE.transaksi = (STATE.transaksi || []).filter(function(x){ return x.ID !== tempId; });
           if(data.trxPatch || data.delta){
             applyDelta_(data);
-          } else {
-            refreshState(data);
+          } else if(data){
+            applyDelta_(data);
           }
-          try { renderAll(); } catch(e){}
+          // Jangan full renderAll — list sudah tampil; cukup patch ID di DOM jika ada
+          try {
+            var card = document.querySelector('.item-card[data-id="' + tempId + '"]');
+            if(card && data.trxPatch && data.trxPatch.upsert && data.trxPatch.upsert[0]){
+              card.setAttribute('data-id', data.trxPatch.upsert[0].ID);
+            } else {
+              renderAll();
+            }
+          } catch(e){ try { renderAll(); } catch(e2){} }
           try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e){}
           toast('Tersimpan');
+          try { warmServer_(); } catch(e){}
         } else {
           toast('Server tidak mengembalikan data');
         }
