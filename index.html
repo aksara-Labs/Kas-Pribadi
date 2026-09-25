@@ -3693,22 +3693,48 @@
     updateSyncPill_();
     toast('Menyimpan…');
     var finished = false;
+    var retriedSession = false;
     function doneOk(data){
       if(finished) return;
       finished = true;
       __kasSyncing = Math.max(0, __kasSyncing - 1);
       updateSyncPill_();
       if(data) refreshState(data);
-      toast(msg || 'Tersimpan');
+      toast(msg || 'Tersimpan ke Spreadsheet');
     }
     function doneFail(err){
+      if(finished) return;
+      // Sesi invalid → minta PIN, kirim ulang 1x
+      if(!retriedSession && isSessionError_(err)){
+        retriedSession = true;
+        try { setSession_(''); } catch(e){}
+        toast('Sesi habis — masukkan PIN untuk simpan ke Sheet');
+        ensureServerSession_(function(){
+          toast('Mengirim ulang…');
+          try { startRun(doneOk, doneFailFinal); } catch(e){ doneFailFinal(e); }
+        }, function(e2){
+          doneFailFinal(err);
+        });
+        return;
+      }
+      doneFailFinal(err);
+    }
+    function doneFailFinal(err){
       if(finished) return;
       finished = true;
       __kasSyncing = Math.max(0, __kasSyncing - 1);
       updateSyncPill_();
       toast(err && err.message ? err.message : 'Gagal menyimpan. Coba lagi.');
     }
-    try { startRun(doneOk, doneFail); } catch(e){ doneFail(e); }
+    function kickOff(){
+      try { startRun(doneOk, doneFail); } catch(e){ doneFail(e); }
+    }
+    // PIN aktif tapi belum ada sesi → ambil sesi dulu
+    if((pinEnabled || hasLocalPin_()) && !getSession_()){
+      ensureServerSession_(kickOff, function(){ doneFailFinal(new Error('Butuh PIN untuk simpan ke Spreadsheet')); });
+    } else {
+      kickOff();
+    }
   }
 
   var __renderRaf = 0;
@@ -7621,9 +7647,23 @@
       toastWithUndo('Transaksi dihapus', function onUndo(){
         if(card) card.style.display = '';
       }, function onCommit(){
-        google.script.run.withSuccessHandler(function(data){
-          refreshState(data);
-        }).withFailureHandler(function(err){ toast('Gagal: ' + err.message); if(card) card.style.display = ''; }).deleteTransaksi(id);
+        function doDel(){
+          google.script.run.withSuccessHandler(function(data){
+            refreshState(data);
+            toast('Terhapus dari Spreadsheet');
+          }).withFailureHandler(function(err){
+            if(isSessionError_(err)){
+              try { setSession_(''); } catch(e){}
+              ensureServerSession_(function(){ doDel(); }, function(){
+                toast('Gagal: ' + (err.message || err)); if(card) card.style.display = '';
+              });
+              return;
+            }
+            toast('Gagal: ' + (err.message || err)); if(card) card.style.display = '';
+          }).deleteTransaksi(id);
+        }
+        if((pinEnabled || hasLocalPin_()) && !getSession_()) ensureServerSession_(doDel);
+        else doDel();
       });
     });
   }
