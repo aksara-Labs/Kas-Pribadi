@@ -2555,9 +2555,8 @@
     if (/Terlalu banyak/i.test(m)) return 'Terlalu sering menyimpan, tunggu sebentar';
     if (/PIN salah/i.test(m)) return 'PIN salah';
     if (/Sesi berakhir|belum unlock/i.test(m)) {
-      try { clearUnlocked_(); setSession_(''); } catch(e) {}
-      setTimeout(function(){ try { showLockScreen(); } catch(e) {} }, 300);
-      return 'Sesi habis, masukkan PIN lagi';
+      // Jangan kunci app / hapus sesi di sini — biar simpan yang handle retry
+      return 'Sesi server perlu diperbarui';
     }
     // Jangan tampilkan stack teknis ke user
     if (m.length > 120 || /TypeError|ReferenceError|at\s+/i.test(m)) return 'Terjadi kesalahan, coba lagi';
@@ -3489,20 +3488,23 @@
       document.getElementById('lock-pin-input').focus();
     }
 
-    // 1) Cek PIN lokal dulu — masuk UI cepat, tapi WAJIB ambil sesi server biar bisa tulis ke Spreadsheet
+    // 1) PIN lokal benar → ambil sesi server SEKALI, lalu masuk (tanpa minta PIN tiap transaksi)
     if(hasLocalPin_()){
       if(!verifyLocalPin_(pin)){ unlockFail_(); return; }
-      unlockOk_(null);
       google.script.run.withSuccessHandler(function(res){
         var ok = (res === true) || (res && res.ok);
-        if(ok && res && res.session) setSession_(res.session);
-        else if(ok){ /* server ok tanpa session object */ }
-        else {
-          // PIN lokal benar tapi server beda — tetap bisa lihat cache; tulis akan minta PIN lagi
-          console.warn('checkPin server menolak');
+        if(ok){
+          if(res && res.session) setSession_(res.session);
+          unlockOk_(res && res.session ? res.session : getSession_());
+        } else {
+          // Server menolak — tetap masuk lihat data; simpan pertama mungkin minta PIN
+          unlockOk_(getSession_() || null);
+          try { toast('Masuk tanpa sesi server — simpan pertama mungkin minta PIN'); } catch(e){}
         }
       }).withFailureHandler(function(err){
-        console.warn('checkPin gagal', err);
+        // Offline / server lambat: tetap masuk, pakai sesi lama jika ada
+        unlockOk_(getSession_() || null);
+        try { toast('Server lambat — pakai sesi tersimpan jika ada'); } catch(e){}
       }).checkPin(pin);
       return;
     }
@@ -3710,7 +3712,7 @@
     // Minta PIN sekali untuk dapat sesi server
     openSheet(
       '<div class="sheet-title">Sinkron ke Spreadsheet</div>' +
-      '<div class="sheet-hint">Data sudah di HP. Masukkan PIN agar tersimpan ke Google Sheet.</div>' +
+      '<div class="sheet-hint">Sekali saja di sesi ini. Setelah itu simpan transaksi tidak minta PIN lagi.</div>' +
       '<div class="form-group"><label class="form-label">PIN</label>' +
         '<input class="form-input" id="f-sync-pin" type="password" inputmode="numeric" maxlength="6" style="text-align:center;letter-spacing:8px;font-size:20px;"></div>' +
       '<div id="f-sync-err" style="color:var(--red);font-size:13px;font-weight:600;min-height:18px;"></div>' +
@@ -3769,7 +3771,7 @@
       if(!retriedSession && isSessionError_(err)){
         retriedSession = true;
         try { setSession_(''); } catch(e){}
-        toast('Sesi habis — masukkan PIN untuk simpan ke Sheet');
+        // Hanya sekali per simpan — setelah PIN, sesi dipakai seterusnya
         ensureServerSession_(function(){
           toast('Mengirim ulang…');
           try { startRun(doneOk, doneFailFinal); } catch(e){ doneFailFinal(e); }
