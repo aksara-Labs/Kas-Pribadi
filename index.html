@@ -2542,7 +2542,7 @@
   }
 
   // Polyfill google.script.run — GET + 1x retry (GAS sering cold-start / lambat)
-  var API_TIMEOUT_MS = 45000;
+  var API_TIMEOUT_MS = 28000;
 
   function friendlyApiError_(err) {
     if (!err) return 'Koneksi gagal, coba lagi';
@@ -2593,7 +2593,7 @@
     return fetchOnce_(url, options).catch(function (err) {
       if (retriesLeft <= 0) throw err;
       // Tunggu sebentar lalu coba 1x lagi (cold start GAS sering sembuh di percobaan ke-2)
-      return new Promise(function (resolve) { setTimeout(resolve, 1500); })
+      return new Promise(function (resolve) { setTimeout(resolve, 700); })
         .then(function () { return fetchWithRetry_(url, options, retriesLeft - 1); });
     });
   }
@@ -2608,13 +2608,20 @@
           var args = Array.prototype.slice.call(arguments);
           var payload = args.length === 0 ? undefined : (args.length === 1 ? args[0] : args);
 
+          // Semua mutasi pakai POST (lebih andal & tidak kepotong URL)
+          var WRITE_ACT = {
+            addTransaksi:1, updateTransaksi:1, deleteTransaksi:1, addRekening:1, updateRekening:1, deleteRekening:1,
+            addTransfer:1, addHutangPiutang:1, updateHutangPiutang:1, bayarCicilan:1, addReimburseTransaksi:1,
+            setPin:1, removePin:1, createBudgetLiburan:1, pindahKantongLiburan:1, tutupBudgetLiburan:1,
+            restoreBackupJson:1, addTujuanNabung:1, tambahProgressNabung:1
+          };
+          if (WRITE_ACT[action] || (payload !== undefined && typeof payload === 'object' && JSON.stringify(payload).length > 1200)) {
+            callWithPost_(action, payload, successCb, failCb);
+            return;
+          }
           var url = WEB_APP_URL + '?action=' + encodeURIComponent(action) + authQuery_();
           if (payload !== undefined) {
             var dataStr = typeof payload === 'string' ? payload : JSON.stringify(payload);
-            if (action === 'restoreBackupJson' || dataStr.length > 1800) {
-              callWithPost_(action, payload, successCb, failCb);
-              return;
-            }
             url += '&data=' + encodeURIComponent(dataStr);
           }
 
@@ -3578,6 +3585,30 @@
   }
   function applyDelta_(d){
     if(!d || typeof d !== 'object') return;
+    // Patch ringan dari server (cepat)
+    if(d.trxPatch){
+      var up = d.trxPatch.upsert || [];
+      var rm = d.trxPatch.remove || [];
+      if(rm.length){
+        STATE.transaksi = (STATE.transaksi || []).filter(function(t){
+          return rm.indexOf(t.ID) < 0;
+        });
+      }
+      up.forEach(function(row){
+        if(!row || !row.ID) return;
+        STATE.transaksi = (STATE.transaksi || []).filter(function(t){
+          if(t.ID === row.ID) return false;
+          if(String(t.ID||'').indexOf('local-')===0
+            && String(t.Tanggal||'')===String(row.Tanggal||'')
+            && String(t.Jenis||'')===String(row.Jenis||'')
+            && Number(t.Nominal)===Number(row.Nominal)
+            && String(t.Kategori||'')===String(row.Kategori||'')) return false;
+          return true;
+        });
+        STATE.transaksi.unshift(row);
+      });
+      // Saldo kasar di client sudah di-update optimistik; biarkan
+    }
     if(Array.isArray(d.transaksi)) safeApplyTransaksi_(d.transaksi);
     if(Array.isArray(d.rekening)) STATE.rekening = d.rekening;
     if(Array.isArray(d.hutangPiutang)) STATE.hutangPiutang = d.hutangPiutang;
@@ -7636,16 +7667,16 @@
         __kasSyncing = Math.max(0, __kasSyncing - 1);
         updateSyncPill_();
         if(data){
-          if(data.delta && Array.isArray(data.transaksi)){
-            STATE.transaksi = (STATE.transaksi || []).filter(function(x){ return x.ID !== tempId; });
-            safeApplyTransaksi_(data.transaksi);
-            if(Array.isArray(data.rekening)) STATE.rekening = data.rekening;
-            try { renderAll(); } catch(e){}
-            try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e){}
+          // Hapus temp lokal
+          STATE.transaksi = (STATE.transaksi || []).filter(function(x){ return x.ID !== tempId; });
+          if(data.trxPatch || data.delta){
+            applyDelta_(data);
           } else {
             refreshState(data);
           }
-          toast('Tersimpan ke Spreadsheet');
+          try { renderAll(); } catch(e){}
+          try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e){}
+          toast('Tersimpan');
         } else {
           toast('Server tidak mengembalikan data');
         }
