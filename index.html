@@ -6668,56 +6668,38 @@
       btn.dataset.busy = '0';
       btn.disabled = false;
       btn.innerHTML = original;
-      if(!res){ toast('Export gagal'); return; }
-      if(format === 'pdf'){
-        var viewUrl = res.pdfViewUrl || res.pdfPreviewUrl || '';
-        var dl = res.pdfUrl || '';
-        if(!viewUrl && !dl){ toast('Link PDF kosong — coba lagi'); return; }
-        // Di HP: buka viewer PDF Google Drive (bukan Spreadsheet)
-        openSheet(
-          '<div class="sheet-title">Rekap PDF</div>' +
-          '<div style="font-size:12.5px;color:var(--ink-faint);margin-bottom:12px;">' + esc(label) + '</div>' +
-          '<div style="background:var(--input-bg);border-radius:14px;padding:16px;margin-bottom:12px;font-size:13px;line-height:1.5;color:var(--ink-soft);">' +
-            'File PDF sudah dibuat. Di HP, ketuk <b>Buka PDF</b> untuk melihat. ' +
-            'Kalau iframe diblokir browser, tombol itu yang paling andal.' +
-          '</div>' +
-          '<div style="display:flex;flex-direction:column;gap:10px;">' +
-            (viewUrl
-              ? '<a class="btn-primary" href="' + viewUrl + '" target="_blank" rel="noopener" style="text-align:center;text-decoration:none;">Buka PDF</a>'
-              : '') +
-            (dl
-              ? '<a class="btn-secondary" href="' + dl + '" target="_blank" rel="noopener" style="text-align:center;text-decoration:none;">Unduh PDF</a>'
-              : '') +
-            '<button type="button" class="btn-secondary" id="btn-close-pdf">Tutup</button>' +
-          '</div>'
-        );
-        var c = document.getElementById('btn-close-pdf');
-        if(c) c.addEventListener('click', closeSheet);
-        // Coba buka langsung di tab baru (HP & laptop)
-        if(viewUrl){
-          try { window.open(viewUrl, '_blank'); } catch(e){}
-        }
-        toast('PDF siap');
-        return;
-      }
-      var url = res.xlsxUrl || '';
-      if(!url){ toast('Link Excel kosong'); return; }
-      try {
-        var a = document.createElement('a');
-        a.href = url; a.target = '_blank'; a.rel = 'noopener';
-        document.body.appendChild(a); a.click();
-        setTimeout(function(){ try { document.body.removeChild(a); } catch(e){} }, 500);
-      } catch(e) { window.location.href = url; }
-      toast('Excel siap diunduh');
+      if(!res){ toast('Export gagal: respons kosong'); return; }
+      var url = (format === 'pdf') ? (res.pdfUrl || res.pdfViewUrl || '') : (res.xlsxUrl || '');
+      if(!url){ toast('Export gagal: link kosong'); return; }
+      openSheet(
+        '<div class="sheet-title">Export ' + (format === 'pdf' ? 'PDF' : 'Excel') + '</div>' +
+        '<div style="font-size:12.5px;color:var(--ink-faint);margin-bottom:12px;">' + esc(label) + '</div>' +
+        '<div style="font-size:13px;line-height:1.5;color:var(--ink-soft);margin-bottom:14px;">' +
+          'Ketuk tombol di bawah. Pastikan login <b>Google</b> di browser (akun yang sama).' +
+        '</div>' +
+        '<a class="btn-primary" href="' + url + '" target="_blank" rel="noopener" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px;">' +
+          (format === 'pdf' ? 'Buka / Unduh PDF' : 'Buka / Unduh Excel') +
+        '</a>' +
+        (res.openUrl
+          ? '<a class="btn-secondary" href="' + res.openUrl + '" target="_blank" rel="noopener" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px;">Lihat di Spreadsheet</a>'
+          : '') +
+        '<button type="button" class="btn-secondary" id="btn-close-export" style="width:100%;">Tutup</button>'
+      );
+      var c = document.getElementById('btn-close-export');
+      if(c) c.addEventListener('click', closeSheet);
+      try { window.open(url, '_blank'); } catch(e){}
+      toast('Siap');
     }).withFailureHandler(function(err){
       btn.dataset.busy = '0';
       btn.disabled = false;
       btn.innerHTML = original;
-      toast('Gagal export: ' + ((err && err.message) || err));
+      var msg = (err && err.message) ? err.message : String(err || 'Gagal');
+      // Jangan samarkan error export
+      toast('Gagal export: ' + msg);
     }).generateRekapExport({ fromYMD: fromYMD, toYMD: toYMD_, labelRange: label });
   }
 
-  // ================= SHEET (bottom modal) =================
+ (bottom modal) =================
   var overlay = document.getElementById('sheet-overlay');
   var sheet = document.getElementById('sheet');
   var sheetHistoryPushed = false;
