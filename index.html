@@ -2392,7 +2392,7 @@
   <div class="splash-sub">Sebentar ya…</div>
 </div>
 
-<div id="lockscreen">
+<div id="lockscreen" style="display:none !important;">
   <div class="lock-box">
     <div class="lock-brand">Catatan Kas</div>
     <div class="lock-icon">
@@ -2879,8 +2879,16 @@
   }
 
   // ================= INIT =================
+  // PIN & sidik jari DINONAKTIFKAN — app langsung masuk
   var pinEnabled = false;
-  try { pinEnabled = localStorage.getItem('kasHasPin') === '1' || !!localStorage.getItem('kasPinHash'); } catch(e){}
+  try {
+    localStorage.removeItem('kasHasPin');
+    localStorage.removeItem('kasPinHash');
+    localStorage.removeItem('kasPinSalt');
+    localStorage.removeItem('kasBioCred');
+    localStorage.removeItem('kasUnlockUntil');
+    sessionStorage.removeItem('kasPinUnlocked');
+  } catch(e){}
 
   function patchCacheHasPin_(v){
     try {
@@ -2953,21 +2961,10 @@
       }
     } catch(e){}
   }
-  function applyServerPinFlag_(serverHasPin){
-    // Server hanya boleh MENYALAKAN; mematikan hanya lewat tombol Nonaktifkan (+ clear lokal)
-    if(serverHasPin){
-      pinEnabled = true;
-      try { localStorage.setItem('kasHasPin', '1'); } catch(e){}
-      return;
-    }
-    // server false: tetap hormati PIN lokal
-    if(hasLocalPin_()){
-      pinEnabled = true;
-      try { localStorage.setItem('kasHasPin', '1'); } catch(e){}
-    } else {
-      pinEnabled = false;
-      try { localStorage.removeItem('kasHasPin'); } catch(e){}
-    }
+  function applyServerPinFlag_(on){
+    // Abaikan flag server — PIN fitur dihapus
+    pinEnabled = false;
+    try { localStorage.setItem('kasHasPin', '0'); } catch(e){}
   }
   function markUnlocked_(){
     try {
@@ -3416,7 +3413,6 @@
         }
         applyStateFromSheet_(data);
         try { renderAll(); } catch(e){}
-        toast('Data dari Spreadsheet');
       }).withFailureHandler(function(err){
         if(!painted) toast((err && err.message) || 'Gagal muat data');
       }).getInitialData();
@@ -3453,40 +3449,11 @@
   }
 
   function showLockScreen(){
-    document.getElementById('loading').style.display = 'none';
-    try { document.getElementById('app').style.display = 'none'; } catch(e){}
-    var ls = document.getElementById('lockscreen');
-    ls.style.display = 'flex';
-    var input = document.getElementById('lock-pin-input');
-    if(input) input.value = '';
-    document.getElementById('lock-error').textContent = '';
-    var bioBtn = document.getElementById('lock-bio-btn');
-    var sub = document.getElementById('lock-sub');
-    var pinPanel = document.getElementById('lock-pin-panel');
-    var showPinBtn = document.getElementById('lock-show-pin');
-    if(pinPanel) pinPanel.style.display = 'none';
-    if(showPinBtn) showPinBtn.style.display = '';
-
-    var canBio = bioSupported_() && bioEnabled_();
-    if(bioBtn){
-      if(canBio){
-        bioBtn.style.display = '';
-        if(sub) sub.textContent = 'Sentuh sensor untuk membuka dengan aman';
-        setTimeout(function(){
-          if(document.getElementById('lockscreen').style.display === 'flex'){
-            unlockWithBiometric_().catch(function(){});
-          }
-        }, 400);
-      } else {
-        bioBtn.style.display = 'none';
-        if(sub) sub.textContent = 'Masukkan PIN untuk melanjutkan';
-        // Langsung tampilkan panel PIN jika tidak ada biometrik
-        if(pinPanel) pinPanel.style.display = '';
-        if(showPinBtn) showPinBtn.style.display = 'none';
-        setTimeout(function(){ try{ input && input.focus(); }catch(e){} }, 200);
-      }
-    }
+    // PIN dimatikan — jangan pernah tampilkan kunci
+    try { document.getElementById('lockscreen').style.display = 'none'; } catch(e){}
+    return;
   }
+
   function trySubmitPin(){
     var pin = document.getElementById('lock-pin-input').value;
     if(!pin) return;
@@ -3724,43 +3691,8 @@
 
   var __pendingWrite_ = null;
   function ensureServerSession_(onReady, onFail){
-    if(getSession_()){ if(onReady) onReady(); return; }
-    if(!pinEnabled && !hasLocalPin_()){ if(onReady) onReady(); return; }
-    // Minta PIN sekali untuk dapat sesi server
-    openSheet(
-      '<div class="sheet-title">Sinkron ke Spreadsheet</div>' +
-      '<div class="sheet-hint">Sekali saja di sesi ini. Setelah itu simpan transaksi tidak minta PIN lagi.</div>' +
-      '<div class="form-group"><label class="form-label">PIN</label>' +
-        '<input class="form-input" id="f-sync-pin" type="password" inputmode="numeric" maxlength="6" style="text-align:center;letter-spacing:8px;font-size:20px;"></div>' +
-      '<div id="f-sync-err" style="color:var(--red);font-size:13px;font-weight:600;min-height:18px;"></div>' +
-      '<button class="btn-primary" id="btn-sync-pin">Simpan ke Spreadsheet</button>'
-    );
-    document.getElementById('btn-sync-pin').addEventListener('click', function(){
-      var pin = (document.getElementById('f-sync-pin').value || '').trim();
-      if(!pin){ document.getElementById('f-sync-err').textContent = 'Isi PIN'; return; }
-      if(hasLocalPin_() && !verifyLocalPin_(pin)){
-        document.getElementById('f-sync-err').textContent = 'PIN salah';
-        return;
-      }
-      var btn = document.getElementById('btn-sync-pin');
-      btn.textContent = 'Memeriksa…';
-      google.script.run.withSuccessHandler(function(res){
-        var ok = (res === true) || (res && res.ok);
-        if(ok){
-          if(res && res.session) setSession_(res.session);
-          markUnlocked_();
-          closeSheet();
-          if(onReady) onReady();
-        } else {
-          btn.textContent = 'Simpan ke Spreadsheet';
-          document.getElementById('f-sync-err').textContent = 'PIN salah (server)';
-        }
-      }).withFailureHandler(function(err){
-        btn.textContent = 'Simpan ke Spreadsheet';
-        document.getElementById('f-sync-err').textContent = (err && err.message) || 'Gagal';
-        if(onFail) onFail(err);
-      }).checkPin(pin);
-    });
+    // PIN dimatikan — langsung lanjut tanpa minta PIN
+    if(onReady) onReady();
   }
   function isSessionError_(err){
     var m = String((err && err.message) || err || '');
@@ -3810,11 +3742,7 @@
       try { startRun(doneOk, doneFail); } catch(e){ doneFail(e); }
     }
     // PIN aktif tapi belum ada sesi → ambil sesi dulu
-    if((pinEnabled || hasLocalPin_()) && !getSession_()){
-      ensureServerSession_(kickOff, function(){ doneFailFinal(new Error('Butuh PIN untuk simpan ke Spreadsheet')); });
-    } else {
-      kickOff();
-    }
+    kickOff();
   }
 
   var __renderRaf = 0;
@@ -4169,7 +4097,6 @@
           settingsRow('btn-open-zoom', 'Ukuran tampilan', Math.round(uiScale * 100) + '%', false, '70% – 100%')
         ) +
         settingsSection_('Keamanan',
-          settingsRow('btn-open-pin', 'Kunci PIN', settingsBadge_(pinEnabled), false, 'Kunci app saat dibuka') +
           settingsRow('btn-open-sheet', 'Spreadsheet data', '', false, 'Buka Google Sheet yang dipakai app') +
           settingsRow('btn-reload-sheet', 'Muat ulang dari Spreadsheet', '', false, 'Jadikan Sheet sebagai data utama (buang data lokal yang belum sync)') +
           settingsRow('btn-open-api-token', 'Token API', settingsBadge_(!!getAppToken_(), 'Diset', 'Kosong'), false, 'Disarankan · kunci akses server')
@@ -4220,7 +4147,6 @@
             toast(isDarkMode ? 'Mode malam' : 'Mode terang');
             break;
           case 'btn-open-zoom': openZoomSheet(); break;
-          case 'btn-open-pin': openPinSettingsSheet(); break;
           case 'btn-open-sheet': openSpreadsheetInfo_(); break;
           case 'btn-reload-sheet': forceReloadFromSheet_(); break;
           case 'btn-open-api-token': openApiTokenSheet(); break;
@@ -7727,13 +7653,7 @@
       }).addTransaksi(payload);
     }
     // Jika PIN aktif tapi belum ada sesi server → minta PIN dulu
-    if((pinEnabled || hasLocalPin_()) && !getSession_()){
-      ensureServerSession_(function(){
-        pushTrxToServer_();
-      });
-    } else {
-      pushTrxToServer_();
-    }
+    pushTrxToServer_();
   }
 
   function openTrxDetail(id){
