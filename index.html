@@ -2397,6 +2397,44 @@
     }
     .rekap-filter-chip:active{ transform:scale(.96); }
 
+
+    .rekap-summary-grid{
+      display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin:4px 0 14px;
+    }
+    .rekap-sum-cell{
+      background:var(--input-bg, #F1F5F9); border-radius:14px; padding:12px 8px; text-align:center;
+      cursor:pointer; border:1px solid transparent; -webkit-tap-highlight-color:transparent;
+    }
+    .rekap-sum-cell:active{ transform:scale(.97); opacity:.9; }
+    .rekap-sum-cell .sl{
+      font-size:10px; font-weight:700; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.35px;
+    }
+    .rekap-sum-cell .sv{
+      font-size:13.5px; font-weight:800; margin-top:6px; letter-spacing:-.3px; line-height:1.15;
+      word-break:break-all;
+    }
+    .rekap-sum-cell .sv.green{ color:var(--green); }
+    .rekap-sum-cell .sv.red{ color:var(--red); }
+    .rekap-section-title{
+      font-size:11px; font-weight:700; color:var(--ink-faint); text-transform:uppercase;
+      letter-spacing:.35px; margin:14px 0 8px;
+    }
+    .rekap-hint{
+      font-size:11.5px; color:var(--ink-faint); text-align:center; margin:0 0 10px; font-weight:500;
+    }
+    .rekap-fold{
+      margin-top:12px; border-top:1px solid rgba(226,232,240,.7); padding-top:8px;
+    }
+    .rekap-fold-btn{
+      width:100%; display:flex; justify-content:space-between; align-items:center;
+      background:transparent; border:none; padding:8px 0; font-size:13px; font-weight:700;
+      color:var(--ink-soft); cursor:pointer;
+    }
+    .rekap-fold-body{ display:none; }
+    .rekap-fold.open .rekap-fold-body{ display:block; }
+    .rekap-fold.open .rekap-fold-chev{ transform:rotate(90deg); }
+    .rekap-fold-chev{ transition:transform .15s ease; color:var(--ink-faint); }
+
   </style>
 </head>
 <body>
@@ -4157,7 +4195,7 @@
         settingsSection_('Data',
           settingsRow('btn-load-full-history', 'Muat semua riwayat', '', false, 'Default: ~5 bulan terakhir') +
           settingsRow('btn-open-backup', 'Backup & restore', '') +
-          settingsRow('btn-export-csv', 'Export CSV', '', false, 'Buka di Excel') +
+          settingsRow('btn-export-csv', 'Unduh semua transaksi (CSV)', '', false, 'Seluruh data → buka di Excel') +
           settingsRow('btn-clear-cache', 'Hapus cache', '', false, 'Data server tetap aman') +
           settingsRow('btn-open-reset', 'Reset semua data', '', true, 'Tidak bisa dibatalkan')
         ) +
@@ -4491,14 +4529,13 @@
       '<div class="settings-list">' +
         '<button type="button" class="settings-row" id="btn-backup"><span class="sr-label">Backup data</span><span class="sr-chev">›</span></button>' +
         '<button type="button" class="settings-row" id="btn-restore"><span class="sr-label">Restore data</span><span class="sr-chev">›</span></button>' +
-        '<button type="button" class="settings-row" id="btn-export-csv2"><span class="sr-label">Export CSV transaksi</span><span class="sr-chev">›</span></button>' +
-      '</div>' +
-      '<div style="font-size:11px; color:var(--ink-faint); margin-top:10px; line-height:1.5;">Backup menyimpan semua data jadi 1 file .json. CSV bisa dibuka di Excel.</div>' +
+              '</div>' +
+      '<div style="font-size:11px; color:var(--ink-faint); margin-top:10px; line-height:1.5;">Backup = file .json cadangan lengkap. Untuk Excel/PDF rekap per periode, pakai menu <b>Rekap</b>.</div>' +
       '<button class="btn-secondary" id="btn-back-settings" style="margin-top:12px; width:auto; padding:10px 18px;">Kembali</button>'
     );
     document.getElementById('btn-backup').addEventListener('click', doBackup);
     document.getElementById('btn-restore').addEventListener('click', openRestoreForm);
-    document.getElementById('btn-export-csv2').addEventListener('click', exportTransaksiCsv_);
+    
     document.getElementById('btn-back-settings').addEventListener('click', openSettingsSheet);
   }
 
@@ -6072,83 +6109,104 @@
   function rekapCardHtml(dateLabel, data, fromYMD, toYMD){
     var fLabel = rekapUntukFilter ? (' · ' + rekapUntukFilter) : '';
     var html = '<div class="rekap-card" data-from="' + fromYMD + '" data-to="' + toYMD + '">' +
-      '<div class="rekap-date">' + dateLabel + fLabel + '</div>';
+      '<div class="rekap-date">' + esc(dateLabel) + (fLabel ? '<span style="font-weight:600;color:var(--ink-faint);font-size:14px;">' + esc(fLabel) + '</span>' : '') + '</div>' +
+      '<div class="rekap-hint">Ketuk angka untuk detail</div>';
+
+    // 3 angka utama
     if(rekapUntukFilter){
-      html += rekapRowHtml('Pengeluaran ' + rekapUntukFilter, data.pengeluaran, 'plain', 'untuk-' + rekapUntukFilter);
-      html += '<div style="font-size:11.5px;color:var(--ink-faint);margin:4px 0 8px;">Ketuk nominal untuk daftar detail</div>';
+      html += '<div class="rekap-summary-grid" style="grid-template-columns:1fr;">' +
+        '<div class="rekap-sum-cell" data-focus="untuk-' + rekapUntukFilter + '">' +
+          '<div class="sl">Pengeluaran ' + esc(rekapUntukFilter) + '</div>' +
+          '<div class="sv red">' + numOnly(data.pengeluaran) + '</div>' +
+        '</div></div>';
     } else {
-      html += rekapRowHtml('Pengeluaran', data.pengeluaran, 'plain', 'pengeluaran') +
-        rekapRowHtml('Pemasukan', data.pemasukan, 'pemasukan', 'pemasukan') +
-        rekapRowHtml('Selisih', data.selisih, 'delta', 'rekap');
+      html += '<div class="rekap-summary-grid">' +
+        '<div class="rekap-sum-cell" data-focus="pemasukan">' +
+          '<div class="sl">Masuk</div>' +
+          '<div class="sv green">' + numOnly(data.pemasukan) + '</div>' +
+        '</div>' +
+        '<div class="rekap-sum-cell" data-focus="pengeluaran">' +
+          '<div class="sl">Keluar</div>' +
+          '<div class="sv red">' + numOnly(data.pengeluaran) + '</div>' +
+        '</div>' +
+        '<div class="rekap-sum-cell" data-focus="rekap">' +
+          '<div class="sl">Selisih</div>' +
+          '<div class="sv ' + (data.selisih >= 0 ? 'green' : 'red') + '">' +
+            (data.selisih >= 0 ? '+' : '') + numOnly(data.selisih) +
+          '</div>' +
+        '</div>' +
+      '</div>';
     }
 
-    // Breakdown pengeluaran per "Untuk" + grafik batang
-    var u = data.untuk || {};
-    var hasUntuk = (u.Pribadi || u.Istri || u.Anak || u.Bersama || u.Lainnya);
-    if(hasUntuk){
-      html += '<div style="font-size:11px; font-weight:700; color:var(--ink-faint); margin:10px 0 4px; text-transform:uppercase; letter-spacing:.3px;">Pengeluaran per orang <span style="font-weight:500;text-transform:none;letter-spacing:0;">(ketuk untuk detail)</span></div>';
-      if(u.Pribadi) html += rekapRowHtml('• Pribadi ›', u.Pribadi, 'plain', 'untuk-Pribadi');
-      if(u.Istri) html += rekapRowHtml('• Istri ›', u.Istri, 'plain', 'untuk-Istri');
-      if(u.Anak) html += rekapRowHtml('• Anak ›', u.Anak, 'plain', 'untuk-Anak');
-      if(u.Bersama) html += rekapRowHtml('• Bersama ›', u.Bersama, 'plain', 'untuk-Bersama');
-      if(u.Lainnya) html += rekapRowHtml('• Belum ditandai ›', u.Lainnya, 'plain', 'untuk-Lainnya');
-      html += simpleBarChartHtml_([
-        { label: 'Pribadi', value: u.Pribadi || 0, color: '#3B82F6' },
-        { label: 'Istri', value: u.Istri || 0, color: '#EC4899' },
-        { label: 'Anak', value: u.Anak || 0, color: '#F59E0B' },
-        { label: 'Bersama', value: u.Bersama || 0, color: '#10B981' }
-      ]);
-    }
-    // Grafik kategori (top 5 pengeluaran)
+    // Top kategori saja (tanpa dobel daftar orang — filter chip di atas sudah cukup)
     var katBars = topKategoriBars_(fromYMD, toYMD, 5);
     if(katBars.length){
-      html += '<div style="font-size:11px; font-weight:700; color:var(--ink-faint); margin:12px 0 4px; text-transform:uppercase; letter-spacing:.3px;">Top kategori</div>';
+      html += '<div class="rekap-section-title">Top kategori</div>';
       html += simpleBarChartHtml_(katBars, true);
     }
 
-    html +=
-      rekapRowHtml('Hutang Bertambah', data.hutangTambah, 'hutang-tambah', 'hutang-tambah') +
-      rekapRowHtml('Hutang Berkurang', data.hutangKurang, 'hutang-kurang', 'hutang-kurang');
-    if(data.piutangTambah || data.piutangKurang){
-      html += rekapRowHtml('Piutang Bertambah', data.piutangTambah, 'hutang-tambah', 'piutang-tambah') +
-        rekapRowHtml('Piutang Berkurang', data.piutangKurang, 'hutang-kurang', 'piutang-kurang');
+    // Hutang dilipat — tidak mengganggu cashflow
+    var hasHp = data.hutangTambah || data.hutangKurang || data.piutangTambah || data.piutangKurang;
+    if(hasHp && !rekapUntukFilter){
+      html += '<div class="rekap-fold" data-fold="hp">' +
+        '<button type="button" class="rekap-fold-btn">' +
+          '<span>Hutang &amp; piutang</span>' +
+          '<span class="rekap-fold-chev">›</span>' +
+        '</button>' +
+        '<div class="rekap-fold-body">' +
+          rekapRowHtml('Hutang bertambah', data.hutangTambah, 'hutang-tambah', 'hutang-tambah') +
+          rekapRowHtml('Hutang berkurang (bayar)', data.hutangKurang, 'hutang-kurang', 'hutang-kurang');
+      if(data.piutangTambah || data.piutangKurang){
+        html += rekapRowHtml('Piutang bertambah', data.piutangTambah, 'hutang-tambah', 'piutang-tambah') +
+          rekapRowHtml('Piutang berkurang', data.piutangKurang, 'hutang-kurang', 'piutang-kurang');
+      }
+      html += '</div></div>';
     }
+
     html += '</div>';
     return html;
   }
   function wireRekapCards(container){
+    function handleFocus_(from, to, focus){
+      if(!focus) return;
+      if(focus === 'hutang-tambah' || focus === 'hutang-kurang' || focus === 'piutang-tambah' || focus === 'piutang-kurang'){
+        openHutangRekapDetail(from, to, focus);
+      } else if(String(focus).indexOf('untuk-') === 0){
+        openUntukRekapDetail(from, to, focus.replace('untuk-', ''));
+      } else if(focus === 'pemasukan'){
+        openRekapDetail(from, to, 'kategori', 'Pemasukan');
+      } else if(focus === 'pengeluaran'){
+        openRekapDetail(from, to, 'transaksi', 'Pengeluaran');
+      } else {
+        openRekapDetail(from, to, 'transaksi');
+      }
+    }
     container.querySelectorAll('.rekap-card').forEach(function(card){
       var from = card.dataset.from, to = card.dataset.to;
+      card.querySelectorAll('.rekap-sum-cell[data-focus]').forEach(function(cell){
+        cell.addEventListener('click', function(e){
+          e.stopPropagation();
+          handleFocus_(from, to, cell.dataset.focus);
+        });
+      });
       card.querySelectorAll('.rekap-row[data-focus]').forEach(function(row){
         row.addEventListener('click', function(e){
           e.stopPropagation();
-          var focus = row.dataset.focus;
-          if(focus === 'hutang-tambah' || focus === 'hutang-kurang' || focus === 'piutang-tambah' || focus === 'piutang-kurang'){
-            openHutangRekapDetail(from, to, focus);
-          } else if(String(focus).indexOf('untuk-') === 0){
-            openUntukRekapDetail(from, to, focus.replace('untuk-', ''));
-          } else if(focus === 'pemasukan'){
-            openRekapDetail(from, to, 'kategori', 'Pemasukan');
-          } else if(focus === 'pengeluaran'){
-            openRekapDetail(from, to, 'transaksi', 'Pengeluaran');
-          } else {
-            openRekapDetail(from, to, 'transaksi');
-          }
+          handleFocus_(from, to, row.dataset.focus);
         });
       });
-      // Klik batang top kategori
       card.querySelectorAll('.kategori-row[data-kategori]').forEach(function(row){
         row.addEventListener('click', function(e){
           e.stopPropagation();
           openKategoriTransaksi(row.dataset.kategori, from, to);
         });
       });
-      card.addEventListener('click', function(){
-        if(rekapUntukFilter){
-          openUntukRekapDetail(from, to, rekapUntukFilter);
-        } else {
-          openRekapDetail(from, to);
-        }
+      card.querySelectorAll('.rekap-fold-btn').forEach(function(btn){
+        btn.addEventListener('click', function(e){
+          e.stopPropagation();
+          var fold = btn.closest('.rekap-fold');
+          if(fold) fold.classList.toggle('open');
+        });
       });
     });
   }
@@ -6254,6 +6312,7 @@
       { v: 'Bersama', l: 'Bersama' }
     ];
     var filterHtml = '<div class="rekap-filter-row" id="rekap-untuk-filter">' +
+      '<span style="font-size:11px;font-weight:700;color:var(--ink-faint);width:100%;margin-bottom:2px;">Filter pengeluaran</span>' +
       chips.map(function(c){
         var on = (rekapUntukFilter || '') === c.v;
         return '<button type="button" class="rekap-filter-chip' + (on?' active':'') + '" data-u="' + c.v + '">' + c.l + '</button>';
@@ -6460,8 +6519,8 @@
         '<div class="sheet-title" style="display:flex; align-items:center; justify-content:space-between;">' +
           '<span>' + fmtRangeLabel(parseYMD(fromYMD), parseYMD(toYMD_)) + '</span>' +
           '<span style="display:flex; gap:6px; flex:0 0 auto;">' +
-            '<button class="export-icon-btn" id="btn-export-xlsx" title="Export Excel">' + ICON_DOWNLOAD + '<span>XLS</span></button>' +
-            '<button class="export-icon-btn" id="btn-export-pdf" title="Export PDF">' + ICON_DOWNLOAD + '<span>PDF</span></button>' +
+            '<button class="export-icon-btn" id="btn-export-xlsx" title="Excel rekap periode ini">' + ICON_DOWNLOAD + '<span>Excel</span></button>' +
+            '<button class="export-icon-btn" id="btn-export-pdf" title="PDF rekap periode ini">' + ICON_DOWNLOAD + '<span>PDF</span></button>' +
           '</span>' +
         '</div>' +
         '<div class="segmented" id="rekapdetail-segmented">' +
