@@ -2697,7 +2697,7 @@
             addTransaksi:1, updateTransaksi:1, deleteTransaksi:1, addRekening:1, updateRekening:1, deleteRekening:1,
             addTransfer:1, addHutangPiutang:1, updateHutangPiutang:1, bayarCicilan:1, addReimburseTransaksi:1,
             setPin:1, removePin:1, createBudgetLiburan:1, pindahKantongLiburan:1, tutupBudgetLiburan:1,
-            restoreBackupJson:1, addTujuanNabung:1, tambahProgressNabung:1
+            restoreBackupJson:1, addTujuanNabung:1, tambahProgressNabung:1, generateRekapExport:1
           };
           if (WRITE_ACT[action] || (payload !== undefined && typeof payload === 'object' && JSON.stringify(payload).length > 1200)) {
             // 0 retry — retry tulis bikin transaksi dobel di Sheet
