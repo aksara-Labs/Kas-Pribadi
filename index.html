@@ -6610,13 +6610,35 @@
     var label = fmtRangeLabel(parseYMD(fromYMD), parseYMD(toYMD_));
     google.script.run.withSuccessHandler(function(res){
       btn.innerHTML = original;
-      var url = 'https://docs.google.com/spreadsheets/d/' + res.spreadsheetId + '/export?format=' + format + '&gid=' + res.sheetId +
-        (format === 'pdf' ? '&size=A4&portrait=true&fitw=true&gridlines=false' : '');
-      window.open(url, '_blank');
-      toast('Export siap, membuka di tab baru…');
+      if(!res){ toast('Export gagal: respons kosong'); return; }
+      // Pakai URL khusus PDF vs Excel — file rekap terpisah (bukan seluruh Sheet data)
+      var url = (format === 'pdf')
+        ? (res.pdfUrl || '')
+        : (res.xlsxUrl || '');
+      if(!url && res.spreadsheetId){
+        url = 'https://docs.google.com/spreadsheets/d/' + res.spreadsheetId +
+          '/export?format=' + (format === 'pdf' ? 'pdf' : 'xlsx') +
+          '&gid=' + res.sheetId + '&attachment=true' +
+          (format === 'pdf' ? '&size=A4&portrait=true&fitw=true&gridlines=false' : '');
+      }
+      if(!url){ toast('URL export tidak tersedia'); return; }
+      // Download via <a> lebih andal daripada window.open di HP
+      try {
+        var a = document.createElement('a');
+        a.href = url;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.download = (format === 'pdf' ? 'Rekap-Kas.pdf' : 'Rekap-Kas.xlsx');
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } catch(e) {
+        window.open(url, '_blank');
+      }
+      toast(format === 'pdf' ? 'Mengunduh PDF…' : 'Mengunduh Excel…');
     }).withFailureHandler(function(err){
       btn.innerHTML = original;
-      toast('Gagal export: ' + err.message);
+      toast('Gagal export: ' + ((err && err.message) || err));
     }).generateRekapExport({ fromYMD: fromYMD, toYMD: toYMD_, labelRange: label });
   }
 
