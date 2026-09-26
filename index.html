@@ -2382,20 +2382,38 @@
 
 
     .rekap-filter-row{
-      display:flex; flex-wrap:wrap; gap:8px; padding:4px 2px 12px; align-items:center;
+      display:flex; flex-wrap:nowrap; gap:0; padding:0 0 12px; align-items:stretch;
+      overflow-x:auto; -webkit-overflow-scrolling:touch;
+      scrollbar-width:none;
+    }
+    .rekap-filter-row::-webkit-scrollbar{ display:none; }
+    .rekap-filter-label{
+      display:none;
+    }
+    .rekap-filter-track{
+      display:flex; width:100%; background:var(--input-bg, #F1F5F9);
+      border-radius:12px; padding:3px; gap:2px;
+      border:1px solid rgba(226,232,240,.8);
     }
     .rekap-filter-chip{
-      border:1.5px solid var(--line, #e2e8f0);
-      background:var(--card, #fff);
+      flex:1; min-width:0; border:none; background:transparent;
       color:var(--ink-soft, #64748b);
-      font-size:12.5px; font-weight:700;
-      padding:7px 12px; border-radius:999px;
+      font-size:11.5px; font-weight:650;
+      padding:8px 6px; border-radius:10px;
       cursor:pointer; -webkit-tap-highlight-color:transparent;
+      transition:background .15s, color .15s, box-shadow .15s;
+      white-space:nowrap;
     }
     .rekap-filter-chip.active{
-      background:#1A365D; color:#fff; border-color:#1A365D;
+      background:#fff; color:#1A365D;
+      box-shadow:0 1px 3px rgba(15,23,42,.08), 0 1px 2px rgba(15,23,42,.04);
+      font-weight:750;
     }
-    .rekap-filter-chip:active{ transform:scale(.96); }
+    html.dark .rekap-filter-chip.active{
+      background:#1e293b; color:#e2e8f0;
+      box-shadow:0 1px 3px rgba(0,0,0,.35);
+    }
+    .rekap-filter-chip:active{ opacity:.85; }
 
 
     .rekap-summary-grid{
@@ -2437,19 +2455,23 @@
 
 
     .rekap-export-bar{
-      display:flex; gap:10px; padding:0 2px 12px;
+      display:flex; gap:8px; padding:0 0 14px; justify-content:flex-end;
     }
     .rekap-export-bar button{
-      flex:1; display:flex; align-items:center; justify-content:center; gap:8px;
-      padding:12px 14px; border-radius:14px; font-size:13.5px; font-weight:700;
-      border:1.5px solid var(--line, #e2e8f0); background:var(--card, #fff);
-      color:var(--ink, #0f172a); cursor:pointer;
+      display:inline-flex; align-items:center; justify-content:center; gap:6px;
+      padding:8px 14px; border-radius:10px; font-size:12px; font-weight:650;
+      border:1px solid rgba(226,232,240,.95); background:var(--card, #fff);
+      color:var(--ink-soft, #475569); cursor:pointer;
+      box-shadow:0 1px 2px rgba(15,23,42,.04);
     }
-    .rekap-export-bar button:active{ transform:scale(.98); opacity:.9; }
+    .rekap-export-bar button svg{ width:14px; height:14px; flex:0 0 auto; opacity:.85; }
+    .rekap-export-bar button:active{ transform:scale(.97); opacity:.9; }
     .rekap-export-bar button.pdf-btn{
       background:#1A365D; color:#fff; border-color:#1A365D;
+      box-shadow:0 2px 8px rgba(26,54,93,.22);
     }
-    .rekap-export-bar button:disabled{ opacity:.55; pointer-events:none; }
+    .rekap-export-bar button.pdf-btn svg{ opacity:1; }
+    .rekap-export-bar button:disabled{ opacity:.5; pointer-events:none; }
 
   </style>
 </head>
@@ -6328,15 +6350,15 @@
       { v: 'Bersama', l: 'Bersama' }
     ];
     var filterHtml = '<div class="rekap-filter-row" id="rekap-untuk-filter">' +
-      '<span style="font-size:11px;font-weight:700;color:var(--ink-faint);width:100%;margin-bottom:2px;">Filter pengeluaran</span>' +
+      '<div class="rekap-filter-track">' +
       chips.map(function(c){
         var on = (rekapUntukFilter || '') === c.v;
         return '<button type="button" class="rekap-filter-chip' + (on?' active':'') + '" data-u="' + c.v + '">' + c.l + '</button>';
       }).join('') +
-      '</div>';
+      '</div></div>';
     var exportHtml = '<div class="rekap-export-bar">' +
-      '<button type="button" class="pdf-btn" id="btn-rekap-pdf">↓ PDF</button>' +
-      '<button type="button" id="btn-rekap-xlsx">↓ Excel</button>' +
+      '<button type="button" class="pdf-btn" id="btn-rekap-pdf" aria-label="Unduh PDF">' + icon_dl + ' PDF</button>' +
+      '<button type="button" id="btn-rekap-xlsx" aria-label="Unduh Excel">' + icon_dl + ' Excel</button>' +
       '</div>';
     el.innerHTML = segHtml + filterHtml + exportHtml + '<div id="rekap-body"></div>';
     document.querySelectorAll('#rekap-segmented button').forEach(function(b){
