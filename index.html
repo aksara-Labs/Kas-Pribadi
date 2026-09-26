@@ -2435,6 +2435,22 @@
     .rekap-fold.open .rekap-fold-chev{ transform:rotate(90deg); }
     .rekap-fold-chev{ transition:transform .15s ease; color:var(--ink-faint); }
 
+
+    .rekap-export-bar{
+      display:flex; gap:10px; padding:0 2px 12px;
+    }
+    .rekap-export-bar button{
+      flex:1; display:flex; align-items:center; justify-content:center; gap:8px;
+      padding:12px 14px; border-radius:14px; font-size:13.5px; font-weight:700;
+      border:1.5px solid var(--line, #e2e8f0); background:var(--card, #fff);
+      color:var(--ink, #0f172a); cursor:pointer;
+    }
+    .rekap-export-bar button:active{ transform:scale(.98); opacity:.9; }
+    .rekap-export-bar button.pdf-btn{
+      background:#1A365D; color:#fff; border-color:#1A365D;
+    }
+    .rekap-export-bar button:disabled{ opacity:.55; pointer-events:none; }
+
   </style>
 </head>
 <body>
@@ -6318,7 +6334,11 @@
         return '<button type="button" class="rekap-filter-chip' + (on?' active':'') + '" data-u="' + c.v + '">' + c.l + '</button>';
       }).join('') +
       '</div>';
-    el.innerHTML = segHtml + filterHtml + '<div id="rekap-body"></div>';
+    var exportHtml = '<div class="rekap-export-bar">' +
+      '<button type="button" class="pdf-btn" id="btn-rekap-pdf">↓ PDF</button>' +
+      '<button type="button" id="btn-rekap-xlsx">↓ Excel</button>' +
+      '</div>';
+    el.innerHTML = segHtml + filterHtml + exportHtml + '<div id="rekap-body"></div>';
     document.querySelectorAll('#rekap-segmented button').forEach(function(b){
       b.addEventListener('click', function(){ rekapSubTab = b.dataset.s; renderRekap(); });
     });
@@ -6328,9 +6348,40 @@
         renderRekap();
       });
     });
+    var pdfTop = document.getElementById('btn-rekap-pdf');
+    var xlsTop = document.getElementById('btn-rekap-xlsx');
+    if(pdfTop) pdfTop.addEventListener('click', function(){
+      var r = getActiveRekapRange_();
+      if(!r){ toast('Pilih rentang tanggal dulu'); return; }
+      doExport('pdf', r.from, r.to, pdfTop);
+    });
+    if(xlsTop) xlsTop.addEventListener('click', function(){
+      var r = getActiveRekapRange_();
+      if(!r){ toast('Pilih rentang tanggal dulu'); return; }
+      doExport('xlsx', r.from, r.to, xlsTop);
+    });
     if(rekapSubTab === 'realtime') renderRekapRealtime();
     else if(rekapSubTab === 'bulanan') renderRekapBulanan();
     else renderRekapCustom();
+  }
+
+  function getActiveRekapRange_(){
+    var today = new Date();
+    if(rekapSubTab === 'realtime'){
+      var y = today.getFullYear(), m = today.getMonth();
+      return { from: toYMD(new Date(y, m, 1)), to: toYMD(today) };
+    }
+    if(rekapSubTab === 'bulanan'){
+      // bulan berjalan (sama default kartu pertama)
+      var y2 = today.getFullYear(), m2 = today.getMonth();
+      return { from: toYMD(new Date(y2, m2, 1)), to: toYMD(new Date(y2, m2 + 1, 0)) };
+    }
+    // custom
+    var f = document.getElementById('f-rekap-dari');
+    var te = document.getElementById('f-rekap-sampai');
+    if(f && te && f.value && te.value) return { from: f.value, to: te.value };
+    var y3 = today.getFullYear(), m3 = today.getMonth();
+    return { from: toYMD(new Date(y3, m3, 1)), to: toYMD(today) };
   }
 
   function renderRekapRealtime(){
@@ -6605,38 +6656,37 @@
   }
 
   function doExport(format, fromYMD, toYMD_, btn){
+    if(!btn) return;
+    if(btn.dataset.busy === '1') return;
+    btn.dataset.busy = '1';
     var original = btn.innerHTML;
-    btn.innerHTML = '<span>...</span>';
+    btn.disabled = true;
+    btn.innerHTML = 'Menyiapkan…';
     var label = fmtRangeLabel(parseYMD(fromYMD), parseYMD(toYMD_));
+    toast('Menyiapkan ' + (format === 'pdf' ? 'PDF' : 'Excel') + '…');
     google.script.run.withSuccessHandler(function(res){
+      btn.dataset.busy = '0';
+      btn.disabled = false;
       btn.innerHTML = original;
-      if(!res){ toast('Export gagal: respons kosong'); return; }
-      // Pakai URL khusus PDF vs Excel — file rekap terpisah (bukan seluruh Sheet data)
-      var url = (format === 'pdf')
-        ? (res.pdfUrl || '')
-        : (res.xlsxUrl || '');
-      if(!url && res.spreadsheetId){
-        url = 'https://docs.google.com/spreadsheets/d/' + res.spreadsheetId +
-          '/export?format=' + (format === 'pdf' ? 'pdf' : 'xlsx') +
-          '&gid=' + res.sheetId + '&attachment=true' +
-          (format === 'pdf' ? '&size=A4&portrait=true&fitw=true&gridlines=false' : '');
-      }
-      if(!url){ toast('URL export tidak tersedia'); return; }
-      // Download via <a> lebih andal daripada window.open di HP
+      if(!res){ toast('Export gagal'); return; }
+      var url = (format === 'pdf') ? (res.pdfUrl || '') : (res.xlsxUrl || '');
+      if(!url){ toast('Link unduhan kosong — coba lagi'); return; }
+      // Drive download link
       try {
         var a = document.createElement('a');
         a.href = url;
         a.target = '_blank';
         a.rel = 'noopener';
-        a.download = (format === 'pdf' ? 'Rekap-Kas.pdf' : 'Rekap-Kas.xlsx');
         document.body.appendChild(a);
         a.click();
-        document.body.removeChild(a);
+        setTimeout(function(){ try { document.body.removeChild(a); } catch(e){} }, 500);
       } catch(e) {
-        window.open(url, '_blank');
+        window.location.href = url;
       }
-      toast(format === 'pdf' ? 'Mengunduh PDF…' : 'Mengunduh Excel…');
+      toast(format === 'pdf' ? 'PDF siap diunduh' : 'Excel siap diunduh');
     }).withFailureHandler(function(err){
+      btn.dataset.busy = '0';
+      btn.disabled = false;
       btn.innerHTML = original;
       toast('Gagal export: ' + ((err && err.message) || err));
     }).generateRekapExport({ fromYMD: fromYMD, toYMD: toYMD_, labelRange: label });
