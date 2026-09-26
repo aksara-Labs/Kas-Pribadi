@@ -2381,39 +2381,43 @@
     }
 
 
+    .rekap-toolbar{
+      background:var(--card, #fff);
+      border:1px solid rgba(226,232,240,.85);
+      border-radius:16px;
+      padding:10px 10px 8px;
+      margin-bottom:12px;
+      box-shadow:0 1px 3px rgba(15,23,42,.04);
+    }
+    .rekap-toolbar .segmented{
+      margin:0 0 8px; width:100%;
+    }
+    .rekap-toolbar .segmented button{
+      font-size:12px; padding:7px 8px;
+    }
+    .rekap-toolbar-row{
+      display:flex; align-items:center; gap:8px;
+    }
     .rekap-filter-row{
-      display:flex; flex-wrap:nowrap; gap:0; padding:0 0 12px; align-items:stretch;
-      overflow-x:auto; -webkit-overflow-scrolling:touch;
-      scrollbar-width:none;
+      display:flex; align-items:center; gap:0; padding:0; flex:1; min-width:0;
     }
-    .rekap-filter-row::-webkit-scrollbar{ display:none; }
-    .rekap-filter-label{
-      display:none;
+    .rekap-filter-row label{ display:none; }
+    .rekap-filter-select{
+      flex:1; width:100%; appearance:none; -webkit-appearance:none;
+      background:var(--input-bg, #F1F5F9) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 10px center;
+      border:1px solid transparent;
+      border-radius:10px;
+      padding:8px 32px 8px 12px;
+      font-size:12.5px; font-weight:650; color:var(--ink, #0f172a);
+      cursor:pointer;
     }
-    .rekap-filter-track{
-      display:flex; width:100%; background:var(--input-bg, #F1F5F9);
-      border-radius:12px; padding:3px; gap:2px;
-      border:1px solid rgba(226,232,240,.8);
+    html.dark .rekap-filter-select{
+      background-color:#0f172a;
+      color:#e2e8f0;
     }
-    .rekap-filter-chip{
-      flex:1; min-width:0; border:none; background:transparent;
-      color:var(--ink-soft, #64748b);
-      font-size:11.5px; font-weight:650;
-      padding:8px 6px; border-radius:10px;
-      cursor:pointer; -webkit-tap-highlight-color:transparent;
-      transition:background .15s, color .15s, box-shadow .15s;
-      white-space:nowrap;
+    .rekap-filter-select:focus{
+      outline:none; border-color:rgba(26,54,93,.35);
     }
-    .rekap-filter-chip.active{
-      background:#fff; color:#1A365D;
-      box-shadow:0 1px 3px rgba(15,23,42,.08), 0 1px 2px rgba(15,23,42,.04);
-      font-weight:750;
-    }
-    html.dark .rekap-filter-chip.active{
-      background:#1e293b; color:#e2e8f0;
-      box-shadow:0 1px 3px rgba(0,0,0,.35);
-    }
-    .rekap-filter-chip:active{ opacity:.85; }
 
 
     .rekap-summary-grid{
@@ -2455,20 +2459,18 @@
 
 
     .rekap-export-bar{
-      display:flex; gap:8px; padding:0 0 14px; justify-content:flex-end;
+      display:flex; gap:6px; padding:0; flex:0 0 auto;
     }
     .rekap-export-bar button{
-      display:inline-flex; align-items:center; justify-content:center; gap:6px;
-      padding:8px 14px; border-radius:10px; font-size:12px; font-weight:650;
-      border:1px solid rgba(226,232,240,.95); background:var(--card, #fff);
+      display:inline-flex; align-items:center; justify-content:center; gap:4px;
+      padding:8px 10px; border-radius:10px; font-size:11.5px; font-weight:650;
+      border:1px solid rgba(226,232,240,.9); background:var(--input-bg, #F1F5F9);
       color:var(--ink-soft, #475569); cursor:pointer;
-      box-shadow:0 1px 2px rgba(15,23,42,.04);
     }
-    .rekap-export-bar button svg{ width:14px; height:14px; flex:0 0 auto; opacity:.85; }
+    .rekap-export-bar button svg{ width:13px; height:13px; flex:0 0 auto; opacity:.8; }
     .rekap-export-bar button:active{ transform:scale(.97); opacity:.9; }
     .rekap-export-bar button.pdf-btn{
       background:#1A365D; color:#fff; border-color:#1A365D;
-      box-shadow:0 2px 8px rgba(26,54,93,.22);
     }
     .rekap-export-bar button.pdf-btn svg{ opacity:1; }
     .rekap-export-bar button:disabled{ opacity:.5; pointer-events:none; }
@@ -2930,10 +2932,19 @@
     return (neg ? '-Rp ' : 'Rp ') + s;
   }
   function toast(msg){
-    var t = document.getElementById('toast');
-    t.textContent = msg; t.classList.add('show');
+    msg = String(msg || '').trim();
+    if(!msg) return;
+    // Kurangi noise
+    if(/^(Siap|Mengunduh|Menyiapkan\b)/i.test(msg)) return;
+    if(toast._last === msg && Date.now() - (toast._lastAt || 0) < 1800) return;
+    toast._last = msg;
+    toast._lastAt = Date.now();
+    var el = document.getElementById('toast');
+    if(!el) return;
+    el.textContent = msg; el.classList.add('show');
     clearTimeout(toast._h);
-    toast._h = setTimeout(function(){ t.classList.remove('show'); }, 2200);
+    var ms = msg.length > 48 ? 3200 : 2000;
+    toast._h = setTimeout(function(){ el.classList.remove('show'); }, ms);
   }
 
   var undoState = null;
@@ -5059,7 +5070,13 @@
     var isTrx = currentTab === 'transaksi';
     document.getElementById('topbar-transaksi').style.display = isTrx ? 'flex' : 'none';
     document.getElementById('topbar-title').style.display = isTrx ? 'none' : 'flex';
-    document.getElementById('page-title').textContent = currentTab === 'hutang' ? 'Hutang & Piutang' : currentTab === 'rekap' ? 'Rekap' : 'Rekening';
+    var pt = document.getElementById('page-title');
+    if(currentTab === 'hutang') pt.textContent = 'Hutang & Piutang';
+    else if(currentTab === 'rekap'){
+      var now = new Date();
+      pt.textContent = 'Rekap · ' + MONTHS_SHORT[now.getMonth()] + ' ' + now.getFullYear();
+    } else if(currentTab === 'rekening') pt.textContent = 'Rekening';
+    else pt.textContent = 'Catatan Kas';
 
     var greetEl = document.getElementById('greeting-inline');
     if(greetEl){
@@ -6340,10 +6357,6 @@
     var el = document.getElementById('view-rekap');
     if(!el) return;
     try {
-    var segHtml = '<div class="segmented" id="rekap-segmented">' +
-      [['realtime','Realtime'],['bulanan','Bulanan'],['custom','Custom']].map(function(s){
-        return '<button data-s="' + s[0] + '" class="' + (rekapSubTab===s[0]?'active':'') + '">' + s[1] + '</button>';
-      }).join('') + '</div>';
     var chips = [
       { v: '', l: 'Semua' },
       { v: 'Pribadi', l: 'Pribadi' },
@@ -6351,27 +6364,37 @@
       { v: 'Anak', l: 'Anak' },
       { v: 'Bersama', l: 'Bersama' }
     ];
-    var filterHtml = '<div class="rekap-filter-row" id="rekap-untuk-filter">' +
-      '<div class="rekap-filter-track">' +
-      chips.map(function(c){
-        var on = (rekapUntukFilter || '') === c.v;
-        return '<button type="button" class="rekap-filter-chip' + (on?' active':'') + '" data-u="' + c.v + '">' + c.l + '</button>';
-      }).join('') +
-      '</div></div>';
     var iconDl = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 11l4 4 4-4"/><path d="M5 19h14"/></svg>';
-    var exportHtml = '<div class="rekap-export-bar">' +
-      '<button type="button" class="pdf-btn" id="btn-rekap-pdf" aria-label="Unduh PDF">' + iconDl + ' PDF</button>' +
-      '<button type="button" id="btn-rekap-xlsx" aria-label="Unduh Excel">' + iconDl + ' Excel</button>' +
-      '</div>';
-    el.innerHTML = segHtml + filterHtml + exportHtml + '<div id="rekap-body"></div>';
+    el.innerHTML =
+      '<div class="rekap-toolbar">' +
+        '<div class="segmented" id="rekap-segmented">' +
+          [['realtime','Realtime'],['bulanan','Bulanan'],['custom','Custom']].map(function(s){
+            return '<button type="button" data-s="' + s[0] + '" class="' + (rekapSubTab===s[0]?'active':'') + '">' + s[1] + '</button>';
+          }).join('') +
+        '</div>' +
+        '<div class="rekap-toolbar-row">' +
+          '<div class="rekap-filter-row" id="rekap-untuk-filter">' +
+            '<select id="rekap-untuk-select" class="rekap-filter-select" aria-label="Filter pengeluaran">' +
+              chips.map(function(c){
+                var on = (rekapUntukFilter || '') === c.v;
+                return '<option value="' + c.v + '"' + (on ? ' selected' : '') + '>' + c.l + '</option>';
+              }).join('') +
+            '</select>' +
+          '</div>' +
+          '<div class="rekap-export-bar">' +
+            '<button type="button" class="pdf-btn" id="btn-rekap-pdf" aria-label="Unduh PDF">' + iconDl + ' PDF</button>' +
+            '<button type="button" id="btn-rekap-xlsx" aria-label="Unduh Excel">' + iconDl + ' Excel</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div id="rekap-body"></div>';
     document.querySelectorAll('#rekap-segmented button').forEach(function(b){
       b.addEventListener('click', function(){ rekapSubTab = b.dataset.s; renderRekap(); });
     });
-    document.querySelectorAll('#rekap-untuk-filter .rekap-filter-chip').forEach(function(b){
-      b.addEventListener('click', function(){
-        rekapUntukFilter = b.dataset.u || '';
-        renderRekap();
-      });
+    var sel = document.getElementById('rekap-untuk-select');
+    if(sel) sel.addEventListener('change', function(){
+      rekapUntukFilter = sel.value || '';
+      renderRekap();
     });
     var pdfTop = document.getElementById('btn-rekap-pdf');
     var xlsTop = document.getElementById('btn-rekap-xlsx');
@@ -6422,8 +6445,9 @@
     var fromYMD = toYMD(fromD), toYMD_ = toYMD(toD);
     var data = computeRekap(fromYMD, toYMD_);
     var hasData = data.pengeluaran || data.pemasukan || data.hutangTambah || data.hutangKurang || data.piutangTambah || data.piutangKurang;
-    body.innerHTML = '<div style="text-align:center; font-weight:700; font-size:14px; margin:4px 0 14px;">' + fmtRangeLabel(fromD, toD) + '</div>' +
-      (hasData ? rekapCardHtml('Bulan Berjalan', data, fromYMD, toYMD_) : emptyState('Belum ada data bulan ini', 'Catat pemasukan/pengeluaran, rekap bulan ini akan terisi otomatis.'));
+    body.innerHTML = hasData
+      ? rekapCardHtml(fmtRangeLabel(fromD, toD), data, fromYMD, toYMD_)
+      : emptyState('Belum ada data bulan ini', 'Catat pemasukan/pengeluaran dulu — rekap akan terisi otomatis.');
     wireRekapCards(body);
   }
 
@@ -7983,7 +8007,7 @@
             }
           } catch(e){ try { renderAll(); } catch(e2){} }
           try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e){}
-          toast('Tersimpan');
+          /* tersimpan silent */
           try { clearOfflineFlag_(); } catch(e){}
           try { warmServer_(); } catch(e){}
         } else {
