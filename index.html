@@ -6669,21 +6669,37 @@
       btn.disabled = false;
       btn.innerHTML = original;
       if(!res){ toast('Export gagal'); return; }
-      var url = (format === 'pdf') ? (res.pdfUrl || '') : (res.xlsxUrl || '');
-      if(!url){ toast('Link unduhan kosong — coba lagi'); return; }
-      // Drive download link
+      if(format === 'pdf'){
+        var preview = res.pdfPreviewUrl || '';
+        var dl = res.pdfUrl || '';
+        if(!preview && !dl){ toast('Link PDF kosong — coba lagi'); return; }
+        // Tampilkan PDF di dalam app (HP) + tombol unduh
+        openSheet(
+          '<div class="sheet-title">Rekap PDF</div>' +
+          '<div style="font-size:12.5px;color:var(--ink-faint);margin-bottom:10px;">' + esc(label) + '</div>' +
+          (preview
+            ? '<div style="border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#0f172a;height:min(62vh,520px);">' +
+              '<iframe src="' + preview + '" style="width:100%;height:100%;border:0;" allow="autoplay"></iframe></div>'
+            : '<div style="padding:20px;text-align:center;color:var(--ink-faint);">Preview tidak tersedia</div>') +
+          '<div style="display:flex;gap:10px;margin-top:14px;">' +
+            (dl ? '<a class="btn-primary" id="btn-dl-pdf" href="' + dl + '" target="_blank" rel="noopener" style="flex:1;text-align:center;text-decoration:none;">Unduh PDF</a>' : '') +
+            '<button type="button" class="btn-secondary" id="btn-close-pdf" style="flex:1;">Tutup</button>' +
+          '</div>'
+        );
+        var c = document.getElementById('btn-close-pdf');
+        if(c) c.addEventListener('click', closeSheet);
+        toast('PDF siap');
+        return;
+      }
+      var url = res.xlsxUrl || '';
+      if(!url){ toast('Link Excel kosong'); return; }
       try {
         var a = document.createElement('a');
-        a.href = url;
-        a.target = '_blank';
-        a.rel = 'noopener';
-        document.body.appendChild(a);
-        a.click();
+        a.href = url; a.target = '_blank'; a.rel = 'noopener';
+        document.body.appendChild(a); a.click();
         setTimeout(function(){ try { document.body.removeChild(a); } catch(e){} }, 500);
-      } catch(e) {
-        window.location.href = url;
-      }
-      toast(format === 'pdf' ? 'PDF siap diunduh' : 'Excel siap diunduh');
+      } catch(e) { window.location.href = url; }
+      toast('Excel siap diunduh');
     }).withFailureHandler(function(err){
       btn.dataset.busy = '0';
       btn.disabled = false;
