@@ -6338,6 +6338,8 @@
 
   function renderRekap(){
     var el = document.getElementById('view-rekap');
+    if(!el) return;
+    try {
     var segHtml = '<div class="segmented" id="rekap-segmented">' +
       [['realtime','Realtime'],['bulanan','Bulanan'],['custom','Custom']].map(function(s){
         return '<button data-s="' + s[0] + '" class="' + (rekapSubTab===s[0]?'active':'') + '">' + s[1] + '</button>';
@@ -6356,9 +6358,10 @@
         return '<button type="button" class="rekap-filter-chip' + (on?' active':'') + '" data-u="' + c.v + '">' + c.l + '</button>';
       }).join('') +
       '</div></div>';
+    var iconDl = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 11l4 4 4-4"/><path d="M5 19h14"/></svg>';
     var exportHtml = '<div class="rekap-export-bar">' +
-      '<button type="button" class="pdf-btn" id="btn-rekap-pdf" aria-label="Unduh PDF">' + icon_dl + ' PDF</button>' +
-      '<button type="button" id="btn-rekap-xlsx" aria-label="Unduh Excel">' + icon_dl + ' Excel</button>' +
+      '<button type="button" class="pdf-btn" id="btn-rekap-pdf" aria-label="Unduh PDF">' + iconDl + ' PDF</button>' +
+      '<button type="button" id="btn-rekap-xlsx" aria-label="Unduh Excel">' + iconDl + ' Excel</button>' +
       '</div>';
     el.innerHTML = segHtml + filterHtml + exportHtml + '<div id="rekap-body"></div>';
     document.querySelectorAll('#rekap-segmented button').forEach(function(b){
@@ -6385,6 +6388,11 @@
     if(rekapSubTab === 'realtime') renderRekapRealtime();
     else if(rekapSubTab === 'bulanan') renderRekapBulanan();
     else renderRekapCustom();
+    } catch(err) {
+      console.error('renderRekap', err);
+      el.innerHTML = '<div class="empty-state" style="padding:24px;text-align:center;color:var(--ink-soft)">Gagal memuat rekap. Coba refresh.<br><small>' +
+        String((err && err.message) || err) + '</small></div>';
+    }
   }
 
   function getActiveRekapRange_(){
