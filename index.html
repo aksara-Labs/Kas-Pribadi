@@ -2380,6 +2380,23 @@
       padding: 6px 10px !important;
     }
 
+
+    .rekap-filter-row{
+      display:flex; flex-wrap:wrap; gap:8px; padding:4px 2px 12px; align-items:center;
+    }
+    .rekap-filter-chip{
+      border:1.5px solid var(--line, #e2e8f0);
+      background:var(--card, #fff);
+      color:var(--ink-soft, #64748b);
+      font-size:12.5px; font-weight:700;
+      padding:7px 12px; border-radius:999px;
+      cursor:pointer; -webkit-tap-highlight-color:transparent;
+    }
+    .rekap-filter-chip.active{
+      background:#1A365D; color:#fff; border-color:#1A365D;
+    }
+    .rekap-filter-chip:active{ transform:scale(.96); }
+
   </style>
 </head>
 <body>
@@ -2629,7 +2646,8 @@
             restoreBackupJson:1, addTujuanNabung:1, tambahProgressNabung:1
           };
           if (WRITE_ACT[action] || (payload !== undefined && typeof payload === 'object' && JSON.stringify(payload).length > 1200)) {
-            callWithPost_(action, payload, successCb, failCb);
+            // 0 retry — retry tulis bikin transaksi dobel di Sheet
+            callWithPost_(action, payload, successCb, failCb, 0);
             return;
           }
           var url = WEB_APP_URL + '?action=' + encodeURIComponent(action) + authQuery_();
@@ -2652,7 +2670,7 @@
     });
   }
 
-  function callWithPost_(action, payload, successCb, failCb) {
+  function callWithPost_(action, payload, successCb, failCb, retries) {
     var opts = {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -2663,7 +2681,8 @@
         session: getSession_()
       })
     };
-    fetchWithRetry_(WEB_APP_URL, opts, 1)
+    var r = (typeof retries === 'number') ? retries : 0;
+    fetchWithRetry_(WEB_APP_URL, opts, r)
       .then(function (data) {
         if (typeof successCb === 'function') successCb(data);
       })
@@ -3098,20 +3117,55 @@
         onDataLoaded(data, false);
       }
     }).withFailureHandler(function(err){
-      if (paintedFromCache) {
-        window.__kasOffline = true;
-        var ban = document.getElementById('offline-banner');
-        if(ban) ban.style.display = 'block';
-        try { toast('Mode offline — data dari cache HP'); } catch(e) {}
-      } else {
-        console.warn('API gagal, masuk mode demo', err);
-        window.__kasDemoMode = true;
-        onDataLoaded(makeDemoData_(), false);
-        setTimeout(function(){
-          try { toast('Mode demo (API tidak terhubung)'); } catch(e) {}
-        }, 400);
-      }
+      // GAS sering cold-start → coba 1x lagi sebelum anggap offline
+      setTimeout(function(){
+        google.script.run.withSuccessHandler(function(data){
+          window.__kasOffline = false;
+          window.__kasDemoMode = false;
+          var ban = document.getElementById('offline-banner');
+          if(ban) ban.style.display = 'none';
+          if(!data || data.needsPin) return;
+          if(!isEmptyPayload_(data)){
+            applyStateFromSheet_(data);
+            onDataLoaded(STATE, false);
+            try { startWarmLoop_(); } catch(e){}
+          }
+        }).withFailureHandler(function(err2){
+          if (paintedFromCache) {
+            // Soft offline: banner saja, JANGAN kunci simpan selamanya
+            window.__kasOffline = true;
+            var ban = document.getElementById('offline-banner');
+            if(ban) ban.style.display = 'block';
+            scheduleOnlineRetry_();
+          } else {
+            console.warn('API gagal', err2);
+            window.__kasDemoMode = true;
+            onDataLoaded(makeDemoData_(), false);
+          }
+        }).getInitialData();
+      }, 1200);
     }).getInitialData();
+  }
+
+  var __onlineRetryTimer = 0;
+  function clearOfflineFlag_(){
+    window.__kasOffline = false;
+    try {
+      var ban = document.getElementById('offline-banner');
+      if(ban) ban.style.display = 'none';
+    } catch(e){}
+  }
+  function scheduleOnlineRetry_(){
+    try { clearTimeout(__onlineRetryTimer); } catch(e){}
+    __onlineRetryTimer = setTimeout(function(){
+      google.script.run.withSuccessHandler(function(){
+        clearOfflineFlag_();
+        try { warmServer_(); } catch(e){}
+      }).withFailureHandler(function(){
+        // coba lagi nanti
+        if(window.__kasOffline) scheduleOnlineRetry_();
+      }).ping();
+    }, 8000);
   }
 
   function loadFullHistory_(){
@@ -3678,12 +3732,13 @@
     try { work(release); } catch(e){ release(); throw e; }
   }
   function guardOnline_(){
-    if(window.__kasOffline){
-      toast('Sedang offline — tidak bisa menyimpan. Coba lagi saat online');
-      return false;
-    }
+    // Mode offline soft = cache saja; tetap boleh coba simpan ke server
     if(window.__kasDemoMode){
       toast('Mode demo — data tidak tersimpan ke server');
+      return false;
+    }
+    if(!navigator.onLine){
+      toast('Tidak ada internet');
       return false;
     }
     return true;
@@ -3703,7 +3758,6 @@
     closeSheet();
     __kasSyncing++;
     updateSyncPill_();
-    toast('Menyimpan…');
     var finished = false;
     var retriedSession = false;
     function doneOk(data){
@@ -3712,23 +3766,12 @@
       __kasSyncing = Math.max(0, __kasSyncing - 1);
       updateSyncPill_();
       if(data) refreshState(data);
-      toast(msg || 'Tersimpan ke Spreadsheet');
+      try { clearOfflineFlag_(); } catch(e){}
+      toast(msg || 'Tersimpan');
     }
     function doneFail(err){
       if(finished) return;
       // Sesi invalid → minta PIN, kirim ulang 1x
-      if(!retriedSession && isSessionError_(err)){
-        retriedSession = true;
-        try { setSession_(''); } catch(e){}
-        // Hanya sekali per simpan — setelah PIN, sesi dipakai seterusnya
-        ensureServerSession_(function(){
-          toast('Mengirim ulang…');
-          try { startRun(doneOk, doneFailFinal); } catch(e){ doneFailFinal(e); }
-        }, function(e2){
-          doneFailFinal(err);
-        });
-        return;
-      }
       doneFailFinal(err);
     }
     function doneFailFinal(err){
@@ -5907,6 +5950,7 @@
 
   // ================= REKAP =================
   var rekapSubTab = 'realtime'; // 'realtime' | 'bulanan' | 'custom'
+  var rekapUntukFilter = ''; // '' = semua | Pribadi | Istri | Anak | Bersama
   var HUTANG_KATEGORI = ['Terima Hutang','Bayar Hutang','Beri Piutang','Terima Piutang','Top Up Hutang','Top Up Piutang'];
 
   function numOnly(n){
@@ -5946,10 +5990,15 @@
   }
   function topKategoriBars_(fromYMD, toYMD, limit){
     var map = {};
+    var uf = rekapUntukFilter || '';
     (STATE.transaksi || []).forEach(function(t){
       if(t.Jenis !== 'Pengeluaran') return;
       if(t.Tanggal < fromYMD || t.Tanggal > toYMD) return;
       if(isTransferLeg(t)) return;
+      if(uf){
+        var u = parseUntuk_(t) || '';
+        if(u !== uf) return;
+      }
       var k = t.Kategori || 'Lainnya';
       map[k] = (map[k] || 0) + (Number(t.Nominal) || 0);
     });
@@ -5958,7 +6007,8 @@
     return arr.slice(0, limit || 5);
   }
 
-  function computeRekap(fromYMD, toYMD){
+  function computeRekap(fromYMD, toYMD, untukFilter){
+    untukFilter = untukFilter || rekapUntukFilter || '';
     var pengeluaran = 0, pemasukan = 0;
     var hutangTambah = 0, hutangKurang = 0;
     var piutangTambah = 0, piutangKurang = 0;
@@ -5967,17 +6017,24 @@
       if(t.Tanggal < fromYMD || t.Tanggal > toYMD) return;
       if(isTransferLeg(t)) return;
       var n = Number(t.Nominal) || 0;
-      if(t.Jenis === 'Pemasukan') pemasukan += n;
-      else {
-        pengeluaran += n;
-        var u = parseUntuk_(t);
-        if(u && untukMap[u] !== undefined) untukMap[u] += n;
-        else untukMap.Lainnya += n;
-      }
       if(t.Kategori === 'Terima Hutang' || t.Kategori === 'Top Up Hutang') hutangTambah += n;
       else if(t.Kategori === 'Bayar Hutang') hutangKurang += n;
       else if(t.Kategori === 'Beri Piutang' || t.Kategori === 'Top Up Piutang') piutangTambah += n;
       else if(t.Kategori === 'Terima Piutang') piutangKurang += n;
+
+      if(t.Jenis === 'Pemasukan'){
+        if(!untukFilter) pemasukan += n;
+        return;
+      }
+      var u = parseUntuk_(t) || '';
+      var bucket = (u && untukMap[u] !== undefined) ? u : 'Lainnya';
+      if(untukFilter){
+        if(untukFilter === 'Lainnya'){
+          if(bucket !== 'Lainnya') return;
+        } else if(u !== untukFilter) return;
+      }
+      pengeluaran += n;
+      untukMap[bucket] += n;
     });
     // Hutang/piutang bentuk Barang: kewajiban nambah tanpa kas "Terima Hutang"
     STATE.hutangPiutang.forEach(function(h){
@@ -6013,11 +6070,17 @@
     return '<div class="rekap-row' + hero + '"' + focusAttr + '><span class="k">' + label + '</span><span class="v ' + cls + ' num">' + text + '</span></div>';
   }
   function rekapCardHtml(dateLabel, data, fromYMD, toYMD){
+    var fLabel = rekapUntukFilter ? (' · ' + rekapUntukFilter) : '';
     var html = '<div class="rekap-card" data-from="' + fromYMD + '" data-to="' + toYMD + '">' +
-      '<div class="rekap-date">' + dateLabel + '</div>' +
-      rekapRowHtml('Pengeluaran', data.pengeluaran, 'plain', 'pengeluaran') +
-      rekapRowHtml('Pemasukan', data.pemasukan, 'pemasukan', 'pemasukan') +
-      rekapRowHtml('Selisih', data.selisih, 'delta', 'rekap');
+      '<div class="rekap-date">' + dateLabel + fLabel + '</div>';
+    if(rekapUntukFilter){
+      html += rekapRowHtml('Pengeluaran ' + rekapUntukFilter, data.pengeluaran, 'plain', 'untuk-' + rekapUntukFilter);
+      html += '<div style="font-size:11.5px;color:var(--ink-faint);margin:4px 0 8px;">Ketuk nominal untuk daftar detail</div>';
+    } else {
+      html += rekapRowHtml('Pengeluaran', data.pengeluaran, 'plain', 'pengeluaran') +
+        rekapRowHtml('Pemasukan', data.pemasukan, 'pemasukan', 'pemasukan') +
+        rekapRowHtml('Selisih', data.selisih, 'delta', 'rekap');
+    }
 
     // Breakdown pengeluaran per "Untuk" + grafik batang
     var u = data.untuk || {};
@@ -6081,7 +6144,11 @@
         });
       });
       card.addEventListener('click', function(){
-        openRekapDetail(from, to);
+        if(rekapUntukFilter){
+          openUntukRekapDetail(from, to, rekapUntukFilter);
+        } else {
+          openRekapDetail(from, to);
+        }
       });
     });
   }
@@ -6179,9 +6246,28 @@
       [['realtime','Realtime'],['bulanan','Bulanan'],['custom','Custom']].map(function(s){
         return '<button data-s="' + s[0] + '" class="' + (rekapSubTab===s[0]?'active':'') + '">' + s[1] + '</button>';
       }).join('') + '</div>';
-    el.innerHTML = segHtml + '<div id="rekap-body"></div>';
+    var chips = [
+      { v: '', l: 'Semua' },
+      { v: 'Pribadi', l: 'Pribadi' },
+      { v: 'Istri', l: 'Istri' },
+      { v: 'Anak', l: 'Anak' },
+      { v: 'Bersama', l: 'Bersama' }
+    ];
+    var filterHtml = '<div class="rekap-filter-row" id="rekap-untuk-filter">' +
+      chips.map(function(c){
+        var on = (rekapUntukFilter || '') === c.v;
+        return '<button type="button" class="rekap-filter-chip' + (on?' active':'') + '" data-u="' + c.v + '">' + c.l + '</button>';
+      }).join('') +
+      '</div>';
+    el.innerHTML = segHtml + filterHtml + '<div id="rekap-body"></div>';
     document.querySelectorAll('#rekap-segmented button').forEach(function(b){
       b.addEventListener('click', function(){ rekapSubTab = b.dataset.s; renderRekap(); });
+    });
+    document.querySelectorAll('#rekap-untuk-filter .rekap-filter-chip').forEach(function(b){
+      b.addEventListener('click', function(){
+        rekapUntukFilter = b.dataset.u || '';
+        renderRekap();
+      });
     });
     if(rekapSubTab === 'realtime') renderRekapRealtime();
     else if(rekapSubTab === 'bulanan') renderRekapBulanan();
@@ -7162,9 +7248,7 @@
     document.getElementById('btn-save-trx').addEventListener('click', function(){
       var b = document.getElementById('btn-save-trx');
       if(b && b.dataset.busy === '1') return;
-      if(b){ b.dataset.busy = '1'; b.disabled = true; var _t = b.textContent; b.textContent = 'Menyimpan…';
-        setTimeout(function(){ if(b && b.dataset.busy==='1'){ b.dataset.busy='0'; b.disabled=false; b.textContent=_t; } }, 8000);
-      }
+      if(b){ b.dataset.busy = '1'; b.disabled = true; b.textContent = 'OK…'; }
       submitTrxForm(today);
     });
   }
@@ -7465,12 +7549,16 @@
     document.getElementById('trxh-prev-total').textContent = fmtRupiah(pokok+biaya);
   }
 
+  var __trxSubmitLock = false;
   function submitTrxForm(today){
+    if(__trxSubmitLock) return;
     var nominal = rawNum('f-nominal');
     var tanggal = document.getElementById('f-tanggal').value;
     if(!nominal || nominal <= 0){ toast('Nominal harus diisi'); return; }
     if(!tanggal){ toast('Tanggal harus diisi'); return; }
     var btn = document.getElementById('btn-save-trx');
+    __trxSubmitLock = true;
+    setTimeout(function(){ __trxSubmitLock = false; }, 5000);
 
     if(trxSumber === 'Hutang' && trxJenis === 'Pengeluaran'){
       var kategori = document.getElementById('f-kategori').value.trim();
@@ -7567,17 +7655,18 @@
     var bidEl = document.getElementById('f-liburan-id');
     if(bidEl && bidEl.value) budgetIdVal = bidEl.value;
     var untukVal = (trxJenis === 'Pengeluaran') ? (window.__trxUntuk || 'Pribadi') : '';
+    var tempId = 'local-' + Date.now() + '-' + Math.floor(Math.random() * 1e6);
     var payload = {
       jenis: trxJenis, nominal: nominal, tanggal: tanggal,
       akun: akun,
       kategori: kategori,
       catatan: catatanParts.join(' • '),
       budgetId: budgetIdVal,
-      untuk: untukVal
+      untuk: untukVal,
+      clientKey: tempId
     };
 
     // Langsung tampil di list (optimistic), baru sync ke server
-    var tempId = 'local-' + Date.now();
     var localRow = {
       ID: tempId,
       Tanggal: tanggal,
@@ -7629,6 +7718,7 @@
           } catch(e){ try { renderAll(); } catch(e2){} }
           try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e){}
           toast('Tersimpan');
+          try { clearOfflineFlag_(); } catch(e){}
           try { warmServer_(); } catch(e){}
         } else {
           toast('Server tidak mengembalikan data');
@@ -7636,18 +7726,6 @@
       }).withFailureHandler(function(err){
         __kasSyncing = Math.max(0, __kasSyncing - 1);
         updateSyncPill_();
-        if(isSessionError_(err)){
-          // Tetap tampil di HP — minta PIN untuk sesi, lalu kirim ulang
-          toast('Perlu PIN untuk simpan ke Spreadsheet');
-          ensureServerSession_(function(){
-            __kasSyncing++;
-            updateSyncPill_();
-            toast('Mengirim ulang…');
-            pushTrxToServer_();
-          });
-          return;
-        }
-        // Gagal lain: biarkan tetap di HP (local-*) supaya tidak hilang, tandai belum sync
         try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e){}
         toast((err && err.message ? err.message : 'Gagal ke server') + ' — masih di HP');
       }).addTransaksi(payload);
