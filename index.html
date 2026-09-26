@@ -6656,47 +6656,145 @@
   }
 
   function doExport(format, fromYMD, toYMD_, btn){
-    if(!btn) return;
-    if(btn.dataset.busy === '1') return;
-    btn.dataset.busy = '1';
-    var original = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = 'Menyiapkan…';
-    var label = fmtRangeLabel(parseYMD(fromYMD), parseYMD(toYMD_));
-    toast('Menyiapkan ' + (format === 'pdf' ? 'PDF' : 'Excel') + '…');
-    google.script.run.withSuccessHandler(function(res){
-      btn.dataset.busy = '0';
-      btn.disabled = false;
-      btn.innerHTML = original;
-      if(!res){ toast('Export gagal: respons kosong'); return; }
-      var url = (format === 'pdf') ? (res.pdfUrl || res.pdfViewUrl || '') : (res.xlsxUrl || '');
-      if(!url){ toast('Export gagal: link kosong'); return; }
-      openSheet(
-        '<div class="sheet-title">Export ' + (format === 'pdf' ? 'PDF' : 'Excel') + '</div>' +
-        '<div style="font-size:12.5px;color:var(--ink-faint);margin-bottom:12px;">' + esc(label) + '</div>' +
-        '<div style="font-size:13px;line-height:1.5;color:var(--ink-soft);margin-bottom:14px;">' +
-          'Ketuk tombol di bawah. Pastikan login <b>Google</b> di browser (akun yang sama).' +
-        '</div>' +
-        '<a class="btn-primary" href="' + url + '" target="_blank" rel="noopener" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px;">' +
-          (format === 'pdf' ? 'Buka / Unduh PDF' : 'Buka / Unduh Excel') +
-        '</a>' +
-        (res.openUrl
-          ? '<a class="btn-secondary" href="' + res.openUrl + '" target="_blank" rel="noopener" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px;">Lihat di Spreadsheet</a>'
-          : '') +
-        '<button type="button" class="btn-secondary" id="btn-close-export" style="width:100%;">Tutup</button>'
-      );
-      var c = document.getElementById('btn-close-export');
-      if(c) c.addEventListener('click', closeSheet);
-      try { window.open(url, '_blank'); } catch(e){}
-      toast('Siap');
-    }).withFailureHandler(function(err){
-      btn.dataset.busy = '0';
-      btn.disabled = false;
-      btn.innerHTML = original;
-      var msg = (err && err.message) ? err.message : String(err || 'Gagal');
-      // Jangan samarkan error export
-      toast('Gagal export: ' + msg);
-    }).generateRekapExport({ fromYMD: fromYMD, toYMD: toYMD_, labelRange: label });
+    // 100% di HP — TANPA login Google / Apps Script (biar tidak macet)
+    if(btn && btn.dataset.busy === '1') return;
+    if(btn){ btn.dataset.busy = '1'; btn.disabled = true; }
+    try {
+      var label = fmtRangeLabel(parseYMD(fromYMD), parseYMD(toYMD_));
+      var data = computeRekap(fromYMD, toYMD_);
+      var u = data.untuk || {};
+      var trx = (STATE.transaksi || []).filter(function(x){
+        if(x.Tanggal < fromYMD || x.Tanggal > toYMD_) return false;
+        if(isTransferLeg(x)) return false;
+        return true;
+      }).slice().sort(function(a,b){
+        return a.Tanggal < b.Tanggal ? -1 : a.Tanggal > b.Tanggal ? 1 : 0;
+      });
+
+      if(format === 'xlsx' || format === 'csv'){
+        var rows = [['Tanggal','Jenis','Kategori','Untuk','Akun','Nominal','Catatan']];
+        trx.forEach(function(x){
+          rows.push([
+            x.Tanggal,
+            x.Jenis || '',
+            x.Kategori || '',
+            parseUntuk_(x) || '',
+            x.Akun || '',
+            Number(x.Nominal) || 0,
+            (x.Catatan || '').replace(/\n/g,' ')
+          ]);
+        });
+        // ringkasan di atas
+        rows.unshift([]);
+        rows.unshift(['Bayar hutang (kurang)', data.hutangKurang || 0]);
+        rows.unshift(['Selisih', data.selisih || 0]);
+        rows.unshift(['Pengeluaran', data.pengeluaran || 0]);
+        rows.unshift(['Pemasukan', data.pemasukan || 0]);
+        rows.unshift(['Periode', label]);
+        rows.unshift(['LAPORAN KAS PRIBADI']);
+        var csv = rows.map(function(r){
+          return r.map(function(c){
+            var s = String(c == null ? '' : c);
+            if(/[",\n]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
+            return s;
+          }).join(',');
+        }).join('\n');
+        var blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'Rekap-Kas-' + fromYMD + '.csv';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function(){ try{ URL.revokeObjectURL(a.href); document.body.removeChild(a);}catch(e){} }, 800);
+        toast('CSV diunduh — buka di Excel');
+        return;
+      }
+
+      // PDF = halaman print di HP (Pilih "Simpan sebagai PDF")
+      var katMap = {};
+      trx.forEach(function(x){
+        if(x.Jenis !== 'Pengeluaran') return;
+        if((x.Kategori || '') === 'Bayar Hutang') return;
+        var k = x.Kategori || 'Lainnya';
+        katMap[k] = (katMap[k] || 0) + (Number(x.Nominal) || 0);
+      });
+      var katArr = Object.keys(katMap).map(function(k){ return {k:k,n:katMap[k]}; });
+      katArr.sort(function(a,b){ return b.n - a.n; });
+      katArr = katArr.slice(0, 8);
+
+      var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+        '<title>Rekap Kas ' + esc(label) + '</title>' +
+        '<style>' +
+        '*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;margin:0;padding:16px;color:#0f172a;font-size:12px;}' +
+        'h1{font-size:18px;margin:0 0 4px;color:#1A365D} .sub{color:#64748b;margin-bottom:14px;font-size:11px}' +
+        'table{width:100%;border-collapse:collapse;margin:0 0 14px} th,td{padding:5px 6px;border-bottom:1px solid #e2e8f0;text-align:left}' +
+        'th{background:#1A365D;color:#fff;font-size:10px} .r{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}' +
+        '.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}' +
+        '.card{border:1px solid #e2e8f0;border-radius:8px;overflow:hidden}' +
+        '.card h2{margin:0;padding:6px 8px;background:#1A365D;color:#fff;font-size:11px}' +
+        '.n{font-weight:700}' +
+        '@media print{body{padding:8px} .noprint{display:none!important}}' +
+        '</style></head><body>' +
+        '<div class="noprint" style="margin-bottom:12px;padding:10px;background:#eff6ff;border-radius:8px;font-size:12px">' +
+        '<b>Cara simpan PDF:</b> ketuk tombol di bawah → pilih <b>Simpan sebagai PDF</b> / Save as PDF' +
+        '<br><button onclick="window.print()" style="margin-top:8px;padding:10px 16px;background:#1A365D;color:#fff;border:0;border-radius:8px;font-weight:700;width:100%">Cetak / Simpan PDF</button></div>' +
+        '<h1>LAPORAN KAS PRIBADI</h1><div class="sub">' + esc(label) + '</div>' +
+        '<div class="grid"><div class="card"><h2>RINGKASAN</h2><table>' +
+        '<tr><td>Pemasukan</td><td class="r n" style="color:#059669">' + fmtRupiah(data.pemasukan) + '</td></tr>' +
+        '<tr><td>Pengeluaran</td><td class="r n" style="color:#dc2626">' + fmtRupiah(data.pengeluaran) + '</td></tr>' +
+        '<tr><td>Selisih</td><td class="r n">' + fmtRupiah(data.selisih) + '</td></tr>' +
+        '<tr><td>Bayar hutang</td><td class="r n">' + fmtRupiah(data.hutangKurang || 0) + '</td></tr>' +
+        '</table></div><div class="card"><h2>PER ORANG</h2><table>' +
+        '<tr><td>Pribadi</td><td class="r">' + fmtRupiah(u.Pribadi||0) + '</td></tr>' +
+        '<tr><td>Istri</td><td class="r">' + fmtRupiah(u.Istri||0) + '</td></tr>' +
+        '<tr><td>Anak</td><td class="r">' + fmtRupiah(u.Anak||0) + '</td></tr>' +
+        '<tr><td>Bersama</td><td class="r">' + fmtRupiah(u.Bersama||0) + '</td></tr>' +
+        '</table></div></div>';
+
+      if(katArr.length){
+        html += '<div class="card" style="margin-bottom:12px"><h2>TOP KATEGORI</h2><table>';
+        katArr.forEach(function(x){
+          html += '<tr><td>' + esc(x.k) + '</td><td class="r">' + fmtRupiah(x.n) + '</td></tr>';
+        });
+        html += '</table></div>';
+      }
+
+      html += '<div class="card"><h2>DAFTAR TRANSAKSI (' + trx.length + ')</h2><table><thead><tr>' +
+        '<th>Tgl</th><th>Jenis</th><th>Kategori</th><th>Untuk</th><th>Akun</th><th class="r">Nominal</th></tr></thead><tbody>';
+      trx.forEach(function(x){
+        html += '<tr><td>' + esc(x.Tanggal) + '</td><td>' + (x.Jenis==='Pemasukan'?'Masuk':'Keluar') +
+          '</td><td>' + esc(x.Kategori||'') + '</td><td>' + esc(parseUntuk_(x)||'-') +
+          '</td><td>' + esc(x.Akun||'') + '</td><td class="r">' + fmtRupiah(x.Nominal) + '</td></tr>';
+      });
+      html += '</tbody></table></div></body></html>';
+
+      var w = window.open('', '_blank');
+      if(!w){
+        // Popup diblokir — tampilkan di sheet + instruksi
+        openSheet(
+          '<div class="sheet-title">Export PDF</div>' +
+          '<div style="font-size:13px;line-height:1.5;margin-bottom:12px">Popup diblokir. Ketuk tombol untuk buka halaman cetak.</div>' +
+          '<button type="button" class="btn-primary" id="btn-open-print" style="width:100%">Buka halaman cetak PDF</button>' +
+          '<button type="button" class="btn-secondary" id="btn-close-ex" style="width:100%;margin-top:8px">Tutup</button>'
+        );
+        var blobUrl = URL.createObjectURL(new Blob([html], {type:'text/html'}));
+        document.getElementById('btn-open-print').addEventListener('click', function(){
+          window.open(blobUrl, '_blank');
+        });
+        document.getElementById('btn-close-ex').addEventListener('click', closeSheet);
+        toast('Buka halaman cetak, lalu Simpan sebagai PDF');
+      } else {
+        w.document.open();
+        w.document.write(html);
+        w.document.close();
+        setTimeout(function(){ try{ w.print(); }catch(e){} }, 400);
+        toast('Pilih Simpan sebagai PDF');
+      }
+    } catch(e){
+      toast('Gagal: ' + (e.message || e));
+    } finally {
+      if(btn){ btn.dataset.busy = '0'; btn.disabled = false; }
+    }
   }
 
  (bottom modal) =================
