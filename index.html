@@ -5776,11 +5776,19 @@
         items.map(function(it){
           var on = false;
           if(group === 'akun') on = (trxFilter.akun || '') === it.v;
-          if(group === 'kategori') on = (trxFilter.kategori || '') === it.v;
           if(group === 'untuk') on = (trxFilter.untuk || '') === it.v;
           return '<button type="button" class="filter-chip' + (on?' on':'') + '" data-fgroup="' + group + '" data-fval="' + esc(it.v) + '">' + esc(it.l) + '</button>';
         }).join('') + '</div>';
     }
+    // Kategori sering dipakai (bulan ini) dulu, max 8 chip; sisanya dropdown
+    var countKat = {};
+    var monthStart = toYMD(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+    (STATE.transaksi || []).forEach(function(tr){
+      if(!tr.Kategori) return;
+      if(tr.Tanggal && tr.Tanggal >= monthStart) countKat[tr.Kategori] = (countKat[tr.Kategori] || 0) + 1;
+    });
+    var popular = Object.keys(countKat).sort(function(a,b){ return countKat[b] - countKat[a]; }).slice(0, 8);
+    if(!popular.length) popular = kats.slice(0, 8);
     var summary = trxFilterSummaryLabel_();
     var html =
       '<div class="sheet-title">Filter transaksi</div>' +
@@ -5789,7 +5797,7 @@
         '<div class="filter-section-title">Untuk siapa</div>' +
         chips('untuk', [
           {v:'', l:'Semua'}, {v:'Pribadi', l:'Pribadi'}, {v:'Istri', l:'Istri'},
-          {v:'Anak', l:'Anak'}, {v:'Bersama', l:'Bersama'}, {v:'Belum', l:'Belum ditandai'}
+          {v:'Anak', l:'Anak'}, {v:'Bersama', l:'Bersama'}, {v:'Belum', l:'Belum'}
         ]) +
       '</div>' +
       '<div class="filter-section">' +
@@ -5798,26 +5806,49 @@
       '</div>' +
       '<div class="filter-section">' +
         '<div class="filter-section-title">Kategori</div>' +
-        chips('kategori', [{v:'', l:'Semua'}].concat(kats.map(function(k){ return {v:k, l:k}; }))) +
+        '<select class="form-select" id="f-filter-kategori">' +
+          '<option value="">Semua kategori</option>' +
+          kats.map(function(k){
+            return '<option value="' + esc(k) + '"' + ((trxFilter.kategori||'')===k?' selected':'') + '>' + esc(k) + '</option>';
+          }).join('') +
+        '</select>' +
+        (popular.length ? (
+          '<div class="filter-section-title" style="margin-top:12px;">Sering dipakai</div>' +
+          '<div class="filter-chip-wrap">' +
+            popular.map(function(k){
+              var on = (trxFilter.kategori || '') === k;
+              return '<button type="button" class="filter-chip' + (on?' on':'') + '" data-fgroup="kategori" data-fval="' + esc(k) + '">' + esc(k) + '</button>';
+            }).join('') +
+          '</div>'
+        ) : '') +
       '</div>' +
       '<div class="filter-actions">' +
         '<button class="btn-primary" id="btn-filter-done">Terapkan</button>' +
         '<button class="btn-secondary" id="btn-filter-clear">Reset</button>' +
       '</div>';
     openSheet(html);
+    var katSel = document.getElementById('f-filter-kategori');
+    if(katSel) katSel.addEventListener('change', function(){
+      trxFilter.kategori = katSel.value || '';
+      saveTrxFilter_();
+    });
     document.querySelectorAll('#sheet-content .filter-chip[data-fgroup]').forEach(function(btn){
       btn.addEventListener('click', function(){
         var g = btn.dataset.fgroup;
         var v = btn.dataset.fval || '';
         if(g === 'akun') trxFilter.akun = v;
-        if(g === 'kategori') trxFilter.kategori = v;
+        if(g === 'kategori'){
+          trxFilter.kategori = (trxFilter.kategori === v) ? '' : v;
+          if(katSel) katSel.value = trxFilter.kategori || '';
+        }
         if(g === 'untuk') trxFilter.untuk = v;
         saveTrxFilter_();
-        // refresh sheet active states
         openTrxFilterSheet_(g);
       });
     });
     document.getElementById('btn-filter-done').addEventListener('click', function(){
+      if(katSel) trxFilter.kategori = katSel.value || '';
+      saveTrxFilter_();
       closeSheet();
       renderTransaksi();
     });
