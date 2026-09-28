@@ -8644,27 +8644,87 @@
   function openTopUpForm(h){
     var today = toYMD(currentDate);
     var isHutang = h.Jenis === 'Hutang';
+    var isCicilan = h.Metode === 'Cicilan Tetap';
     var html =
       '<div class="sheet-title">Top Up ' + esc(h.Nama) + '</div>' +
-      '<div class="form-group"><label class="form-label">Nominal Tambahan</label><input class="form-input num num-input" id="f-topup-nominal" type="text" inputmode="numeric" placeholder="0"></div>' +
-      '<div class="form-group"><label class="form-label">Tanggal</label><input class="form-input" id="f-topup-tanggal" type="date" value="' + today + '"></div>';
+      '<div style="font-size:12px;color:var(--ink-faint);margin:-6px 0 12px;line-height:1.4;">Tambah pinjaman ke hutang yang sudah ada' +
+        (isCicilan ? ' · sisa sekarang <b class="num">' + fmtRupiah(h.SisaHutang) + '</b>' : '') + '</div>' +
+      '<div class="form-group"><label class="form-label">Pokok tambahan</label><input class="form-input num num-input" id="f-topup-nominal" type="text" inputmode="numeric" placeholder="Contoh: 300.000"></div>';
+    if(isCicilan){
+      html +=
+        '<div class="form-group"><label class="form-label">Bunga tambahan (opsional)</label>' +
+          '<input class="form-input num num-input" id="f-topup-bunga" type="text" inputmode="numeric" placeholder="Contoh: 15.300">' +
+          '<div style="font-size:11px;color:var(--ink-faint);margin-top:4px;">Total bayar tambahan − pokok. Kosong = tanpa bunga.</div>' +
+        '</div>' +
+        '<div class="row-2 form-group">' +
+          '<div><label class="form-label">Tenor sisa (bulan)</label><input class="form-input num" id="f-topup-tenor" type="number" inputmode="numeric" placeholder="' + (h.Tenor || '') + '" value=""></div>' +
+          '<div><label class="form-label">Cicilan / bulan</label><input class="form-input num num-input" id="f-topup-cicilan" type="text" inputmode="numeric" placeholder="Opsional"></div>' +
+        '</div>' +
+        '<div style="font-size:11px;color:var(--ink-faint);margin:-8px 0 8px;">Isi cicilan manual (mis. 105.100) atau biarkan kosong — dihitung otomatis.</div>' +
+        '<div class="form-group"><label class="form-label">Jatuh tempo tagihan berikutnya</label>' +
+          '<input class="form-input" id="f-topup-tempo" type="date" value="' + esc(h.JatuhTempo || '') + '">' +
+        '</div>' +
+        '<div class="preview-box" id="topup-preview">' +
+          '<div class="pr"><span>Sisa setelah top up</span><b class="num" id="tu-prev-sisa">Rp 0</b></div>' +
+          '<div class="pr"><span>Angsuran / bulan</span><b class="num" id="tu-prev-cicilan">Rp 0</b></div>' +
+        '</div>';
+    }
+    html +=
+      '<div class="form-group"><label class="form-label">Tanggal cair</label><input class="form-input" id="f-topup-tanggal" type="date" value="' + today + '"></div>';
     if(h.Bentuk === 'Tunai'){
-      html += '<div class="form-group"><label class="form-label">' + (isHutang ? 'Rekening Sumber (uang masuk ke sini)' : 'Rekening Sumber (uang keluar dari sini)') + '</label>' +
-        '<select class="form-select" id="f-topup-akun">' + accountOptions() + '</select></div>';
+      html += '<div class="form-group"><label class="form-label">' + (isHutang ? 'Rekening tujuan (uang masuk)' : 'Rekening sumber (uang keluar)') + '</label>' +
+        '<select class="form-select" id="f-topup-akun">' + accountOptions(h.Akun || '') + '</select></div>';
     } else {
-      html += '<div style="font-size:11px; color:var(--ink-faint); margin:-8px 0 4px;">Ini hutang bentuk Barang/Jasa, jadi tambahan ini juga tidak dicatat sebagai transaksi rekening.</div>';
+      html += '<div style="font-size:11px; color:var(--ink-faint); margin:-8px 0 4px;">Bentuk Barang/Jasa — tidak dicatat ke rekening.</div>';
     }
     html += '<button class="btn-primary" id="btn-save-topup">Tambahkan</button>';
     openSheet(html);
+
+    function refreshTopUpPreview(){
+      if(!isCicilan) return;
+      var tambah = rawNum('f-topup-nominal') || 0;
+      var bunga = rawNum('f-topup-bunga') || 0;
+      var sisa = (Number(h.SisaHutang) || 0) + tambah + bunga;
+      var tenorEl = document.getElementById('f-topup-tenor');
+      var tenor = Number(tenorEl && tenorEl.value) || Number(h.Tenor) || 1;
+      var cicilanManual = rawNum('f-topup-cicilan');
+      var cicilan = cicilanManual > 0 ? cicilanManual : Math.round(sisa / Math.max(1, tenor));
+      var elS = document.getElementById('tu-prev-sisa');
+      var elC = document.getElementById('tu-prev-cicilan');
+      if(elS) elS.textContent = fmtRupiah(sisa);
+      if(elC) elC.textContent = fmtRupiah(cicilan);
+    }
+    if(isCicilan){
+      ['f-topup-nominal','f-topup-bunga','f-topup-tenor','f-topup-cicilan'].forEach(function(id){
+        var el = document.getElementById(id);
+        if(el) el.addEventListener('input', refreshTopUpPreview);
+      });
+      refreshTopUpPreview();
+    }
+
     document.getElementById('btn-save-topup').addEventListener('click', function(){
       var nominalTambahan = rawNum('f-topup-nominal');
       var tanggal = document.getElementById('f-topup-tanggal').value;
-      if(!nominalTambahan || nominalTambahan <= 0){ toast('Nominal tambahan harus diisi'); return; }
+      if(!nominalTambahan || nominalTambahan <= 0){ toast('Pokok tambahan harus diisi'); return; }
       if(!tanggal){ toast('Tanggal harus diisi'); return; }
       var akunEl = document.getElementById('f-topup-akun');
-      if(h.Bentuk === 'Tunai' && (!akunEl || !akunEl.value)){ toast('Pilih rekening sumber dana'); return; }
-      var payload = { id: h.ID, nominalTambahan: nominalTambahan, tanggal: tanggal, akun: akunEl ? akunEl.value : '' };
-      saveOptimistic('Nominal berhasil ditambahkan', function(ok, fail){
+      if(h.Bentuk === 'Tunai' && (!akunEl || !akunEl.value)){ toast('Pilih rekening'); return; }
+      var payload = {
+        id: h.ID,
+        nominalTambahan: nominalTambahan,
+        tanggal: tanggal,
+        akun: akunEl ? akunEl.value : ''
+      };
+      if(isCicilan){
+        payload.bungaTambahan = rawNum('f-topup-bunga') || 0;
+        var tenorV = document.getElementById('f-topup-tenor');
+        if(tenorV && tenorV.value) payload.tenorBaru = Number(tenorV.value) || 0;
+        var cicV = rawNum('f-topup-cicilan');
+        if(cicV > 0) payload.nominalCicilan = cicV;
+        var tempoEl = document.getElementById('f-topup-tempo');
+        if(tempoEl && tempoEl.value) payload.jatuhTempo = tempoEl.value;
+      }
+      saveOptimistic('Top up tersimpan', function(ok, fail){
         google.script.run.withSuccessHandler(ok).withFailureHandler(fail).topUpHutang(payload);
       });
     });
