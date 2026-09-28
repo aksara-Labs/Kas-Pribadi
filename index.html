@@ -2475,6 +2475,41 @@
     .rekap-export-bar button.pdf-btn svg{ opacity:1; }
     .rekap-export-bar button:disabled{ opacity:.5; pointer-events:none; }
 
+    .trx-card{
+      display:flex !important; align-items:center; justify-content:space-between; gap:12px;
+      padding:12px 14px !important; margin-bottom:8px;
+      border-radius:14px; border:1px solid var(--line);
+      background:var(--card);
+      box-shadow:0 1px 2px rgba(15,23,42,.03);
+    }
+    .trx-card-left{ display:flex; align-items:center; gap:12px; min-width:0; flex:1; }
+    .trx-card .icon-badge{
+      width:40px !important; height:40px !important; border-radius:12px !important;
+      flex:0 0 40px;
+    }
+    .trx-card .icon-badge svg{ width:20px; height:20px; }
+    .trx-card-text{ min-width:0; flex:1; }
+    .trx-card-title{
+      font-size:14.5px; font-weight:750; letter-spacing:-.02em; color:var(--ink);
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .trx-card-sub{
+      font-size:12px; font-weight:600; color:var(--ink-faint); margin-top:2px;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .trx-card-amt{
+      flex:0 0 auto; font-size:14.5px !important; font-weight:800 !important;
+      letter-spacing:-.02em; text-align:right;
+    }
+    .trx-day-heading{
+      font-size:12px !important; font-weight:750 !important;
+      color:var(--ink-faint) !important; text-transform:none !important;
+      letter-spacing:.2px; padding: 12px 4px 8px !important;
+      border:none !important; background:transparent !important;
+    }
+    .day-group{ margin-bottom: 4px; }
+
+
     .settings-advanced{
       border:1px solid var(--line); border-radius:14px; margin: 8px 0 12px;
       background: var(--card); overflow:hidden;
@@ -5523,15 +5558,28 @@
     var badgeClass = isTransfer ? 'blue' : (isIn ? 'green' : 'red');
     var amountClass = isTransfer ? 'blue' : (isIn ? 'green' : 'red');
     var icon = kategoriIconSvg_(t.Kategori, isIn, isTransfer);
-    var sub = esc(t.Akun || '-');
+    var title = t.Kategori || (isIn ? 'Pemasukan' : 'Pengeluaran');
+    var bits = [];
+    if(t.Akun) bits.push(String(t.Akun));
     var untuk = parseUntuk_(t);
-    if(untuk) sub += ' • ' + esc(untuk);
-    else if(t.Catatan) sub += ' • ' + esc(String(t.Catatan).slice(0, 42));
-    return '<div class="item-card" data-id="' + t.ID + '" data-kind="trx">' +
-      '<div class="icon-badge ' + badgeClass + '">' + icon + '</div>' +
-      '<div class="item-main"><div class="item-title">' + esc(t.Kategori || (isIn?'Pemasukan':'Pengeluaran')) + '</div>' +
-      '<div class="item-sub">' + sub + '</div></div>' +
-      '<div class="item-amount ' + amountClass + ' num">' + (isTransfer ? '' : (isIn?'+':'-')) + fmtRupiah(t.Nominal) + '</div>' +
+    if(untuk) bits.push(String(untuk));
+    else if(t.Catatan){
+      var cat = stripJadwalFromCatatan_ ? stripJadwalFromCatatan_(t.Catatan) : String(t.Catatan);
+      cat = String(cat || '').replace(/Untuk:\s*[^•|]+/i, '').replace(/\s*•\s*/g, ' ').trim();
+      if(cat) bits.push(cat.slice(0, 36));
+    }
+    if(isTransfer) bits.unshift('Transfer');
+    var sub = bits.filter(Boolean).join(' · ');
+    var sign = isTransfer ? '' : (isIn ? '+' : '−');
+    return '<div class="trx-card item-card" data-id="' + t.ID + '" data-kind="trx">' +
+      '<div class="trx-card-left">' +
+        '<div class="icon-badge ' + badgeClass + '">' + icon + '</div>' +
+        '<div class="trx-card-text">' +
+          '<div class="trx-card-title">' + esc(title) + '</div>' +
+          (sub ? '<div class="trx-card-sub">' + esc(sub) + '</div>' : '') +
+        '</div>' +
+      '</div>' +
+      '<div class="trx-card-amt item-amount ' + amountClass + ' num">' + sign + fmtRupiah(t.Nominal) + '</div>' +
     '</div>';
   }
 
@@ -5733,7 +5781,7 @@
     });
     order.forEach(function(ymd){
       html += '<div class="day-group" id="day-' + ymd + '">' +
-        '<div class="day-heading"><span class="cal-ic">' + ICON_CAL_SM + '</span><span>' + esc(fmtDayHeading(ymd)) + '</span></div>';
+        '<div class="day-heading trx-day-heading"><span>' + esc(fmtDayHeading(ymd)) + '</span></div>';
       byDay[ymd].forEach(function(t){ html += renderTrxCard(t); });
       html += '</div>';
     });
