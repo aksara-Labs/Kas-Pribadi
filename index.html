@@ -5674,8 +5674,16 @@
   // Nominal yang ditampilkan di kartu: untuk yang sudah Lunas selalu TotalHutang
   // (SisaHutang-nya 0), untuk yang masih Aktif berupa SisaHutang pada metode cicilan.
   function amountShownFor(h){
-    var lunas = h.Status === 'Lunas';
-    return (h.Metode === 'Cicilan Bebas' || h.Metode === 'Cicilan Tetap') && !lunas ? Number(h.SisaHutang) : Number(h.TotalHutang);
+    if(h.Status === 'Lunas') return 0;
+    var nj = nextTagihanDariJadwal_(h);
+    if(nj) return nj.amount;
+    if(h.Metode === 'Cicilan Tetap') return Math.min(Number(h.NominalCicilan) || 0, Number(h.SisaHutang) || 0);
+    return Number(h.SisaHutang) || Number(h.TotalHutang) || 0;
+  }
+  function nextDueDateFor_(h){
+    var nj = nextTagihanDariJadwal_(h);
+    if(nj && nj.date) return nj.date;
+    return h.JatuhTempo || '';
   }
 
   var hutangSortBy = 'default';
@@ -5763,8 +5771,9 @@
         if(Number(h.BungaNominal) > 0){
           sub += ' • Bunga ' + fmtRupiah(h.BungaNominal) + (h.BungaPersen ? ' (' + h.BungaPersen + '%)' : '');
         }
-        if(!lunas && h.JatuhTempo){
-          var days = daysUntil(h.JatuhTempo);
+        var dueShow = nextDueDateFor_(h);
+        if(!lunas && dueShow){
+          var days = daysUntil(dueShow);
           sub += ' • ' + (days < 0 ? 'Telat ' + Math.abs(days) + ' hari' : days === 0 ? 'Jatuh tempo hari ini' : days + ' hari lagi');
         }
         var amountShown = amountShownFor(h);
@@ -8374,7 +8383,27 @@
     });
   }
 
-  // Jadwal cicilan tidak rata di Catatan: JADWAL:2026-10-05=384471;2026-11-05=109555
+  function stripJadwalFromCatatan_(catatan){
+    return String(catatan || '').replace(/\s*JADWAL:[^|\n]*/i, '').replace(/\s{2,}/g, ' ').replace(/\s*·\s*$/,'').trim();
+  }
+  function buildJadwalTag_(entries){
+    var map = {};
+    (entries || []).forEach(function(e){
+      if(!e || !e.date || !(Number(e.amount) > 0)) return;
+      map[e.date] = (map[e.date] || 0) + Number(e.amount);
+    });
+    var keys = Object.keys(map).sort();
+    if(!keys.length) return '';
+    return 'JADWAL:' + keys.map(function(d){ return d + '=' + Math.round(map[d]); }).join(';');
+  }
+  function mergeJadwalIntoCatatan_(catatan, newEntries){
+    var all = parseJadwalTagihan_(catatan).concat(newEntries || []);
+    var tag = buildJadwalTag_(all);
+    var base = stripJadwalFromCatatan_(catatan);
+    if(!tag) return base;
+    return (base ? base + ' · ' : '') + tag;
+  }
+  // Jadwal cicilan tidak rata: JADWAL:2026-10-04=525000;2026-11-04=630100;...
   function parseJadwalTagihan_(catatan){
     var m = String(catatan || '').match(/JADWAL:([^\n|]+)/i);
     if(!m) return [];
@@ -8425,6 +8454,18 @@
         '<div class="detail-row"><span class="k">Total Hutang</span><span class="v num">' + fmtRupiah(h.TotalHutang) + '</span></div>' +
         '<div class="detail-row"><span class="k">Angsuran / bulan</span><span class="v num">' + fmtRupiah(h.NominalCicilan) + '</span></div>' +
         '<div class="detail-row"><span class="k">Sisa Hutang</span><span class="v num">' + fmtRupiah(h.SisaHutang) + '</span></div>';
+      var jadwalAll = parseJadwalTagihan_(h.Catatan);
+      if(jadwalAll.length){
+        html += '<div style="margin-top:10px;font-size:11px;font-weight:700;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.3px;">Jadwal tagihan</div>';
+        var terbayarAmt = Math.max(0, Number(h.TotalHutang) - Number(h.SisaHutang));
+        var accJ = 0;
+        jadwalAll.forEach(function(j, idx){
+          accJ += j.amount;
+          var done = terbayarAmt >= accJ - 0.01;
+          html += '<div class="detail-row" style="opacity:' + (done ? '.45' : '1') + '"><span class="k">' +
+            esc(j.date) + (done ? ' ✓' : '') + '</span><span class="v num">' + fmtRupiah(j.amount) + '</span></div>';
+        });
+      }
       var terbayar = Math.min(Number(h.CicilanTerbayar), Number(h.Tenor));
       var pct = h.Tenor > 0 ? Math.round(terbayar / h.Tenor * 100) : 0;
       html += '<div class="progress-wrap"><div class="progress-track"><div class="progress-fill" style="width:' + pct + '%"></div></div>' +
@@ -8579,8 +8620,13 @@
     }
     html +=
       '<div class="form-group"><label class="form-label">Jatuh Tempo</label><input class="form-input" id="f-e-tempo" type="date" value="' + esc(h.JatuhTempo || '') + '"></div>' +
-      '<div class="form-group"><label class="form-label">Catatan</label><input class="form-input" id="f-e-catatan" type="text" value="' + esc(h.Catatan || '') + '"></div>' +
-      '<div style="font-size:11px; color:var(--ink-faint); margin:-8px 0 4px;">Bagian yang sudah terbayar tidak berubah — hanya sisa hutangnya yang menyesuaikan angka baru ini.</div>' +
+      '<div class="form-group"><label class="form-label">Catatan</label><input class="form-input" id="f-e-catatan" type="text" value="' + esc(stripJadwalFromCatatan_(h.Catatan || '')) + '"></div>' +
+      '<div class="form-group"><label class="form-label">Jadwal tagihan (opsional)</label>' +
+        '<textarea class="form-input" id="f-e-jadwal" rows="3" style="min-height:72px;font-size:12px;line-height:1.4;" placeholder="2026-10-04=525000&#10;2026-11-04=630100&#10;2026-12-04=105100">' +
+        esc(parseJadwalTagihan_(h.Catatan).map(function(j){ return j.date + '=' + j.amount; }).join('\n')) +
+        '</textarea>' +
+        '<div style="font-size:11px;color:var(--ink-faint);margin-top:4px;">Satu baris: tanggal=nominal. Tanggal sama akan dijumlah (cocok top up).</div></div>' +
+      '<div style="font-size:11px; color:var(--ink-faint); margin:-8px 0 4px;">Bagian yang sudah terbayar tidak berubah — sisa menyesuaikan angka baru.</div>' +
       '<button class="btn-primary" id="btn-save-edit-hp">Simpan Perubahan</button>';
     openSheet(html);
 
@@ -8620,10 +8666,25 @@
       var pokok = rawNum('f-e-pokok');
       if(!nama){ toast('Nama harus diisi'); return; }
       if(!pokok || pokok <= 0){ toast('Nominal harus diisi'); return; }
+      var baseCat = document.getElementById('f-e-catatan').value || '';
+      var jadwalEl = document.getElementById('f-e-jadwal');
+      if(jadwalEl && jadwalEl.value.trim()){
+        var lines = jadwalEl.value.split(/[\n;]+/).map(function(s){ return s.trim(); }).filter(Boolean);
+        var entries = lines.map(function(line){
+          var bits = line.split('=');
+          if(bits.length < 2) return null;
+          var amount = Number(String(bits[1]).replace(/[^\d.]/g, '')) || 0;
+          if(amount <= 0) return null;
+          return { date: bits[0].trim(), amount: amount };
+        }).filter(Boolean);
+        var tag = buildJadwalTag_(entries);
+        baseCat = stripJadwalFromCatatan_(baseCat);
+        if(tag) baseCat = (baseCat ? baseCat + ' · ' : '') + tag;
+      }
       var payload = {
         id: h.ID, nama: nama, pokok: pokok,
         jatuhTempo: document.getElementById('f-e-tempo').value,
-        catatan: document.getElementById('f-e-catatan').value,
+        catatan: baseCat,
         tanggal: h.Tanggal
       };
       if(isCicilanTetap){
@@ -8718,11 +8779,22 @@
       if(isCicilan){
         payload.bungaTambahan = rawNum('f-topup-bunga') || 0;
         var tenorV = document.getElementById('f-topup-tenor');
-        if(tenorV && tenorV.value) payload.tenorBaru = Number(tenorV.value) || 0;
+        var tenorN = (tenorV && tenorV.value) ? Number(tenorV.value) : 0;
+        if(tenorN > 0) payload.tenorBaru = tenorN;
         var cicV = rawNum('f-topup-cicilan');
         if(cicV > 0) payload.nominalCicilan = cicV;
         var tempoEl = document.getElementById('f-topup-tempo');
-        if(tempoEl && tempoEl.value) payload.jatuhTempo = tempoEl.value;
+        var tempo0 = tempoEl && tempoEl.value ? tempoEl.value : '';
+        if(tempo0) payload.jatuhTempo = tempo0;
+        // Susun / gabung jadwal cicilan (tanggal sama dijumlah)
+        if(tempo0 && cicV > 0 && (tenorN > 0 || Number(h.Tenor) > 0)){
+          var nTen = tenorN > 0 ? tenorN : Number(h.Tenor) || 1;
+          var entries = [];
+          for(var i = 0; i < nTen; i++){
+            entries.push({ date: addMonthsJS(tempo0, i), amount: cicV });
+          }
+          payload.catatan = mergeJadwalIntoCatatan_(h.Catatan || '', entries);
+        }
       }
       saveOptimistic('Top up tersimpan', function(ok, fail){
         google.script.run.withSuccessHandler(ok).withFailureHandler(fail).topUpHutang(payload);
