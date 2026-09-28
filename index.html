@@ -95,6 +95,52 @@
     }
     html.dark .day-heading::after{ opacity:.5; }
     html.dark body{ background:var(--bg); }
+
+    html.dark .trx-card,
+    html.dark .hp-list-card,
+    html.dark .rek-card,
+    html.dark .rekap-toolbar,
+    html.dark .settings-advanced,
+    html.dark .hp-rincian,
+    html.dark .hp-pay-zone{
+      border-color: rgba(51,65,85,.95);
+      background: var(--card);
+      box-shadow: none;
+    }
+    html.dark .hp-list-chip.muted,
+    html.dark .trx-d-chip,
+    html.dark .rek-chip{
+      background: var(--input-bg);
+      color: var(--ink-faint);
+    }
+    html.dark .hp-list-chip.warn{ background:#3D2E0A; color:#FBBF24; }
+    html.dark .hp-list-chip.danger{ background:#3F1A1A; color:#FCA5A5; }
+    html.dark .hp-list-chip.ok{ background:#0F3D2E; color:#6EE7B7; }
+    html.dark .hp-list-next{ border-color: rgba(51,65,85,.8); }
+    html.dark .insight-strip{
+      background: var(--card);
+      border: 1px solid rgba(51,65,85,.9);
+    }
+    html.dark .insight-main{ color: var(--ink-soft); }
+    html.dark .insight-sub{ color: var(--ink-faint); }
+    html.dark .trx-detail-hero{ border-color: rgba(51,65,85,.9); }
+    html.dark .filter-section{
+      background: var(--card);
+      border-color: rgba(51,65,85,.9);
+    }
+    html.dark .filter-chip.on{
+      background: #1A365D;
+      border-color: #3B82F6;
+      color: #E2E8F0;
+    }
+    html.dark .filter-one-btn.on{
+      background: rgba(59,130,246,.12);
+      border-color: rgba(59,130,246,.4);
+      color: #93C5FD;
+    }
+    html.dark .hp-tl-row{ border-color: rgba(51,65,85,.7); }
+    html.dark .hp-tl-row.next .hp-tl-date{ color: #93C5FD; }
+
     *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; min-width:0;}
     html,body{
       margin:0; padding:0; height:100%; width:100%;
@@ -2474,6 +2520,48 @@
     }
     .rekap-export-bar button.pdf-btn svg{ opacity:1; }
     .rekap-export-bar button:disabled{ opacity:.5; pointer-events:none; }
+
+    .balance-hero .amount{ font-size: 30px !important; letter-spacing: -.04em !important; margin: 6px 0 12px !important; }
+    .balance-hero .pill{ border-radius: 12px !important; padding: 8px 10px !important; }
+    .insight-strip{
+      display:block !important; padding: 10px 14px !important;
+      border-radius: 12px !important; line-height: 1.35 !important;
+    }
+    .insight-main{ font-size: 12.5px; font-weight: 700; color: var(--ink-soft); }
+    .insight-sub{ font-size: 11.5px; font-weight: 600; color: var(--ink-faint); margin-top: 3px; }
+
+    .rek-card{
+      display:block !important; padding: 14px !important; margin-bottom: 10px;
+      border-radius: 16px !important; border: 1px solid var(--line);
+      background: var(--card); box-shadow: 0 1px 3px rgba(15,23,42,.04);
+    }
+    .rek-card-top{ display:flex; align-items:center; gap: 10px; }
+    .rek-card-name{ flex:1; min-width:0; font-size:15px; font-weight:800; letter-spacing:-.02em;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .rek-chip{
+      display:inline-block; margin-left:6px; font-size:10px; font-weight:800;
+      padding:2px 7px; border-radius:999px; background:var(--input-bg); color:var(--ink-faint);
+      vertical-align:middle;
+    }
+    .rek-card-more{ color:var(--ink-faint); flex:0 0 auto; opacity:.7; }
+    .rek-card-saldo{ display:flex; justify-content:space-between; align-items:baseline; margin-top:12px; }
+    .rek-card-lbl{ font-size:11px; font-weight:700; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.3px; }
+    .rek-card-val{ font-size:20px; font-weight:800; letter-spacing:-.03em; color:var(--ink); }
+    .rek-card-val.red{ color:var(--red); }
+    .bank-logo.sm{ width:36px !important; height:36px !important; font-size:10px !important; border-radius:10px !important; }
+
+    .trx-detail-hero{
+      text-align:center; padding: 8px 8px 16px; margin-bottom: 8px;
+      border-bottom: 1px solid var(--line);
+    }
+    .trx-detail-kat{ font-size:14px; font-weight:700; color:var(--ink-soft); }
+    .trx-detail-amt{ font-size:28px; font-weight:800; letter-spacing:-.03em; margin-top:6px; }
+    .trx-detail-chips{ display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-top:12px; }
+    .trx-d-chip{
+      font-size:11px; font-weight:700; padding:4px 10px; border-radius:999px;
+      background:var(--input-bg); color:var(--ink-soft);
+    }
+
 
     .trx-card{
       display:flex !important; align-items:center; justify-content:space-between; gap:12px;
@@ -5346,26 +5434,26 @@
     var prevW = weekRange_(prevStart);
     var cur = sumKeluarRange_(thisW.from, thisW.to);
     var prev = sumKeluarRange_(prevW.from, prevW.to);
-    var tip = '';
-    if(prev <= 0 && cur <= 0){
-      tip = 'Belum ada pengeluaran minggu ini.';
-    } else if(prev <= 0){
-      tip = 'Pengeluaran minggu ini ' + fmtRupiah(cur) + '.';
-    } else {
+    var line1 = '';
+    if(prev <= 0 && cur <= 0) line1 = 'Belum ada pengeluaran minggu ini';
+    else if(prev <= 0) line1 = 'Keluar minggu ini ' + fmtRupiah(cur);
+    else {
       var pct = Math.round((cur - prev) / prev * 100);
-      if(pct > 5) tip = 'Minggu ini +' + pct + '% vs minggu lalu (' + fmtRupiah(cur) + ').';
-      else if(pct < -5) tip = 'Minggu ini ' + pct + '% vs minggu lalu. Hemat ' + fmtRupiah(prev - cur) + '.';
-      else tip = 'Pengeluaran minggu ini stabil · ' + fmtRupiah(cur) + '.';
+      if(pct > 5) line1 = 'Minggu ini +' + pct + '% · ' + fmtRupiah(cur);
+      else if(pct < -5) line1 = 'Minggu ini ' + pct + '% · hemat ' + fmtRupiah(prev - cur);
+      else line1 = 'Stabil minggu ini · ' + fmtRupiah(cur);
     }
-    // Jatuh tempo 7 hari
     var due = 0;
     (STATE.hutangPiutang || []).forEach(function(h){
       if(h.Status === 'Lunas') return;
       var u = urgencyOf(h);
       if(u === 'overdue' || u === 'upcoming') due++;
     });
-    if(due > 0) tip += ' · ' + due + ' tagihan dekat tempo';
-    return '<div class="insight-strip">' + esc(tip) + '</div>';
+    var line2 = due > 0 ? (due + ' tagihan dekat tempo') : '';
+    return '<div class="insight-strip">' +
+      '<div class="insight-main">' + esc(line1) + '</div>' +
+      (line2 ? '<div class="insight-sub">' + esc(line2) + '</div>' : '') +
+    '</div>';
   }
 
   function renderSummary(){
@@ -5664,10 +5752,10 @@
   }
   function trxFilterBarHtml_(){
     var active = !!(trxFilter.akun || trxFilter.kategori || trxFilter.untuk);
-    var label = active ? ('Filter: ' + trxFilterSummaryLabel_()) : 'Filter transaksi';
-    return '<div style="margin:0 0 12px;">' +
+    var label = active ? trxFilterSummaryLabel_() : 'Filter transaksi';
+    return '<div class="filter-bar-wrap">' +
       '<button type="button" class="filter-one-btn' + (active?' on':'') + '" id="btn-open-filter">' +
-        '<span class="fob-ic"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg></span>' +
+        '<span class="fob-ic"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg></span>' +
         '<span class="fob-txt">' + esc(label) + '</span>' +
         (active ? '<span class="fob-badge"></span>' : '') +
         '<span class="fob-chev">›</span>' +
@@ -5684,7 +5772,7 @@
     var kats = Object.keys(katSet).sort();
 
     function chips(group, items){
-      return '<div class="filter-scroll" style="flex-wrap:wrap; overflow:visible; padding-bottom:4px;">' +
+      return '<div class="filter-chip-wrap">' +
         items.map(function(it){
           var on = false;
           if(group === 'akun') on = (trxFilter.akun || '') === it.v;
@@ -5693,19 +5781,29 @@
           return '<button type="button" class="filter-chip' + (on?' on':'') + '" data-fgroup="' + group + '" data-fval="' + esc(it.v) + '">' + esc(it.l) + '</button>';
         }).join('') + '</div>';
     }
-
-    var html = '<div class="sheet-title">Filter transaksi</div>';
-    html += '<div class="form-label" style="margin-bottom:8px;">Pengeluaran untuk</div>';
-    html += chips('untuk', [
-      {v:'', l:'Semua'}, {v:'Pribadi', l:'Pribadi'}, {v:'Istri', l:'Istri'},
-      {v:'Anak', l:'Anak'}, {v:'Bersama', l:'Bersama'}, {v:'Belum', l:'Belum ditandai'}
-    ]);
-    html += '<div class="form-label" style="margin:12px 0 8px;">Rekening</div>';
-    html += chips('akun', [{v:'', l:'Semua'}].concat(akunList.map(function(r){ return {v:r.Nama, l:r.Nama}; })));
-    html += '<div class="form-label" style="margin:12px 0 8px;">Kategori</div>';
-    html += chips('kategori', [{v:'', l:'Semua'}].concat(kats.map(function(k){ return {v:k, l:k}; })));
-    html += '<button class="btn-primary" id="btn-filter-done" style="margin-top:16px;">Terapkan</button>';
-    html += '<button class="btn-secondary" id="btn-filter-clear">Reset filter</button>';
+    var summary = trxFilterSummaryLabel_();
+    var html =
+      '<div class="sheet-title">Filter transaksi</div>' +
+      '<div class="filter-summary">' + esc(summary) + '</div>' +
+      '<div class="filter-section">' +
+        '<div class="filter-section-title">Untuk siapa</div>' +
+        chips('untuk', [
+          {v:'', l:'Semua'}, {v:'Pribadi', l:'Pribadi'}, {v:'Istri', l:'Istri'},
+          {v:'Anak', l:'Anak'}, {v:'Bersama', l:'Bersama'}, {v:'Belum', l:'Belum ditandai'}
+        ]) +
+      '</div>' +
+      '<div class="filter-section">' +
+        '<div class="filter-section-title">Rekening</div>' +
+        chips('akun', [{v:'', l:'Semua'}].concat(akunList.map(function(r){ return {v:r.Nama, l:r.Nama}; }))) +
+      '</div>' +
+      '<div class="filter-section">' +
+        '<div class="filter-section-title">Kategori</div>' +
+        chips('kategori', [{v:'', l:'Semua'}].concat(kats.map(function(k){ return {v:k, l:k}; }))) +
+      '</div>' +
+      '<div class="filter-actions">' +
+        '<button class="btn-primary" id="btn-filter-done">Terapkan</button>' +
+        '<button class="btn-secondary" id="btn-filter-clear">Reset</button>' +
+      '</div>';
     openSheet(html);
     document.querySelectorAll('#sheet-content .filter-chip[data-fgroup]').forEach(function(btn){
       btn.addEventListener('click', function(){
@@ -6099,17 +6197,26 @@
       html += emptyState('Belum ada rekening', 'Yuk tambah rekening pertama — BCA, Gopay, atau tunai — biar saldo ke-track.');
     } else {
       sortRekeningList(STATE.rekening).forEach(function(r){
-        if(!r.Nama || !String(r.Nama).trim()) return; // skip rekening kosong
+        if(!r.Nama || !String(r.Nama).trim()) return;
         var isReimburse = r.Nama === 'Reimburse';
         var isKreditNonKas = r.Nama === 'Kredit (Non-Kas)';
-        var tag = isReimburse ? '<span class="metode-tag" style="margin-left:6px;">Klaim</span>'
-          : (isKreditNonKas ? '<span class="metode-tag" style="margin-left:6px;">Virtual</span>' : '');
-        html += '<div class="rekening-card" data-id="' + r.ID + '" data-kind="rek">' +
-          bankLogoHtml(r.Nama) +
-          '<div class="rekening-info"><div class="nm">' + esc(r.Nama) + tag + '</div><div class="sd num">' + fmtRupiah(r.Saldo) + '</div></div>' +
-          '<div class="rekening-more">' +
-            '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="5" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="12" cy="19" r="1.2"/></svg>' +
-          '</div></div>';
+        var chip = isReimburse ? '<span class="rek-chip">Klaim</span>'
+          : (isKreditNonKas ? '<span class="rek-chip">Virtual</span>' : '');
+        var saldo = Number(r.Saldo) || 0;
+        html +=
+          '<div class="rek-card rekening-card" data-id="' + r.ID + '" data-kind="rek">' +
+            '<div class="rek-card-top">' +
+              bankLogoHtml(r.Nama, 'sm') +
+              '<div class="rek-card-name">' + esc(r.Nama) + chip + '</div>' +
+              '<div class="rek-card-more">' +
+                '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="5" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="12" cy="19" r="1.2"/></svg>' +
+              '</div>' +
+            '</div>' +
+            '<div class="rek-card-saldo">' +
+              '<span class="rek-card-lbl">Saldo</span>' +
+              '<span class="rek-card-val num' + (saldo < 0 ? ' red' : '') + '">' + fmtRupiah(saldo) + '</span>' +
+            '</div>' +
+          '</div>';
       });
     }
 
@@ -8229,21 +8336,37 @@
     var t = STATE.transaksi.find(function(x){ return x.ID === id; });
     if(!t) return;
     var isIn = t.Jenis === 'Pemasukan';
+    var isTransfer = isTransferLeg(t);
+    var untuk = parseUntuk_(t);
+    var catatanBersih = (typeof stripJadwalFromCatatan_ === 'function')
+      ? stripJadwalFromCatatan_(t.Catatan || '')
+      : String(t.Catatan || '');
+    catatanBersih = String(catatanBersih || '').replace(/Untuk:\s*[^•|]+/i, '').replace(/\s*•\s*/g, ' ').trim();
+    var sign = isTransfer ? '' : (isIn ? '+' : '−');
+    var amtColor = isTransfer ? 'var(--blue-dark)' : (isIn ? 'var(--green)' : 'var(--red)');
     openSheet(
-      '<div class="sheet-title">Detail Transaksi</div>' +
-      '<div class="detail-row"><span class="k">Jenis</span><span class="v" style="color:' + (isIn?'var(--green)':'var(--red)') + '">' + t.Jenis + '</span></div>' +
-      '<div class="detail-row"><span class="k">Nominal</span><span class="v num">' + fmtRupiah(t.Nominal) + '</span></div>' +
-      '<div class="detail-row"><span class="k">Tanggal</span><span class="v">' + fmtDayHeading(t.Tanggal) + '</span></div>' +
-      '<div class="detail-row"><span class="k">Akun</span><span class="v">' + esc(t.Akun || '-') + '</span></div>' +
-      '<div class="detail-row"><span class="k">Kategori</span><span class="v">' + esc(t.Kategori || '-') + '</span></div>' +
-      '<div class="detail-row"><span class="k">Catatan</span><span class="v">' + esc(t.Catatan || '-') + '</span></div>' +
-      (function(){
-        var foto = getTrxFoto_(t);
-        if(!foto) return '';
-        return '<div style="margin:12px 0;"><div class="form-label">Foto struk</div><img src="' + foto + '" style="max-width:100%; border-radius:12px;"></div>';
-      })() +
-      '<button class="btn-secondary" id="btn-edit-trx" style="margin-top:16px;">Edit Transaksi</button>' +
-      '<button class="btn-danger-text" id="btn-del-trx">' + ICON_TRASH + ' &nbsp;Hapus Transaksi</button>'
+      '<div class="trx-detail">' +
+        '<div class="trx-detail-hero">' +
+          '<div class="trx-detail-kat">' + esc(t.Kategori || t.Jenis) + '</div>' +
+          '<div class="trx-detail-amt num" style="color:' + amtColor + '">' + sign + fmtRupiah(t.Nominal) + '</div>' +
+          '<div class="trx-detail-chips">' +
+            '<span class="trx-d-chip">' + esc(t.Jenis) + '</span>' +
+            (t.Akun ? '<span class="trx-d-chip">' + esc(t.Akun) + '</span>' : '') +
+            (untuk ? '<span class="trx-d-chip">' + esc(untuk) + '</span>' : '') +
+          '</div>' +
+        '</div>' +
+        '<div class="detail-row"><span class="k">Tanggal</span><span class="v">' + esc(fmtDayHeading(t.Tanggal)) + '</span></div>' +
+        (catatanBersih ? '<div class="detail-row"><span class="k">Catatan</span><span class="v">' + esc(catatanBersih) + '</span></div>' : '') +
+        (function(){
+          var foto = getTrxFoto_(t);
+          if(!foto) return '';
+          return '<div style="margin:12px 0;"><div class="form-label">Foto struk</div><img src="' + foto + '" style="max-width:100%; border-radius:12px;"></div>';
+        })() +
+        '<div class="hp-actions" style="margin-top:16px;">' +
+          '<button class="btn-secondary" id="btn-edit-trx" style="flex:1;">Edit</button>' +
+        '</div>' +
+        '<button class="btn-danger-text" id="btn-del-trx">' + ICON_TRASH + ' &nbsp;Hapus transaksi</button>' +
+      '</div>'
     );
     document.getElementById('btn-edit-trx').addEventListener('click', function(){ openTrxEditForm(t); });
     document.getElementById('btn-del-trx').addEventListener('click', function(){
