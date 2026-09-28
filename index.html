@@ -2475,6 +2475,90 @@
     .rekap-export-bar button.pdf-btn svg{ opacity:1; }
     .rekap-export-bar button:disabled{ opacity:.5; pointer-events:none; }
 
+    /* ---- Detail hutang (hero + timeline) ---- */
+    .hp-detail{ padding-bottom: 8px; }
+    .hp-hero{
+      background: linear-gradient(145deg, #1A365D 0%, #2B4C7E 100%);
+      color: #fff; border-radius: 18px; padding: 16px 16px 14px;
+      margin: 0 0 14px; box-shadow: 0 8px 24px -8px rgba(26,54,93,.45);
+    }
+    .hp-hero-top{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+    .hp-hero-name{ font-size:18px; font-weight:800; letter-spacing:-.02em; line-height:1.25; }
+    .hp-hero-chips{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+    .hp-chip{
+      font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px;
+      background: rgba(255,255,255,.16); color:#fff;
+    }
+    .hp-chip.muted{ background: rgba(255,255,255,.12); }
+    .hp-chip.warn{ background: #F59E0B; color:#1A1A1A; }
+    .hp-chip.danger{ background: #EF4444; color:#fff; }
+    .hp-chip.ok{ background: #10B981; color:#fff; }
+    .hp-hero-sisa{ margin-top: 14px; }
+    .hp-hero-lbl{ font-size:11px; font-weight:650; opacity:.8; text-transform:uppercase; letter-spacing:.4px; }
+    .hp-hero-val{ font-size:28px; font-weight:800; letter-spacing:-.03em; margin-top:2px; }
+    .hp-next{
+      margin-top: 12px; padding: 10px 12px; border-radius: 12px;
+      background: rgba(255,255,255,.12);
+    }
+    .hp-next-lbl{ font-size:11px; opacity:.85; font-weight:650; }
+    .hp-next-row{ display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin-top:4px; }
+    .hp-next-amt{ font-size:17px; font-weight:800; }
+    .hp-next-meta{ font-size:12px; opacity:.9; font-weight:600; }
+    .hp-hero .progress-wrap{ margin-top: 12px; }
+    .hp-hero .progress-track{ background: rgba(255,255,255,.2); }
+    .hp-hero .progress-fill{ background: #93C5FD; }
+    .hp-hero .progress-label{ color: rgba(255,255,255,.85); font-size:11px; }
+    .hp-section-title{
+      font-size:11px; font-weight:750; color:var(--ink-faint);
+      text-transform:uppercase; letter-spacing:.35px; margin: 4px 0 8px;
+    }
+    .hp-timeline{ margin-bottom: 14px; }
+    .hp-tl-row{
+      display:flex; gap:12px; padding: 10px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .hp-tl-row:last-child{ border-bottom: none; }
+    .hp-tl-dot{
+      width:10px; height:10px; border-radius:50%; margin-top:5px; flex:0 0 10px;
+      background: var(--blue-mid, #3B82F6); box-shadow: 0 0 0 3px rgba(59,130,246,.15);
+    }
+    .hp-tl-row.done .hp-tl-dot{ background:#94A3B8; box-shadow:none; }
+    .hp-tl-row.next .hp-tl-dot{ background:#1A365D; box-shadow:0 0 0 4px rgba(26,54,93,.18); }
+    .hp-tl-body{ flex:1; display:flex; justify-content:space-between; align-items:center; gap:10px; }
+    .hp-tl-date{ font-size:13.5px; font-weight:650; color:var(--ink); }
+    .hp-tl-amt{ font-size:14px; font-weight:800; }
+    .hp-tl-row.done{ opacity:.5; }
+    .hp-tl-row.next .hp-tl-date{ color:#1A365D; }
+    .hp-tl-badge{
+      font-size:10px; font-weight:800; padding:2px 7px; border-radius:999px;
+      background: var(--blue-pale); color: var(--blue-dark); margin-left:6px; vertical-align:middle;
+    }
+    .hp-tl-row.done .hp-tl-badge{ background:#E2E8F0; color:#64748B; }
+    .hp-tl-row.next .hp-tl-badge{ background:#1A365D; color:#fff; }
+    .hp-rincian{
+      border:1px solid var(--line); border-radius:14px; margin-bottom:14px;
+      background: var(--card);
+    }
+    .hp-rincian summary{
+      list-style:none; cursor:pointer; padding:12px 14px;
+      font-size:13.5px; font-weight:700; color:var(--ink-soft);
+    }
+    .hp-rincian summary::-webkit-details-marker{ display:none; }
+    .hp-rincian summary::after{ content:'›'; float:right; opacity:.5; transform:rotate(90deg); }
+    .hp-rincian[open] summary::after{ transform:rotate(-90deg); }
+    .hp-rincian-body{ padding: 0 14px 12px; }
+    .hp-pay-zone{
+      background: var(--input-bg); border-radius:16px; padding:14px;
+      margin-bottom:12px; border:1px solid var(--line);
+    }
+    .hp-actions{ display:flex; gap:8px; margin-bottom:8px; }
+    .hp-actions .btn-secondary{ flex:1; }
+    .hp-warn{
+      font-size:13px; line-height:1.5; padding:12px 14px; border-radius:12px;
+      background: var(--amber-pale); color: var(--ink-soft); margin-bottom:12px;
+    }
+
+
   </style>
 </head>
 <body>
@@ -8441,93 +8525,188 @@
     var lunas = h.Status === 'Lunas';
     var isHutang = h.Jenis === 'Hutang';
     var today = toYMD(new Date());
+    var jadwalAll = parseJadwalTagihan_(h.Catatan);
+    var nextJadwal = nextTagihanDariJadwal_(h);
+    var terbayarAmt = Math.max(0, Number(h.TotalHutang) - Number(h.SisaHutang));
+    var catatanBersih = stripJadwalFromCatatan_(h.Catatan || '');
+    var dueShow = nextDueDateFor_(h) || h.JatuhTempo || '';
+    var daysDue = dueShow ? daysUntil(dueShow) : null;
 
-    var html = '<div class="sheet-title">' + esc(h.Nama) +
-      '<span class="metode-tag">' + esc(h.Metode) + '</span>' +
-      (h.Bentuk === 'Barang' ? '<span class="metode-tag" style="background:var(--amber-pale); color:var(--amber);">Barang/Jasa</span>' : '') +
-      '</div>' +
-      '<div class="detail-row"><span class="k">Jenis</span><span class="v">' + h.Jenis + '</span></div>';
-
-    if(h.Metode === 'Cicilan Tetap'){
-      html += '<div class="detail-row"><span class="k">Pokok Pinjaman</span><span class="v num">' + fmtRupiah(h.Pokok) + '</span></div>' +
-        '<div class="detail-row"><span class="k">Bunga</span><span class="v num">' + fmtRupiah(h.BungaNominal) + (h.BungaPersen?' (' + h.BungaPersen + '%)':'') + '</span></div>' +
-        '<div class="detail-row"><span class="k">Total Hutang</span><span class="v num">' + fmtRupiah(h.TotalHutang) + '</span></div>' +
-        '<div class="detail-row"><span class="k">Angsuran / bulan</span><span class="v num">' + fmtRupiah(h.NominalCicilan) + '</span></div>' +
-        '<div class="detail-row"><span class="k">Sisa Hutang</span><span class="v num">' + fmtRupiah(h.SisaHutang) + '</span></div>';
-      var jadwalAll = parseJadwalTagihan_(h.Catatan);
-      if(jadwalAll.length){
-        html += '<div style="margin-top:10px;font-size:11px;font-weight:700;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.3px;">Jadwal tagihan</div>';
-        var terbayarAmt = Math.max(0, Number(h.TotalHutang) - Number(h.SisaHutang));
-        var accJ = 0;
-        jadwalAll.forEach(function(j, idx){
-          accJ += j.amount;
-          var done = terbayarAmt >= accJ - 0.01;
-          html += '<div class="detail-row" style="opacity:' + (done ? '.45' : '1') + '"><span class="k">' +
-            esc(j.date) + (done ? ' ✓' : '') + '</span><span class="v num">' + fmtRupiah(j.amount) + '</span></div>';
-        });
-      }
-      var terbayar = Math.min(Number(h.CicilanTerbayar), Number(h.Tenor));
-      var pct = h.Tenor > 0 ? Math.round(terbayar / h.Tenor * 100) : 0;
-      html += '<div class="progress-wrap"><div class="progress-track"><div class="progress-fill" style="width:' + pct + '%"></div></div>' +
-        '<div class="progress-label"><span>Cicilan ke-' + terbayar + ' dari ' + h.Tenor + '</span><span>' + pct + '%</span></div></div>';
-    } else if(h.Metode === 'Paylater'){
-      html += '<div class="detail-row"><span class="k">Nominal Transaksi</span><span class="v num">' + fmtRupiah(h.Pokok) + '</span></div>' +
-        (h.BungaNominal ? '<div class="detail-row"><span class="k">Biaya Layanan</span><span class="v num">' + fmtRupiah(h.BungaNominal) + '</span></div>' : '') +
-        '<div class="detail-row"><span class="k">Total Bayar</span><span class="v num">' + fmtRupiah(h.TotalHutang) + '</span></div>';
-    } else {
-      html += '<div class="detail-row"><span class="k">Total ' + h.Jenis + '</span><span class="v num">' + fmtRupiah(h.TotalHutang) + '</span></div>' +
-        (h.Metode === 'Cicilan Bebas' ? '<div class="detail-row"><span class="k">Sisa Hutang</span><span class="v num">' + fmtRupiah(h.SisaHutang) + '</span></div>' : '');
+    // Progress jujur
+    var progressLabel = '';
+    var pct = 0;
+    if(jadwalAll.length){
+      var doneCount = 0, accP = 0;
+      jadwalAll.forEach(function(j){
+        accP += j.amount;
+        if(terbayarAmt >= accP - 0.01) doneCount++;
+      });
+      pct = Math.round(doneCount / jadwalAll.length * 100);
+      progressLabel = doneCount + ' / ' + jadwalAll.length + ' tagihan';
+    } else if(h.Metode === 'Cicilan Tetap' && Number(h.Tenor) > 0){
+      var terbayar = Math.min(Number(h.CicilanTerbayar) || 0, Number(h.Tenor));
+      pct = Math.round(terbayar / Number(h.Tenor) * 100);
+      progressLabel = 'Cicilan ke-' + terbayar + ' dari ' + h.Tenor;
+    } else if(Number(h.TotalHutang) > 0){
+      pct = Math.round(terbayarAmt / Number(h.TotalHutang) * 100);
+      progressLabel = pct + '% terbayar';
     }
 
-    html += (h.Bentuk === 'Barang'
-        ? '<div class="detail-row"><span class="k">Bentuk</span><span class="v">Barang / Jasa (bukan uang tunai)</span></div>'
-        : '<div class="detail-row"><span class="k">Rekening Sumber</span><span class="v">' + esc(h.Akun || '-') + '</span></div>') +
-      '<div class="detail-row"><span class="k">Tanggal</span><span class="v">' + esc(h.Tanggal) + '</span></div>' +
-      '<div class="detail-row"><span class="k">Jatuh Tempo</span><span class="v">' + esc(h.JatuhTempo || '-') + '</span></div>' +
-      '<div class="detail-row"><span class="k">Catatan</span><span class="v">' + esc(h.Catatan || '-') + '</span></div>' +
-      '<div class="detail-row"><span class="k">Status</span><span class="v"><span class="status-pill ' + (lunas?'lunas':'belum') + '">' + h.Status + '</span></span></div>';
+    var urgency = '';
+    if(!lunas && daysDue !== null){
+      if(daysDue < 0) urgency = '<span class="hp-chip danger">Telat ' + Math.abs(daysDue) + ' hari</span>';
+      else if(daysDue === 0) urgency = '<span class="hp-chip warn">Jatuh tempo hari ini</span>';
+      else if(daysDue <= 7) urgency = '<span class="hp-chip warn">' + daysDue + ' hari lagi</span>';
+    }
+    if(lunas) urgency = '<span class="hp-chip ok">Lunas</span>';
 
-    html += '<div class="row-2" style="margin-top:16px;">' +
-      '<button class="btn-secondary" id="btn-edit-hp">Edit</button>' +
-      '<button class="btn-secondary" id="btn-topup-hp">Tambah Nominal (Top Up)</button>' +
-    '</div>';
+    var html =
+      '<div class="hp-detail">' +
+        '<div class="hp-hero">' +
+          '<div class="hp-hero-top">' +
+            '<div class="hp-hero-name">' + esc(h.Nama) + '</div>' +
+            urgency +
+          '</div>' +
+          '<div class="hp-hero-chips">' +
+            '<span class="hp-chip muted">' + esc(h.Metode) + '</span>' +
+            (h.Bentuk === 'Barang' ? '<span class="hp-chip muted">Barang/Jasa</span>' : '') +
+            (h.Akun ? '<span class="hp-chip muted">' + esc(h.Akun) + '</span>' : '') +
+          '</div>' +
+          '<div class="hp-hero-sisa">' +
+            '<div class="hp-hero-lbl">' + (lunas ? 'Lunas' : 'Sisa hutang') + '</div>' +
+            '<div class="hp-hero-val num">' + fmtRupiah(lunas ? 0 : h.SisaHutang) + '</div>' +
+          '</div>';
+
+    if(!lunas && nextJadwal){
+      html +=
+        '<div class="hp-next">' +
+          '<div class="hp-next-lbl">Tagihan berikutnya</div>' +
+          '<div class="hp-next-row">' +
+            '<span class="hp-next-amt num">' + fmtRupiah(nextJadwal.amount) + '</span>' +
+            '<span class="hp-next-meta">' + esc(nextJadwal.date || dueShow) +
+              ' · ' + nextJadwal.ke + '/' + nextJadwal.total + '</span>' +
+          '</div>' +
+        '</div>';
+    } else if(!lunas && dueShow){
+      html +=
+        '<div class="hp-next">' +
+          '<div class="hp-next-lbl">Jatuh tempo</div>' +
+          '<div class="hp-next-row">' +
+            '<span class="hp-next-amt num">' + fmtRupiah(amountShownFor(h)) + '</span>' +
+            '<span class="hp-next-meta">' + esc(dueShow) + '</span>' +
+          '</div>' +
+        '</div>';
+    }
+
+    if(progressLabel){
+      html +=
+        '<div class="progress-wrap" style="margin-top:12px;">' +
+          '<div class="progress-track"><div class="progress-fill" style="width:' + pct + '%"></div></div>' +
+          '<div class="progress-label"><span>' + progressLabel + '</span><span>' + pct + '%</span></div>' +
+        '</div>';
+    }
+    html += '</div>'; // hero
+
+    // Jadwal timeline
+    if(jadwalAll.length){
+      html += '<div class="hp-section-title">Jadwal tagihan</div><div class="hp-timeline">';
+      var accJ = 0;
+      jadwalAll.forEach(function(j, idx){
+        accJ += j.amount;
+        var done = terbayarAmt >= accJ - 0.01;
+        var isNext = !done && nextJadwal && nextJadwal.date === j.date && nextJadwal.amount === j.amount;
+        if(!isNext && !done && nextJadwal && nextJadwal.ke === idx + 1) isNext = true;
+        var badge = done ? 'Lunas' : (isNext ? 'Berikutnya' : '');
+        if(!done && j.date){
+          var d = daysUntil(j.date);
+          if(d < 0 && !done) badge = 'Telat';
+        }
+        html +=
+          '<div class="hp-tl-row' + (done ? ' done' : '') + (isNext ? ' next' : '') + '">' +
+            '<div class="hp-tl-dot"></div>' +
+            '<div class="hp-tl-body">' +
+              '<div class="hp-tl-date">' + esc(j.date) +
+                (badge ? ' <span class="hp-tl-badge">' + badge + '</span>' : '') +
+              '</div>' +
+              '<div class="hp-tl-amt num">' + fmtRupiah(j.amount) + '</div>' +
+            '</div>' +
+          '</div>';
+      });
+      html += '</div>';
+    }
+
+    // Rincian foldable
+    html +=
+      '<details class="hp-rincian">' +
+        '<summary>Rincian</summary>' +
+        '<div class="hp-rincian-body">' +
+          '<div class="detail-row"><span class="k">Jenis</span><span class="v">' + h.Jenis + '</span></div>';
+    if(h.Metode === 'Cicilan Tetap'){
+      html +=
+        '<div class="detail-row"><span class="k">Pokok</span><span class="v num">' + fmtRupiah(h.Pokok) + '</span></div>' +
+        '<div class="detail-row"><span class="k">Bunga</span><span class="v num">' + fmtRupiah(h.BungaNominal) + (h.BungaPersen ? ' (' + h.BungaPersen + '%)' : '') + '</span></div>' +
+        '<div class="detail-row"><span class="k">Total</span><span class="v num">' + fmtRupiah(h.TotalHutang) + '</span></div>' +
+        (!jadwalAll.length ? '<div class="detail-row"><span class="k">Angsuran / bulan</span><span class="v num">' + fmtRupiah(h.NominalCicilan) + '</span></div>' : '');
+    } else if(h.Metode === 'Paylater'){
+      html +=
+        '<div class="detail-row"><span class="k">Nominal</span><span class="v num">' + fmtRupiah(h.Pokok) + '</span></div>' +
+        (h.BungaNominal ? '<div class="detail-row"><span class="k">Biaya layanan</span><span class="v num">' + fmtRupiah(h.BungaNominal) + '</span></div>' : '') +
+        '<div class="detail-row"><span class="k">Total bayar</span><span class="v num">' + fmtRupiah(h.TotalHutang) + '</span></div>';
+    } else {
+      html +=
+        '<div class="detail-row"><span class="k">Total</span><span class="v num">' + fmtRupiah(h.TotalHutang) + '</span></div>' +
+        (h.Metode === 'Cicilan Bebas' ? '<div class="detail-row"><span class="k">Sisa</span><span class="v num">' + fmtRupiah(h.SisaHutang) + '</span></div>' : '');
+    }
+    html +=
+      '<div class="detail-row"><span class="k">Bentuk</span><span class="v">' + (h.Bentuk === 'Barang' ? 'Barang / Jasa' : 'Tunai') + '</span></div>' +
+      (h.Akun ? '<div class="detail-row"><span class="k">Rekening</span><span class="v">' + esc(h.Akun) + '</span></div>' : '') +
+      '<div class="detail-row"><span class="k">Tanggal</span><span class="v">' + esc(h.Tanggal) + '</span></div>' +
+      (dueShow ? '<div class="detail-row"><span class="k">Jatuh tempo</span><span class="v">' + esc(dueShow) + '</span></div>' : '') +
+      (catatanBersih ? '<div class="detail-row"><span class="k">Catatan</span><span class="v">' + esc(catatanBersih) + '</span></div>' : '') +
+      '</div></details>';
+
+    // Aksi
+    if(!lunas && STATE.rekening.length){
+      var defaultBayar = nextJadwal
+        ? Math.min(nextJadwal.amount, Number(h.SisaHutang))
+        : (h.Metode === 'Cicilan Tetap' ? Math.min(Number(h.NominalCicilan) || 0, Number(h.SisaHutang) || 0) : Number(h.SisaHutang));
+      var payLabel = nextJadwal
+        ? ('Bayar ' + fmtRupiah(defaultBayar))
+        : (h.Metode === 'Cicilan Tetap' ? 'Bayar cicilan' : h.Metode === 'Cicilan Bebas' ? 'Catat pembayaran' : (isHutang ? 'Tandai sudah dibayar' : 'Tandai sudah diterima'));
+      var bayarReadonly = h.Metode === 'Cicilan Tetap' || h.Metode === 'Paylater' || h.Metode === 'Sekaligus' || !!nextJadwal;
+
+      html +=
+        '<div class="hp-pay-zone">' +
+          '<div class="form-group" style="margin:0 0 10px;"><label class="form-label">Nominal bayar</label>' +
+            '<input class="form-input num num-input" id="f-bayar-nominal" type="text" inputmode="numeric" value="' + ribuanStr(defaultBayar) + '"' +
+            (bayarReadonly ? ' readonly' : '') + '></div>' +
+          '<div class="row-2 form-group" style="margin:0 0 10px;">' +
+            '<div><label class="form-label">Tanggal</label><input class="form-input" id="f-bayar-tanggal" type="date" value="' + today + '"></div>' +
+            '<div><label class="form-label">' + (isHutang ? 'Dari rekening' : 'Ke rekening') + '</label>' +
+              '<select class="form-select" id="f-akun-lunas">' + accountOptions() + '</select></div>' +
+          '</div>' +
+          '<button class="btn-primary" id="btn-bayar" style="width:100%;">' + payLabel + '</button>' +
+        '</div>';
+    } else if(!lunas && !STATE.rekening.length){
+      html += '<div class="hp-warn">Tambah rekening dulu di tab Rekening untuk mencatat pembayaran.</div>';
+    }
+
+    html +=
+      '<div class="hp-actions">' +
+        '<button type="button" class="btn-secondary" id="btn-edit-hp">Edit</button>' +
+        '<button type="button" class="btn-secondary" id="btn-topup-hp">Top Up</button>' +
+      '</div>';
 
     if(h.Bentuk === 'Barang' && isHutang){
-      html += '<button class="btn-secondary" id="btn-sinkron-hp" style="margin-top:8px;">Masukkan ke Transaksi &amp; Rekap</button>' +
-        '<div style="font-size:11px; color:var(--ink-faint); margin:6px 0 4px; line-height:1.45;">Untuk data lama: buat pengeluaran di kategori dari catatan (tanpa mengurangi saldo kas). Aman diklik ulang — tidak akan dobel.</div>';
+      html += '<button class="btn-secondary" id="btn-sinkron-hp" style="width:100%;margin-top:8px;">Masukkan ke Transaksi &amp; Rekap</button>';
     }
 
-    if(!lunas){
-      // Jadwal cicilan tidak rata (contoh SPaylater): JADWAL:YYYY-MM-DD=nominal;YYYY-MM-DD=nominal
-      var nextJadwal = nextTagihanDariJadwal_(h);
-      var defaultBayar = nextJadwal ? Math.min(nextJadwal.amount, Number(h.SisaHutang))
-        : (h.Metode === 'Cicilan Tetap' ? Math.min(h.NominalCicilan, h.SisaHutang) : h.SisaHutang);
-      var payLabel = nextJadwal ? ('Bayar Tagihan ' + nextJadwal.ke + '/' + nextJadwal.total)
-        : (h.Metode === 'Cicilan Tetap' ? 'Bayar Cicilan Ke-' + (Number(h.CicilanTerbayar)+1)
-        : h.Metode === 'Cicilan Bebas' ? 'Catat Pembayaran'
-        : 'Tandai ' + (isHutang ? 'Sudah Dibayar' : 'Sudah Diterima'));
-      var bayarReadonly = h.Metode==='Cicilan Tetap'||h.Metode==='Paylater'||h.Metode==='Sekaligus' || !!nextJadwal;
-      if(!STATE.rekening.length){
-        html += '<div style="font-size:13px; color:var(--ink-soft); line-height:1.6; margin-top:16px; background:var(--amber-pale); padding:12px 14px; border-radius:12px;">' +
-          'Kamu belum punya rekening. Tambahkan rekening dulu di tab <b>Rekening</b> untuk bisa mencatat pembayaran ' + (isHutang?'hutang':'piutang') + ' ini.</div>';
-      } else {
-        if(nextJadwal){
-          html += '<div style="font-size:12.5px; color:var(--blue-dark); background:var(--blue-pale); padding:10px 12px; border-radius:10px; margin-top:14px; line-height:1.45;">' +
-            'Tagihan berikutnya: <b class="num">' + fmtRupiah(nextJadwal.amount) + '</b>' +
-            (nextJadwal.date ? ' · jatuh tempo <b>' + esc(nextJadwal.date) + '</b>' : '') +
-            ' <span style="opacity:.75;">(' + nextJadwal.ke + '/' + nextJadwal.total + ')</span></div>';
-        }
-        html += '<div class="form-group" style="margin-top:16px;"><label class="form-label">Nominal Bayar</label>' +
-          '<input class="form-input num num-input" id="f-bayar-nominal" type="text" inputmode="numeric" value="' + ribuanStr(defaultBayar) + '"' +
-          (bayarReadonly ? ' readonly' : '') + '></div>' +
-          '<div class="form-group"><label class="form-label">Tanggal Bayar</label><input class="form-input" id="f-bayar-tanggal" type="date" value="' + today + '"></div>' +
-          '<div class="form-group"><label class="form-label">' + (isHutang ? 'Bayar Dari Rekening' : 'Uang Diterima ke Rekening') + '</label>' +
-          '<select class="form-select" id="f-akun-lunas">' + accountOptions() + '</select></div>' +
-          '<button class="btn-primary" id="btn-bayar">' + payLabel + '</button>';
-      }
-    }
-    html += '<div class="riwayat-title">Riwayat Pembayaran</div><div id="riwayat-list"><div class="riwayat-empty">Memuat…</div></div>';
-    html += '<button class="btn-danger-text" id="btn-del-hp">' + ICON_TRASH + ' &nbsp;Hapus Catatan</button>';
+    html +=
+      '<div class="riwayat-title">Riwayat pembayaran</div>' +
+      '<div id="riwayat-list"><div class="riwayat-empty">Memuat…</div></div>' +
+      '<button class="btn-danger-text" id="btn-del-hp">' + ICON_TRASH + ' &nbsp;Hapus catatan</button>' +
+      '</div>';
+
     openSheet(html);
 
     document.getElementById('btn-edit-hp').addEventListener('click', function(){ openHutangEditForm(h); });
@@ -8547,6 +8726,25 @@
       });
     }
 
+    var btnBayar = document.getElementById('btn-bayar');
+    if(btnBayar){
+      btnBayar.addEventListener('click', function(){
+        var nominal = rawNum('f-bayar-nominal');
+        var tanggal = document.getElementById('f-bayar-tanggal').value;
+        var akun = document.getElementById('f-akun-lunas').value;
+        if(!nominal || nominal <= 0){ toast('Nominal bayar harus diisi'); return; }
+        if(!tanggal){ toast('Tanggal harus diisi'); return; }
+        if(!akun){ toast('Pilih rekening'); return; }
+        var payload = { id: h.ID, nominal: nominal, tanggal: tanggal, akun: akun };
+        saveOptimistic('Pembayaran dicatat', function(ok, fail){
+          google.script.run.withSuccessHandler(function(data){
+            ok(data);
+            openHutangDetail(id);
+          }).withFailureHandler(fail).bayarCicilan(payload);
+        });
+      });
+    }
+
     google.script.run.withSuccessHandler(function(list){
       var box = document.getElementById('riwayat-list');
       if(!box) return;
@@ -8557,38 +8755,21 @@
       }).join('');
       box.querySelectorAll('.riwayat-del-btn').forEach(function(btn){
         btn.addEventListener('click', function(){
-          if(!confirm('Hapus pembayaran ini? Sisa hutang dan saldo rekening akan dikembalikan seperti sebelum pembayaran ini dicatat.')) return;
+          if(!confirm('Hapus pembayaran ini? Sisa hutang dan saldo rekening akan dikembalikan.')) return;
           google.script.run.withSuccessHandler(function(data){
-            refreshState(data); toast('Pembayaran dihapus, saldo dikembalikan'); openHutangDetail(id);
+            refreshState(data); toast('Pembayaran dihapus'); openHutangDetail(id);
           }).withFailureHandler(function(err){ toast('Gagal: ' + err.message); }).hapusPembayaran(btn.dataset.pid);
         });
       });
-    }).withFailureHandler(function(){}).getRiwayatPembayaran(id);
+    }).withFailureHandler(function(){
+      var box = document.getElementById('riwayat-list');
+      if(box) box.innerHTML = '<div class="riwayat-empty">Gagal memuat riwayat.</div>';
+    }).getRiwayatPembayaran(id);
 
-    if(!lunas && STATE.rekening.length){
-      document.getElementById('btn-bayar').addEventListener('click', function(){
-        var nominal = rawNum('f-bayar-nominal');
-        var tanggalBayar = document.getElementById('f-bayar-tanggal').value;
-        var akun = document.getElementById('f-akun-lunas').value;
-        if(!nominal || nominal <= 0){ toast('Nominal bayar harus diisi'); return; }
-        if(!akun){ toast('Pilih rekening sumber dana'); return; }
-        var payload = { id: id, nominal: nominal, tanggal: tanggalBayar, catatAsTransaksi: true, akun: akun };
-        saveOptimistic('Pembayaran dicatat', function(ok, fail){
-          google.script.run.withSuccessHandler(ok).withFailureHandler(fail).bayarCicilan(payload);
-        });
-      });
-    }
     document.getElementById('btn-del-hp').addEventListener('click', function(){
-      if(!confirm('Hapus catatan ini beserta riwayat pembayarannya?')) return;
-      closeSheet();
-      var card = document.querySelector('.item-card[data-id="' + id + '"]');
-      if(card) card.style.display = 'none';
-      toastWithUndo('Catatan dihapus', function onUndo(){
-        if(card) card.style.display = '';
-      }, function onCommit(){
-        google.script.run.withSuccessHandler(function(data){
-          refreshState(data);
-        }).withFailureHandler(function(err){ toast('Gagal: ' + err.message); if(card) card.style.display = ''; }).deleteHutangPiutang(id);
+      if(!confirm('Hapus catatan hutang/piutang ini?')) return;
+      saveOptimistic('Dihapus', function(ok, fail){
+        google.script.run.withSuccessHandler(ok).withFailureHandler(fail).deleteHutangPiutang(id);
       });
     });
   }
