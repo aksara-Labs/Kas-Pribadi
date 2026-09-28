@@ -2475,6 +2475,58 @@
     .rekap-export-bar button.pdf-btn svg{ opacity:1; }
     .rekap-export-bar button:disabled{ opacity:.5; pointer-events:none; }
 
+    .settings-advanced{
+      border:1px solid var(--line); border-radius:14px; margin: 8px 0 12px;
+      background: var(--card); overflow:hidden;
+    }
+    .settings-advanced summary{
+      list-style:none; cursor:pointer; padding:14px 16px;
+      font-size:13.5px; font-weight:750; color:var(--ink-soft);
+    }
+    .settings-advanced summary::-webkit-details-marker{ display:none; }
+    .settings-advanced summary::after{ content:'›'; float:right; opacity:.45; transform:rotate(90deg); }
+    .settings-advanced[open] summary::after{ transform:rotate(-90deg); }
+    .settings-advanced-body .settings-row{ border-radius:0; }
+
+
+    #sheet .form-group{ margin-bottom: 12px !important; }
+    #sheet .sheet-title{ margin-bottom: 12px !important; }
+    #sheet .form-label{ font-size: 12px !important; margin-bottom: 5px !important; }
+    #sheet .form-input, #sheet .form-select{ padding: 11px 12px !important; border-radius: 12px !important; }
+    #sheet .btn-primary{ margin-top: 4px; }
+    #sheet .metode-grid{ gap: 8px !important; }
+    #sheet .metode-btn{ padding: 10px 8px !important; font-size: 12.5px !important; }
+    #sheet .metode-btn small{ font-size: 10px !important; }
+
+
+    .hp-list-card{
+      display:block !important; padding:14px 14px 12px !important;
+      border-radius:16px; margin-bottom:10px;
+      border:1px solid var(--line); background:var(--card);
+      box-shadow:0 1px 3px rgba(15,23,42,.04);
+    }
+    .hp-list-top{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .hp-list-name{ font-size:15.5px; font-weight:800; letter-spacing:-.02em; color:var(--ink); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .hp-list-chip{
+      flex:0 0 auto; font-size:10.5px; font-weight:800; padding:3px 8px; border-radius:999px;
+      background:var(--input-bg); color:var(--ink-soft);
+    }
+    .hp-list-chip.warn{ background:#FEF3C7; color:#B45309; }
+    .hp-list-chip.danger{ background:#FEE2E2; color:#B91C1C; }
+    .hp-list-chip.ok{ background:#D1FAE5; color:#047857; }
+    .hp-list-chip.muted{ background:var(--input-bg); color:var(--ink-faint); }
+    .hp-list-meta{ font-size:12px; color:var(--ink-faint); font-weight:600; margin-top:4px; }
+    .hp-list-sisa{ display:flex; align-items:baseline; justify-content:space-between; margin-top:10px; }
+    .hp-list-sisa-lbl{ font-size:11px; font-weight:700; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.3px; }
+    .hp-list-sisa-val{ font-size:18px; font-weight:800; letter-spacing:-.02em; }
+    .hp-list-next{
+      display:flex; justify-content:space-between; align-items:center;
+      margin-top:8px; padding-top:8px; border-top:1px dashed var(--line);
+      font-size:12.5px; font-weight:650; color:var(--ink-soft);
+    }
+    .hp-list-next .num{ font-weight:800; color:var(--ink); }
+
+
     /* ---- Detail hutang (hero + timeline) ---- */
     .hp-detail{ padding-bottom: 8px; }
     .hp-hero{
@@ -4302,36 +4354,35 @@
     var html =
       '<div class="sheet-title">Pengaturan</div>' +
       '<div class="settings-stack">' +
-        settingsSection_('Tampilan',
-          settingsRow('btn-open-rename', 'Nama tampilan', esc(STATE.userName || 'Pengguna'), false, 'Dipakai di header') +
+        settingsSection_('Utama',
+          settingsRow('btn-open-rename', 'Nama tampilan', esc(STATE.userName || 'Pengguna'), false, 'Di header') +
           '<button type="button" class="settings-row" id="btn-theme-toggle">' +
-            '<span class="sr-left"><span class="sr-label">Mode tampilan</span><span class="sr-hint">Terang atau gelap</span></span>' +
+            '<span class="sr-left"><span class="sr-label">Mode tampilan</span><span class="sr-hint">Terang / gelap</span></span>' +
             '<span class="sr-value" data-theme-slot="1">' + themeVal + '<span class="sr-chev" aria-hidden="true">›</span></span>' +
           '</button>' +
-          settingsRow('btn-open-zoom', 'Ukuran tampilan', Math.round(uiScale * 100) + '%', false, '70% – 100%')
-        ) +
-        settingsSection_('Keamanan',
-          settingsRow('btn-open-sheet', 'Spreadsheet data', '', false, 'Buka Google Sheet yang dipakai app') +
-          settingsRow('btn-reload-sheet', 'Muat ulang dari Spreadsheet', '', false, 'Jadikan Sheet sebagai data utama (buang data lokal yang belum sync)') +
-          settingsRow('btn-open-api-token', 'Token API', settingsBadge_(!!getAppToken_(), 'Diset', 'Kosong'), false, 'Disarankan · kunci akses server')
+          settingsRow('btn-open-zoom', 'Ukuran tampilan', Math.round(uiScale * 100) + '%', false, '70% – 100%') +
+          settingsRow('btn-open-sheet', 'Spreadsheet data', '', false, 'Buka Google Sheet') +
+          settingsRow('btn-reload-sheet', 'Muat ulang dari Spreadsheet', '', false, 'Samakan data dengan Sheet')
         ) +
         settingsSection_('Keuangan',
           settingsRow('btn-open-anggaran', 'Anggaran', '') +
           settingsRow('btn-open-liburan', 'Budget liburan', '') +
           settingsRow('btn-open-recurring', 'Transaksi berulang', '') +
-          settingsRow('btn-view-mode', 'Filter default', esc(viewModeLabel_()), false, 'Untuk siapa')
-        ) +
-        settingsSection_('Notifikasi',
+          settingsRow('btn-view-mode', 'Filter default', esc(viewModeLabel_()), false, 'Untuk siapa') +
           settingsRow('btn-open-notif-settings', 'Notifikasi HP', settingsBadge_(notifOn)) +
-          settingsRow('btn-open-reminder', 'Reminder otomatis', settingsBadge_(!!STATE.dailyTriggerActive), false, 'Jatuh tempo hutang')
+          settingsRow('btn-open-reminder', 'Reminder hutang', settingsBadge_(!!STATE.dailyTriggerActive), false, 'Jatuh tempo')
         ) +
-        settingsSection_('Data',
-          settingsRow('btn-load-full-history', 'Muat semua riwayat', '', false, 'Default: ~5 bulan terakhir') +
-          settingsRow('btn-open-backup', 'Backup & restore', '') +
-          settingsRow('btn-export-csv', 'Unduh semua transaksi (CSV)', '', false, 'Seluruh data → buka di Excel') +
-          settingsRow('btn-clear-cache', 'Hapus cache', '', false, 'Data server tetap aman') +
-          settingsRow('btn-open-reset', 'Reset semua data', '', true, 'Tidak bisa dibatalkan')
-        ) +
+        '<details class="settings-advanced">' +
+          '<summary>Lainnya</summary>' +
+          '<div class="settings-advanced-body">' +
+            settingsRow('btn-open-backup', 'Backup & restore', '') +
+            settingsRow('btn-export-csv', 'Unduh semua transaksi (CSV)', '', false, 'Excel') +
+            settingsRow('btn-load-full-history', 'Muat semua riwayat', '', false, 'Default ~5 bulan') +
+            settingsRow('btn-clear-cache', 'Hapus cache', '', false, 'Sheet tetap aman') +
+            settingsRow('btn-open-api-token', 'Token API', settingsBadge_(!!getAppToken_(), 'Diset', 'Kosong'), false, 'Opsional') +
+            settingsRow('btn-open-reset', 'Reset semua data', '', true, 'Tidak bisa dibatalkan') +
+          '</div>' +
+        '</details>' +
         '<div class="settings-foot" id="btn-about-build">Catatan Kas · AksaraLabs</div>' +
       '</div>';
 
@@ -5747,8 +5798,10 @@
     return Math.round((d - today) / 86400000);
   }
   function urgencyOf(h){
-    if(h.Status === 'Lunas' || !h.JatuhTempo) return null;
-    var days = daysUntil(h.JatuhTempo);
+    if(h.Status === 'Lunas') return null;
+    var due = (typeof nextDueDateFor_ === 'function') ? nextDueDateFor_(h) : h.JatuhTempo;
+    if(!due) return null;
+    var days = daysUntil(due);
     if(days === null) return null;
     if(days < 0) return 'overdue';
     if(days <= 7) return 'upcoming';
@@ -5848,29 +5901,37 @@
       list.forEach(function(h){
         var isHutang = h.Jenis === 'Hutang';
         var lunas = h.Status === 'Lunas';
-        var sub = (isHutang?'Hutang':'Piutang') + ' • ' + esc(METODE_SHORT[h.Metode] || h.Metode) + (h.Bentuk === 'Barang' ? ' (Barang)' : '');
-        if(h.Metode === 'Cicilan Tetap' && !lunas){
-          sub += ' ' + (Number(h.CicilanTerbayar)+1 <= Number(h.Tenor) ? (Number(h.CicilanTerbayar)+1) : Number(h.Tenor)) + '/' + h.Tenor;
-        }
-        if(Number(h.BungaNominal) > 0){
-          sub += ' • Bunga ' + fmtRupiah(h.BungaNominal) + (h.BungaPersen ? ' (' + h.BungaPersen + '%)' : '');
-        }
         var dueShow = nextDueDateFor_(h);
-        if(!lunas && dueShow){
-          var days = daysUntil(dueShow);
-          sub += ' • ' + (days < 0 ? 'Telat ' + Math.abs(days) + ' hari' : days === 0 ? 'Jatuh tempo hari ini' : days + ' hari lagi');
-        }
         var amountShown = amountShownFor(h);
-        html += '<div class="item-card" data-id="' + h.ID + '" data-kind="hp">' +
-          '<div class="icon-badge ' + (isHutang?'amber':'green') + '">' +
-            (isHutang ? '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>'
-                      : '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>') +
-          '</div>' +
-          '<div class="item-main"><div class="item-title">' + esc(h.Nama) +
-            '<span class="status-pill ' + (lunas?'lunas':'belum') + '">' + (lunas?'Lunas':'Belum Lunas') + '</span></div>' +
-          '<div class="item-sub">' + sub + '</div></div>' +
-          '<div class="item-amount ' + (isHutang?'red':'green') + ' num' + (lunas?' lunas-amount':'') + '">' + fmtRupiah(amountShown) + '</div>' +
-        '</div>';
+        var days = dueShow && !lunas ? daysUntil(dueShow) : null;
+        var chip = '';
+        if(lunas) chip = '<span class="hp-list-chip ok">Lunas</span>';
+        else if(days !== null && days < 0) chip = '<span class="hp-list-chip danger">Telat ' + Math.abs(days) + 'h</span>';
+        else if(days === 0) chip = '<span class="hp-list-chip warn">Hari ini</span>';
+        else if(days !== null && days <= 7) chip = '<span class="hp-list-chip warn">' + days + ' hari</span>';
+        else chip = '<span class="hp-list-chip muted">' + esc(METODE_SHORT[h.Metode] || h.Metode) + '</span>';
+        var meta = esc(METODE_SHORT[h.Metode] || h.Metode);
+        if(h.Akun) meta += ' · ' + esc(h.Akun);
+        var nextLine = '';
+        if(!lunas){
+          nextLine = '<div class="hp-list-next">' +
+            (dueShow ? '<span>' + esc(dueShow) + '</span>' : '<span>—</span>') +
+            '<span class="num">' + fmtRupiah(amountShown) + '</span></div>';
+        }
+        html +=
+          '<div class="hp-list-card item-card" data-id="' + h.ID + '" data-kind="hp">' +
+            '<div class="hp-list-top">' +
+              '<div class="hp-list-name">' + esc(h.Nama) + '</div>' + chip +
+            '</div>' +
+            '<div class="hp-list-meta">' + meta + '</div>' +
+            '<div class="hp-list-sisa">' +
+              '<span class="hp-list-sisa-lbl">' + (lunas ? 'Lunas' : 'Sisa') + '</span>' +
+              '<span class="hp-list-sisa-val num ' + (isHutang ? 'red' : 'green') + (lunas ? ' lunas-amount' : '') + '">' +
+                fmtRupiah(lunas ? (h.TotalHutang || 0) : h.SisaHutang) +
+              '</span>' +
+            '</div>' +
+            nextLine +
+          '</div>';
       });
     }
     el.innerHTML = html;
@@ -7573,7 +7634,6 @@
     var today = toYMD(currentDate);
     openSheet(
       '<div class="sheet-title">Tambah Transaksi</div>' +
-      '<div class="sheet-hint">Isi nominal &amp; detail. Semua field penting ada di bawah.</div>' +
       '<div class="toggle-pair form-group" id="trx-toggle">' +
         '<button type="button" data-v="Pemasukan" class="income' + (trxJenis==='Pemasukan'?' active':'') + '">Pemasukan</button>' +
         '<button type="button" data-v="Pengeluaran" class="expense' + (trxJenis==='Pengeluaran'?' active':'') + '">Pengeluaran</button>' +
