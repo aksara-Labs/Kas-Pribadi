@@ -6197,7 +6197,7 @@
   }
   function renderTransaksi(){
     var el = document.getElementById('view-transaksi');
-    var all = applyTrxFilter_(STATE.transaksi.slice());
+    var all = collapseTransferLegs_(applyTrxFilter_(STATE.transaksi.slice()));
     var html = liburanHomeBannerHtml_();
     html += '<div class="section-header"><span class="t">Transaksi Terbaru</span>' +
       '<button class="more" id="btn-lihat-semua">Cari <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg></button></div>';
@@ -6744,7 +6744,7 @@
       var payload = {
         akunAsal: akunAsal, akunTujuan: akunTujuan, nominal: nominal,
         biayaAdmin: biayaAdmin, tanggal: tanggal, catatan: catatan,
-        clientKey: 'tf-' + tanggal + '-' + akunAsal + '-' + akunTujuan + '-' + nominal + '-' + biayaAdmin + '-' + Date.now()
+        clientKey: 'tf-' + tanggal + '-' + akunAsal + '-' + akunTujuan + '-' + nominal + '-' + biayaAdmin + '-' + localTfid
       };
       // Optimistic: tutup form & tampilkan dulu; sync server di background
       closeSheet();
@@ -8867,34 +8867,25 @@
     document.getElementById('btn-del-trx').addEventListener('click', function(){
       closeSheet();
       var ids = groupIds.slice();
-      ids.forEach(function(gid){
-        var card = document.querySelector('.item-card[data-id="' + gid + '"]');
-        if(card) card.style.display = 'none';
-      });
-      toastWithUndo(isTransfer ? 'Transfer dihapus' : 'Transaksi dihapus', function onUndo(){
-        ids.forEach(function(gid){
-          var card = document.querySelector('.item-card[data-id="' + gid + '"]');
-          if(card) card.style.display = '';
-        });
-      }, function onCommit(){
-        function doDel(){
-          google.script.run.withSuccessHandler(function(data){
-            // hapus lokal semua id grup
-            STATE.transaksi = (STATE.transaksi || []).filter(function(x){ return ids.indexOf(x.ID) < 0; });
-            recomputeSaldoLocal_();
-            if(data) refreshState(data);
-            else renderAll();
-            toast('Terhapus dari Spreadsheet');
-          }).withFailureHandler(function(err){
-            toast('Gagal: ' + (err.message || err));
-            ids.forEach(function(gid){
-              var card = document.querySelector('.item-card[data-id="' + gid + '"]');
-              if(card) card.style.display = '';
-            });
-          }).deleteTransaksi(id);
+      var removed = (STATE.transaksi || []).filter(function(x){ return ids.indexOf(x.ID) >= 0; });
+      STATE.transaksi = (STATE.transaksi || []).filter(function(x){ return ids.indexOf(x.ID) < 0; });
+      try { recomputeSaldoLocal_(); renderAll(); } catch(e){}
+      try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e){}
+      toast(isTransfer ? 'Transfer dihapus' : 'Transaksi dihapus');
+      google.script.run.withSuccessHandler(function(data){
+        if(data) try { refreshState(data); } catch(e){}
+      }).withFailureHandler(function(err){
+        var msg = String((err && err.message) || err || '');
+        if(/lambat|Timeout|Abort|network|fetch/i.test(msg)){
+          setTimeout(function(){
+            try { google.script.run.withSuccessHandler(function(){}).withFailureHandler(function(){}).deleteTransaksi(id); } catch(e){}
+          }, 2500);
+          return;
         }
-        doDel();
-      });
+        removed.forEach(function(row){ STATE.transaksi.unshift(row); });
+        try { recomputeSaldoLocal_(); renderAll(); } catch(e){}
+        toast('Gagal hapus: ' + msg);
+      }).deleteTransaksi(id);
     });
   }
 
