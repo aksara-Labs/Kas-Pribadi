@@ -62,6 +62,11 @@
       /* Type scale */
       --fs-xs:11px; --fs-sm:12.5px; --fs-md:14px; --fs-lg:16px; --fs-xl:20px; --fs-2xl:28px;
       --lh-tight:1.15; --lh-body:1.45;
+      /* Form / sheet tokens */
+      --form-radius: 14px;
+      --chip-radius: 999px;
+      --card-radius: 16px;
+      --hero-radius: 18px;
     }
     html.dark{
       --blue-pale:#1E334F;
@@ -2521,6 +2526,123 @@
     .rekap-export-bar button.pdf-btn svg{ opacity:1; }
     .rekap-export-bar button:disabled{ opacity:.5; pointer-events:none; }
 
+    .sk-wrap{ padding: 4px 0 12px; }
+    .sk-hero{
+      height: 120px; border-radius: 18px; margin-bottom: 14px;
+      background: linear-gradient(90deg, #e8eef5 25%, #f5f8fc 50%, #e8eef5 75%);
+      background-size: 200% 100%;
+      animation: sk-shine 1.1s ease-in-out infinite;
+    }
+    .sk-card{
+      border-radius: 14px; padding: 14px; margin-bottom: 8px;
+      border: 1px solid var(--line); background: var(--card);
+    }
+    .sk-line{
+      height: 10px; border-radius: 6px; margin-bottom: 8px;
+      background: linear-gradient(90deg, #e8eef5 25%, #f5f8fc 50%, #e8eef5 75%);
+      background-size: 200% 100%;
+      animation: sk-shine 1.1s ease-in-out infinite;
+    }
+    .sk-line.w60{ width: 60%; }
+    .sk-line.w40{ width: 40%; margin-bottom: 0; }
+    @keyframes sk-shine{
+      0%{ background-position: 100% 0; }
+      100%{ background-position: -100% 0; }
+    }
+    html.dark .sk-hero,
+    html.dark .sk-line{
+      background: linear-gradient(90deg, #1a2740 25%, #243352 50%, #1a2740 75%);
+      background-size: 200% 100%;
+    }
+
+
+    .search-hint{
+      text-align:center; padding: 28px 16px; font-size: 13px;
+      font-weight: 600; color: var(--ink-faint); line-height: 1.45;
+    }
+    .search-meta{
+      font-size: 12.5px; font-weight: 650; color: var(--ink-faint);
+      margin: 12px 0 10px; padding: 0 2px;
+    }
+    .balance-hero .pill-row{
+      display: grid !important;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px !important;
+    }
+    .balance-hero .pill{
+      min-width: 0 !important;
+      flex: none !important;
+      width: 100%;
+      padding: 10px 12px !important;
+      border-radius: 14px !important;
+    }
+    .balance-hero .pill .txt .v{
+      font-size: 14px !important;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .balance-hero .amount{
+      font-size: clamp(24px, 7vw, 32px) !important;
+    }
+    @media (max-width: 380px){
+      .balance-hero .pill .txt .l{ font-size: 9.5px !important; }
+      .balance-hero .pill .txt .v{ font-size: 12.5px !important; }
+    }
+
+
+    /* Phase A — form / sheet consistency */
+    .form-hero{
+      text-align:center; padding: 6px 8px 14px; margin-bottom: 8px;
+      border-bottom: 1px solid var(--line);
+    }
+    .form-hero-lbl{
+      font-size: var(--fs-xs); font-weight: 700; color: var(--ink-faint);
+      text-transform: uppercase; letter-spacing: .35px;
+    }
+    .form-hero .form-input.num-input,
+    .form-hero-input{
+      font-size: 28px !important; font-weight: 800 !important;
+      letter-spacing: -.03em; text-align: center;
+      border: none !important; background: transparent !important;
+      box-shadow: none !important; padding: 8px 4px !important;
+    }
+    .form-hero .form-input.num-input:focus{
+      outline: none; background: var(--input-bg) !important;
+      border-radius: var(--form-radius) !important;
+    }
+    .form-block{
+      border: 1px solid var(--line); border-radius: var(--card-radius);
+      padding: 12px; margin-bottom: 10px; background: var(--card);
+    }
+    .form-block-title{
+      font-size: var(--fs-xs); font-weight: 750; color: var(--ink-faint);
+      text-transform: uppercase; letter-spacing: .3px; margin-bottom: 10px;
+    }
+    .form-more{
+      border: 1px solid var(--line); border-radius: var(--card-radius);
+      margin-bottom: 12px; background: var(--card); overflow: hidden;
+    }
+    .form-more summary{
+      list-style: none; cursor: pointer; padding: 12px 14px;
+      font-size: 13.5px; font-weight: 700; color: var(--ink-soft);
+    }
+    .form-more summary::-webkit-details-marker{ display: none; }
+    .form-more summary::after{ content: '›'; float: right; opacity: .45; transform: rotate(90deg); }
+    .form-more[open] summary::after{ transform: rotate(-90deg); }
+    .form-more-body{ padding: 0 14px 12px; }
+    .form-mini-hero{
+      background: linear-gradient(145deg, #1A365D 0%, #2B4C7E 100%);
+      color: #fff; border-radius: var(--hero-radius); padding: 14px 16px;
+      margin: 0 0 14px;
+    }
+    .form-mini-hero .nm{ font-size: 15px; font-weight: 800; }
+    .form-mini-hero .sub{ font-size: 12px; opacity: .85; margin-top: 4px; font-weight: 600; }
+    .form-mini-hero .val{ font-size: 22px; font-weight: 800; margin-top: 8px; letter-spacing: -.02em; }
+    html.dark .form-block,
+    html.dark .form-more{ border-color: rgba(51,65,85,.95); }
+    html.dark .form-hero{ border-color: rgba(51,65,85,.9); }
+
+
     .balance-hero .amount{ font-size: 30px !important; letter-spacing: -.04em !important; margin: 6px 0 12px !important; }
     .balance-hero .pill{ border-radius: 12px !important; padding: 8px 10px !important; }
     .insight-strip{
@@ -4167,6 +4289,16 @@
   }
 
   // ================= NAV =================
+  function skeletonHtml_(kind){
+    var rows = '';
+    for(var i = 0; i < 4; i++){
+      rows += '<div class="sk-card"><div class="sk-line w60"></div><div class="sk-line w40"></div></div>';
+    }
+    if(kind === 'transaksi'){
+      return '<div class="sk-wrap"><div class="sk-hero"></div>' + rows + '</div>';
+    }
+    return '<div class="sk-wrap">' + rows + '</div>';
+  }
   document.querySelectorAll('#bottomnav button[data-tab]').forEach(function(btn){
     btn.addEventListener('click', function(){
       document.querySelectorAll('#bottomnav button[data-tab]').forEach(function(b){
@@ -4177,9 +4309,16 @@
       btn.setAttribute('aria-current', 'page');
       document.querySelectorAll('.view').forEach(function(v){ v.classList.remove('active'); });
       currentTab = btn.dataset.tab;
-      document.getElementById('view-' + currentTab).classList.add('active');
+      var viewEl = document.getElementById('view-' + currentTab);
+      if(viewEl){
+        viewEl.classList.add('active');
+        viewEl.innerHTML = skeletonHtml_(currentTab);
+      }
       document.getElementById('content').scrollTop = 0;
-      renderAll();
+      // satu frame biar skeleton sempat ke-paint
+      requestAnimationFrame(function(){
+        setTimeout(function(){ renderAll(); }, 16);
+      });
     });
   });
 
@@ -4402,14 +4541,14 @@
 
   function openSearchSheet(){
     openSheet(
-      '<div class="sheet-title">Cari Transaksi</div>' +
-      '<div class="form-group"><label class="form-label">Kata Kunci</label><input class="form-input" id="f-search-q" type="text" list="kategori-list" placeholder="Kategori atau catatan…" autofocus></div>' +
+      '<div class="sheet-title">Cari transaksi</div>' +
+      '<div class="form-group"><label class="form-label">Kata kunci</label><input class="form-input" id="f-search-q" type="search" list="kategori-list" placeholder="Kategori, akun, atau catatan…" autofocus></div>' +
       kategoriDatalist() +
       '<div class="row-2 form-group">' +
-        '<div><label class="form-label">Dari (opsional)</label><input class="form-input" id="f-search-dari" type="date"></div>' +
-        '<div><label class="form-label">Sampai (opsional)</label><input class="form-input" id="f-search-sampai" type="date"></div>' +
+        '<div><label class="form-label">Dari</label><input class="form-input" id="f-search-dari" type="date"></div>' +
+        '<div><label class="form-label">Sampai</label><input class="form-input" id="f-search-sampai" type="date"></div>' +
       '</div>' +
-      '<div id="search-result"></div>'
+      '<div id="search-result"><div class="search-hint">Ketik kata kunci atau pilih rentang tanggal.</div></div>'
     );
     var qEl = document.getElementById('f-search-q');
     var dariEl = document.getElementById('f-search-dari');
@@ -4418,38 +4557,44 @@
       var q = qEl.value.trim().toLowerCase();
       var dari = dariEl.value, sampai = sampaiEl.value;
       var resEl = document.getElementById('search-result');
-      if(!q && !dari && !sampai){ resEl.innerHTML = ''; return; }
+      if(!q && !dari && !sampai){
+        resEl.innerHTML = '<div class="search-hint">Ketik kata kunci atau pilih rentang tanggal.</div>';
+        return;
+      }
       var results = STATE.transaksi.filter(function(t){
         if(dari && t.Tanggal < dari) return false;
         if(sampai && t.Tanggal > sampai) return false;
         if(q){
-          var hay = ((t.Kategori||'') + ' ' + (t.Catatan||'') + ' ' + (t.Akun||'')).toLowerCase();
+          var untuk = '';
+          try { untuk = parseUntuk_(t) || ''; } catch(e) {}
+          var hay = ((t.Kategori||'') + ' ' + (t.Catatan||'') + ' ' + (t.Akun||'') + ' ' + untuk + ' ' + (t.Jenis||'')).toLowerCase();
           if(hay.indexOf(q) === -1) return false;
         }
         return true;
       });
       results.sort(function(a,b){ return b.Tanggal < a.Tanggal ? -1 : b.Tanggal > a.Tanggal ? 1 : 0; });
       if(!results.length){
-        resEl.innerHTML = '<div class="riwayat-empty" style="text-align:center; padding:20px 0;">Tidak ada transaksi yang cocok.</div>';
+        resEl.innerHTML = emptyState('Tidak ketemu', 'Coba kata lain, atau kosongkan filter tanggal.');
         return;
       }
+      var limited = results.slice(0, 80);
       var totalNominal = 0;
-      results.forEach(function(t){ totalNominal += (t.Jenis==='Pemasukan'?1:-1) * Number(t.Nominal); });
-      var html = '<div style="font-size:12.5px; color:var(--ink-faint); margin:14px 0 8px;">' + results.length + ' transaksi ditemukan • Total <span class="num" style="font-weight:700; color:' + (totalNominal>=0?'var(--green)':'var(--red)') + '">' + fmtRupiah(totalNominal) + '</span></div>';
       results.forEach(function(t){
-        var isIn = t.Jenis === 'Pemasukan';
-        var isTransfer = isTransferLeg(t);
-        var badgeClass = isTransfer ? 'blue' : (isIn ? 'green' : 'red');
-        var icon = isTransfer ? ICON_TRANSFER : (isIn ? ICON_INCOME : ICON_EXPENSE);
-        var amountClass = isTransfer ? 'blue' : (isIn ? 'green' : 'red');
-        html += '<div class="item-card">' +
-          '<div class="icon-badge ' + badgeClass + '">' + icon + '</div>' +
-          '<div class="item-main"><div class="item-title">' + esc(t.Kategori || (isIn?'Pemasukan':'Pengeluaran')) + '</div>' +
-          '<div class="item-sub">' + esc(t.Tanggal) + ' • ' + esc(t.Akun || '-') + (t.Catatan ? ' • ' + esc(t.Catatan) : '') + '</div></div>' +
-          '<div class="item-amount ' + amountClass + ' num">' + (isTransfer ? '' : (isIn?'+':'-')) + fmtRupiah(t.Nominal) + '</div>' +
-        '</div>';
+        if(isTransferLeg(t)) return;
+        totalNominal += (t.Jenis==='Pemasukan'?1:-1) * Number(t.Nominal);
       });
+      var html = '<div class="search-meta">' + results.length + ' ditemukan' +
+        (results.length > 80 ? ' · tampil 80' : '') +
+        ' · <span class="num" style="font-weight:800;color:' + (totalNominal>=0?'var(--green)':'var(--red)') + '">' +
+        fmtRupiah(totalNominal) + '</span></div>';
+      limited.forEach(function(t){ html += renderTrxCard(t); });
       resEl.innerHTML = html;
+      resEl.querySelectorAll('.item-card[data-kind="trx"]').forEach(function(card){
+        card.addEventListener('click', function(){
+          closeSheet();
+          setTimeout(function(){ openTrxDetail(card.dataset.id); }, 220);
+        });
+      });
     }
     qEl.addEventListener('input', runSearch);
     dariEl.addEventListener('change', runSearch);
@@ -5792,7 +5937,11 @@
     var summary = trxFilterSummaryLabel_();
     var html =
       '<div class="sheet-title">Filter transaksi</div>' +
-      '<div class="filter-summary">' + esc(summary) + '</div>' +
+      '<div class="filter-summary">' +
+        (summary === 'Semua transaksi'
+          ? 'Belum ada filter aktif — tampil semua.'
+          : ('Aktif: <b>' + esc(summary) + '</b>')) +
+      '</div>' +
       '<div class="filter-section">' +
         '<div class="filter-section-title">Untuk siapa</div>' +
         chips('untuk', [
@@ -5813,14 +5962,15 @@
           }).join('') +
         '</select>' +
         (popular.length ? (
-          '<div class="filter-section-title" style="margin-top:12px;">Sering dipakai</div>' +
+          '<div class="filter-section-title" style="margin-top:12px;">Sering dipakai bulan ini</div>' +
           '<div class="filter-chip-wrap">' +
             popular.map(function(k){
               var on = (trxFilter.kategori || '') === k;
               return '<button type="button" class="filter-chip' + (on?' on':'') + '" data-fgroup="kategori" data-fval="' + esc(k) + '">' + esc(k) + '</button>';
             }).join('') +
-          '</div>'
-        ) : '') +
+          '</div>' +
+          '<div style="font-size:11px;color:var(--ink-faint);margin-top:8px;line-height:1.35;">Atau pilih dari daftar di atas bila tidak ada di sini.</div>'
+        ) : '<div style="font-size:12px;color:var(--ink-faint);margin-top:8px;">Belum ada kategori bulan ini — pilih dari daftar.</div>') +
       '</div>' +
       '<div class="filter-actions">' +
         '<button class="btn-primary" id="btn-filter-done">Terapkan</button>' +
@@ -5936,8 +6086,8 @@
 
   function emptyState(t1, t2, ctaLabel, ctaId){
     var key = (String(t1||'') + ' ' + String(t2||'')).toLowerCase();
-    var path = '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/><path d="M8 15h4"/>'; // default wallet
-    if(/hutang|piutang|lunas|jatuh tempo|aman/.test(key))
+    var path = '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/><path d="M8 15h4"/>';
+    if(/hutang|piutang|lunas|jatuh tempo|aman|tagihan/.test(key))
       path = '<path d="M12 3l8 4v5c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V7l8-4z"/><path d="M9 12l2 2 4-4"/>';
     else if(/rekening|saldo|bca|tunai/.test(key))
       path = '<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M2 10h20"/><path d="M6 14h3"/>';
@@ -5949,13 +6099,20 @@
       path = '<path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/>';
     else if(/reimburse|klaim/.test(key))
       path = '<path d="M9 14l-4-4 4-4"/><path d="M5 10h11a4 4 0 0 1 0 8h-1"/>';
+    else if(/cari|ketemu|cocok|filter/.test(key))
+      path = '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3-3"/>';
     else if(/transaksi|catat|belum ada/.test(key))
       path = '<path d="M12 5v14"/><path d="M5 12h14"/>';
+    var name = (STATE && STATE.userName) ? String(STATE.userName).split(/\s+/)[0] : '';
+    var t2show = t2;
+    if(name && /belum ada transaksi|mulai catat/i.test(String(t2||'') + String(t1||''))){
+      t2show = 'Hai ' + name + ', mulai dari satu catatan kecil aja — nanti kebiasaan.';
+    }
     var icon = '<div class="empty-icon"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + path + '</svg></div>';
     var cta = (ctaLabel && ctaId)
       ? '<button type="button" class="btn-primary" id="' + ctaId + '" style="margin-top:18px;max-width:240px;">' + ctaLabel + '</button>'
       : '';
-    return '<div class="empty-state">' + icon + '<div class="t1">' + t1 + '</div><div class="t2">' + t2 + '</div>' + cta + '</div>';
+    return '<div class="empty-state">' + icon + '<div class="t1">' + t1 + '</div><div class="t2">' + t2show + '</div>' + cta + '</div>';
   }
   function esc(s){
     return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){
@@ -7116,29 +7273,44 @@
       katArr.sort(function(a,b){ return b.n - a.n; });
       katArr = katArr.slice(0, 8);
 
+      var uname = (STATE.userName || 'Pengguna');
+      var genAt = new Date().toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
       var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
-        '<title>Rekap Kas ' + esc(label) + '</title>' +
+        '<title>Rekap Kas · ' + esc(label) + '</title>' +
         '<style>' +
-        '*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;margin:0;padding:16px;color:#0f172a;font-size:12px;}' +
-        'h1{font-size:18px;margin:0 0 4px;color:#1A365D} .sub{color:#64748b;margin-bottom:14px;font-size:11px}' +
-        'table{width:100%;border-collapse:collapse;margin:0 0 14px} th,td{padding:5px 6px;border-bottom:1px solid #e2e8f0;text-align:left}' +
-        'th{background:#1A365D;color:#fff;font-size:10px} .r{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}' +
-        '.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}' +
-        '.card{border:1px solid #e2e8f0;border-radius:8px;overflow:hidden}' +
-        '.card h2{margin:0;padding:6px 8px;background:#1A365D;color:#fff;font-size:11px}' +
+        '*{box-sizing:border-box}' +
+        'body{font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;padding:20px 18px 28px;color:#0f172a;font-size:11.5px;line-height:1.4;background:#fff;}' +
+        '.doc-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #1A365D}' +
+        '.doc-brand{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#1A365D;margin:0 0 4px}' +
+        'h1{font-size:17px;margin:0;color:#0f172a;letter-spacing:-.02em} .sub{color:#64748b;margin-top:4px;font-size:11px}' +
+        '.doc-meta{text-align:right;font-size:10.5px;color:#64748b;line-height:1.5}' +
+        'table{width:100%;border-collapse:collapse;margin:0} th,td{padding:6px 8px;border-bottom:1px solid #e8eef5;text-align:left;vertical-align:top}' +
+        'th{background:#1A365D;color:#fff;font-size:9.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase}' +
+        '.r{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}' +
+        '.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}' +
+        '.card{border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;background:#fff}' +
+        '.card h2{margin:0;padding:7px 10px;background:#1A365D;color:#fff;font-size:10.5px;font-weight:700;letter-spacing:.04em}' +
+        '.card table td:first-child{color:#475569}' +
         '.n{font-weight:700}' +
-        '@media print{body{padding:8px} .noprint{display:none!important}}' +
+        '.foot{margin-top:18px;padding-top:10px;border-top:1px solid #e2e8f0;font-size:10px;color:#94a3b8;text-align:center}' +
+        '.noprint{margin-bottom:14px;padding:12px 14px;background:#f0f7ff;border:1px solid #dbeafe;border-radius:12px;font-size:12px;color:#1e3a5f}' +
+        '.noprint button{margin-top:10px;padding:12px 16px;background:#1A365D;color:#fff;border:0;border-radius:10px;font-weight:700;width:100%;font-size:14px}' +
+        '@media print{body{padding:12mm 10mm} .noprint{display:none!important} .card{break-inside:avoid} thead{display:table-header-group}}' +
+        '@page{margin:12mm}' +
         '</style></head><body>' +
-        '<div class="noprint" style="margin-bottom:12px;padding:10px;background:#eff6ff;border-radius:8px;font-size:12px">' +
-        '<b>Cara simpan PDF:</b> ketuk tombol di bawah → pilih <b>Simpan sebagai PDF</b> / Save as PDF' +
-        '<br><button onclick="window.print()" style="margin-top:8px;padding:10px 16px;background:#1A365D;color:#fff;border:0;border-radius:8px;font-weight:700;width:100%">Cetak / Simpan PDF</button></div>' +
-        '<h1>LAPORAN KAS PRIBADI</h1><div class="sub">' + esc(label) + '</div>' +
-        '<div class="grid"><div class="card"><h2>RINGKASAN</h2><table>' +
+        '<div class="noprint"><b>Simpan sebagai PDF</b><br>Ketuk tombol → pilih <b>Save as PDF</b> / Simpan sebagai PDF.' +
+        '<button type="button" onclick="window.print()">Cetak / Simpan PDF</button></div>' +
+        '<div class="doc-head"><div>' +
+          '<div class="doc-brand">Catatan Kas</div>' +
+          '<h1>Laporan keuangan</h1>' +
+          '<div class="sub">Periode ' + esc(label) + '</div>' +
+        '</div><div class="doc-meta">' + esc(uname) + '<br>Dibuat ' + esc(genAt) + '</div></div>' +
+        '<div class="grid"><div class="card"><h2>Ringkasan</h2><table>' +
         '<tr><td>Pemasukan</td><td class="r n" style="color:#059669">' + fmtRupiah(data.pemasukan) + '</td></tr>' +
         '<tr><td>Pengeluaran</td><td class="r n" style="color:#dc2626">' + fmtRupiah(data.pengeluaran) + '</td></tr>' +
         '<tr><td>Selisih</td><td class="r n">' + fmtRupiah(data.selisih) + '</td></tr>' +
         '<tr><td>Bayar hutang</td><td class="r n">' + fmtRupiah(data.hutangKurang || 0) + '</td></tr>' +
-        '</table></div><div class="card"><h2>PER ORANG</h2><table>' +
+        '</table></div><div class="card"><h2>Per orang</h2><table>' +
         '<tr><td>Pribadi</td><td class="r">' + fmtRupiah(u.Pribadi||0) + '</td></tr>' +
         '<tr><td>Istri</td><td class="r">' + fmtRupiah(u.Istri||0) + '</td></tr>' +
         '<tr><td>Anak</td><td class="r">' + fmtRupiah(u.Anak||0) + '</td></tr>' +
@@ -7160,7 +7332,8 @@
           '</td><td>' + esc(x.Kategori||'') + '</td><td>' + esc(parseUntuk_(x)||'-') +
           '</td><td>' + esc(x.Akun||'') + '</td><td class="r">' + fmtRupiah(x.Nominal) + '</td></tr>';
       });
-      html += '</tbody></table></div></body></html>';
+      html += '</tbody></table></div>' +
+        '<div class="foot">Catatan Kas · AksaraLabs · Data dari Spreadsheet Anda</div></body></html>';
 
       var w = window.open('', '_blank');
       if(!w){
@@ -7952,14 +8125,19 @@
       updateReimbursePreview();
     } else {
       var html =
-        '<div class="form-group"><label class="form-label">Nominal *</label><input class="form-input num num-input" id="f-nominal" type="text" inputmode="numeric" placeholder="0"></div>' +
-        '<div class="row-2 form-group">' +
-          '<div><label class="form-label">Tanggal *</label><input class="form-input" id="f-tanggal" type="date" value="' + today + '"></div>' +
-          '<div><label class="form-label">Akun *</label><select class="form-select" id="f-akun">' + accountOptions() + '</select></div>' +
-        '</div>';
+        '<div class="form-hero">' +
+          '<div class="form-hero-lbl">Nominal</div>' +
+          '<input class="form-input num num-input form-hero-input" id="f-nominal" type="text" inputmode="numeric" placeholder="0" autocomplete="off">' +
+        '</div>' +
+        '<div class="form-block">' +
+          '<div class="form-block-title">Detail utama</div>' +
+          '<div class="row-2 form-group" style="margin-bottom:10px;">' +
+            '<div><label class="form-label">Tanggal *</label><input class="form-input" id="f-tanggal" type="date" value="' + today + '"></div>' +
+            '<div><label class="form-label">Akun *</label><select class="form-select" id="f-akun">' + accountOptions() + '</select></div>' +
+          '</div>';
       if(trxJenis === 'Pengeluaran'){
         html +=
-          '<div class="form-group"><label class="form-label">Pengeluaran untuk *</label>' +
+          '<div class="form-group" style="margin-bottom:10px;"><label class="form-label">Pengeluaran untuk *</label>' +
             '<button type="button" class="form-select" id="btn-untuk-pick" style="text-align:left; width:100%; display:flex; justify-content:space-between; align-items:center;">' +
               '<span id="btn-untuk-label">Pribadi</span>' +
               '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>' +
@@ -7973,13 +8151,19 @@
         html += budgetSelectHtml_(today);
       }
       html +=
-        '<div class="form-group"><label class="form-label">Kategori *</label>' + kategoriSelectHtml('') + '</div>' +
-        '<div id="trx-kategori-detail"></div>' +
-        '<div class="form-group"><label class="form-label">Catatan tambahan</label><input class="form-input" id="f-catatan" type="text" placeholder="Opsional"></div>' +
-        '<div class="form-group"><label class="form-label">Foto struk (opsional)</label>' +
-          '<input class="form-input" id="f-foto" type="file" accept="image/*" capture="environment" style="padding:8px;">' +
-          '<div id="f-foto-preview" style="margin-top:8px; display:none;"><img id="f-foto-img" style="max-width:100%; max-height:140px; border-radius:10px;"></div>' +
-          '<div style="font-size:11px; color:var(--ink-faint); margin-top:4px;">Disimpan di HP (tidak di spreadsheet).</div></div>';
+          '<div class="form-group" style="margin-bottom:0;"><label class="form-label">Kategori *</label>' + kategoriSelectHtml('') + '</div>' +
+          '<div id="trx-kategori-detail"></div>' +
+        '</div>' +
+        '<details class="form-more">' +
+          '<summary>Catatan &amp; foto (opsional)</summary>' +
+          '<div class="form-more-body">' +
+            '<div class="form-group"><label class="form-label">Catatan</label><input class="form-input" id="f-catatan" type="text" placeholder="Opsional"></div>' +
+            '<div class="form-group" style="margin-bottom:0;"><label class="form-label">Foto struk</label>' +
+              '<input class="form-input" id="f-foto" type="file" accept="image/*" capture="environment" style="padding:8px;">' +
+              '<div id="f-foto-preview" style="margin-top:8px; display:none;"><img id="f-foto-img" style="max-width:100%; max-height:140px; border-radius:10px;"></div>' +
+              '<div style="font-size:11px; color:var(--ink-faint); margin-top:4px;">Disimpan di HP saja.</div></div>' +
+          '</div>' +
+        '</details>';
       el.innerHTML = html;
       window.__trxFotoDataUrl = '';
       var fotoInput = document.getElementById('f-foto');
@@ -9040,37 +9224,55 @@
     var isCicilanTetap = h.Metode === 'Cicilan Tetap';
     var isPaylater = h.Metode === 'Paylater';
     var html =
-      '<div class="sheet-title">Edit ' + esc(h.Nama) + '</div>' +
-      '<div class="form-group"><label class="form-label">Nama</label><input class="form-input" id="f-e-nama" type="text" value="' + esc(h.Nama) + '"></div>' +
-      '<div class="form-group"><label class="form-label">' + (isCicilanTetap ? 'Pokok Pinjaman' : isPaylater ? 'Nominal Transaksi' : 'Total ' + h.Jenis) + '</label>' +
-      '<input class="form-input num num-input" id="f-e-pokok" type="text" inputmode="numeric" value="' + ribuanStr(h.Pokok) + '"></div>';
+      '<div class="sheet-title">Edit hutang</div>' +
+      '<div class="form-mini-hero">' +
+        '<div class="nm">' + esc(h.Nama) + '</div>' +
+        '<div class="sub">' + esc(h.Metode) + (h.Akun ? ' · ' + esc(h.Akun) : '') + '</div>' +
+        '<div class="val num">' + fmtRupiah(h.SisaHutang) + '</div>' +
+        '<div class="sub">Sisa sekarang</div>' +
+      '</div>' +
+      '<div class="form-block">' +
+        '<div class="form-block-title">Data utama</div>' +
+        '<div class="form-group"><label class="form-label">Nama</label><input class="form-input" id="f-e-nama" type="text" value="' + esc(h.Nama) + '"></div>' +
+        '<div class="form-group" style="margin:0;"><label class="form-label">' + (isCicilanTetap ? 'Pokok pinjaman' : isPaylater ? 'Nominal transaksi' : 'Total ' + h.Jenis) + '</label>' +
+        '<input class="form-input num num-input" id="f-e-pokok" type="text" inputmode="numeric" value="' + ribuanStr(h.Pokok) + '"></div>' +
+      '</div>';
     if(isCicilanTetap){
       html +=
-        '<div class="form-group"><label class="form-label">Bunga</label>' +
-          '<div class="bunga-toggle"><button type="button" class="active" data-bm="persen">Persen (%)</button><button type="button" data-bm="nominal">Nominal (Rp)</button></div>' +
-          '<div class="row-2">' +
-            '<input class="form-input num" id="f-e-bunga-persen" type="number" inputmode="decimal" value="' + (h.BungaPersen || '') + '">' +
-            '<input class="form-input num num-input" id="f-e-bunga-nominal" type="text" inputmode="numeric" value="' + ribuanStr(h.BungaNominal) + '">' +
+        '<div class="form-block">' +
+          '<div class="form-block-title">Bunga &amp; tenor</div>' +
+          '<div class="form-group"><label class="form-label">Bunga</label>' +
+            '<div class="bunga-toggle"><button type="button" class="active" data-bm="persen">Persen (%)</button><button type="button" data-bm="nominal">Nominal (Rp)</button></div>' +
+            '<div class="row-2">' +
+              '<input class="form-input num" id="f-e-bunga-persen" type="number" inputmode="decimal" value="' + (h.BungaPersen || '') + '">' +
+              '<input class="form-input num num-input" id="f-e-bunga-nominal" type="text" inputmode="numeric" value="' + ribuanStr(h.BungaNominal) + '">' +
+            '</div>' +
           '</div>' +
-        '</div>' +
-        '<div class="form-group"><label class="form-label">Tenor (bulan)</label><input class="form-input num" id="f-e-tenor" type="number" inputmode="numeric" value="' + h.Tenor + '"></div>' +
-        '<div class="preview-box">' +
-          '<div class="pr"><span>Total Hutang Baru</span><b class="num" id="e-prev-total">Rp 0</b></div>' +
-          '<div class="pr"><span>Angsuran / bulan Baru</span><b class="num" id="e-prev-angsuran">Rp 0</b></div>' +
+          '<div class="form-group"><label class="form-label">Tenor (bulan)</label><input class="form-input num" id="f-e-tenor" type="number" inputmode="numeric" value="' + h.Tenor + '"></div>' +
+          '<div class="preview-box" style="margin:0;">' +
+            '<div class="pr"><span>Total baru</span><b class="num" id="e-prev-total">Rp 0</b></div>' +
+            '<div class="pr"><span>Angsuran / bulan</span><b class="num" id="e-prev-angsuran">Rp 0</b></div>' +
+          '</div>' +
         '</div>';
     } else if(isPaylater){
-      html += '<div class="form-group"><label class="form-label">Biaya Layanan (opsional)</label><input class="form-input num num-input" id="f-e-bunga-nominal" type="text" inputmode="numeric" value="' + ribuanStr(h.BungaNominal) + '"></div>';
+      html += '<div class="form-block"><div class="form-group" style="margin:0;"><label class="form-label">Biaya layanan (opsional)</label><input class="form-input num num-input" id="f-e-bunga-nominal" type="text" inputmode="numeric" value="' + ribuanStr(h.BungaNominal) + '"></div></div>';
     }
     html +=
-      '<div class="form-group"><label class="form-label">Jatuh Tempo</label><input class="form-input" id="f-e-tempo" type="date" value="' + esc(h.JatuhTempo || '') + '"></div>' +
-      '<div class="form-group"><label class="form-label">Catatan</label><input class="form-input" id="f-e-catatan" type="text" value="' + esc(stripJadwalFromCatatan_(h.Catatan || '')) + '"></div>' +
-      '<div class="form-group"><label class="form-label">Jadwal tagihan (opsional)</label>' +
-        '<textarea class="form-input" id="f-e-jadwal" rows="3" style="min-height:72px;font-size:12px;line-height:1.4;" placeholder="2026-10-04=525000&#10;2026-11-04=630100&#10;2026-12-04=105100">' +
-        esc(parseJadwalTagihan_(h.Catatan).map(function(j){ return j.date + '=' + j.amount; }).join('\n')) +
-        '</textarea>' +
-        '<div style="font-size:11px;color:var(--ink-faint);margin-top:4px;">Satu baris: tanggal=nominal. Tanggal sama akan dijumlah (cocok top up).</div></div>' +
-      '<div style="font-size:11px; color:var(--ink-faint); margin:-8px 0 4px;">Bagian yang sudah terbayar tidak berubah — sisa menyesuaikan angka baru.</div>' +
-      '<button class="btn-primary" id="btn-save-edit-hp">Simpan Perubahan</button>';
+      '<div class="form-block">' +
+        '<div class="form-block-title">Jatuh tempo</div>' +
+        '<div class="form-group" style="margin:0;"><input class="form-input" id="f-e-tempo" type="date" value="' + esc(h.JatuhTempo || '') + '"></div>' +
+      '</div>' +
+      '<details class="form-more">' +
+        '<summary>Catatan &amp; jadwal tagihan</summary>' +
+        '<div class="form-more-body">' +
+          '<div class="form-group"><label class="form-label">Catatan</label><input class="form-input" id="f-e-catatan" type="text" value="' + esc(stripJadwalFromCatatan_(h.Catatan || '')) + '"></div>' +
+          '<div class="form-group" style="margin:0;"><label class="form-label">Jadwal (tanggal=nominal)</label>' +
+            '<textarea class="form-input" id="f-e-jadwal" rows="3" style="min-height:72px;font-size:12px;line-height:1.4;" placeholder="2026-10-04=525000">' +
+            esc(parseJadwalTagihan_(h.Catatan).map(function(j){ return j.date + '=' + j.amount; }).join('\n')) +
+            '</textarea></div>' +
+        '</div>' +
+      '</details>' +
+      '<button class="btn-primary" id="btn-save-edit-hp">Simpan perubahan</button>';
     openSheet(html);
 
     function updateEditPreview(){
@@ -9150,38 +9352,48 @@
     var isHutang = h.Jenis === 'Hutang';
     var isCicilan = h.Metode === 'Cicilan Tetap';
     var html =
-      '<div class="sheet-title">Top Up ' + esc(h.Nama) + '</div>' +
-      '<div style="font-size:12px;color:var(--ink-faint);margin:-6px 0 12px;line-height:1.4;">Tambah pinjaman ke hutang yang sudah ada' +
-        (isCicilan ? ' · sisa sekarang <b class="num">' + fmtRupiah(h.SisaHutang) + '</b>' : '') + '</div>' +
-      '<div class="form-group"><label class="form-label">Pokok tambahan</label><input class="form-input num num-input" id="f-topup-nominal" type="text" inputmode="numeric" placeholder="Contoh: 300.000"></div>';
+      '<div class="sheet-title">Top Up</div>' +
+      '<div class="form-mini-hero">' +
+        '<div class="nm">' + esc(h.Nama) + '</div>' +
+        '<div class="sub">Pinjaman aktif · ' + esc(h.Metode) + '</div>' +
+        '<div class="val num">' + fmtRupiah(h.SisaHutang) + '</div>' +
+        '<div class="sub" style="margin-top:2px;">Sisa saat ini</div>' +
+      '</div>' +
+      '<div class="form-block">' +
+        '<div class="form-block-title">Pokok tambahan</div>' +
+        '<div class="form-group" style="margin:0;"><input class="form-input num num-input" id="f-topup-nominal" type="text" inputmode="numeric" placeholder="Contoh: 300.000" style="font-size:18px;font-weight:800;"></div>' +
+      '</div>';
     if(isCicilan){
       html +=
-        '<div class="form-group"><label class="form-label">Bunga tambahan (opsional)</label>' +
-          '<input class="form-input num num-input" id="f-topup-bunga" type="text" inputmode="numeric" placeholder="Contoh: 15.300">' +
-          '<div style="font-size:11px;color:var(--ink-faint);margin-top:4px;">Total bayar tambahan − pokok. Kosong = tanpa bunga.</div>' +
-        '</div>' +
-        '<div class="row-2 form-group">' +
-          '<div><label class="form-label">Tenor sisa (bulan)</label><input class="form-input num" id="f-topup-tenor" type="number" inputmode="numeric" placeholder="' + (h.Tenor || '') + '" value=""></div>' +
-          '<div><label class="form-label">Cicilan / bulan</label><input class="form-input num num-input" id="f-topup-cicilan" type="text" inputmode="numeric" placeholder="Opsional"></div>' +
-        '</div>' +
-        '<div style="font-size:11px;color:var(--ink-faint);margin:-8px 0 8px;">Isi cicilan manual (mis. 105.100) atau biarkan kosong — dihitung otomatis.</div>' +
-        '<div class="form-group"><label class="form-label">Jatuh tempo tagihan berikutnya</label>' +
-          '<input class="form-input" id="f-topup-tempo" type="date" value="' + esc(h.JatuhTempo || '') + '">' +
-        '</div>' +
-        '<div class="preview-box" id="topup-preview">' +
-          '<div class="pr"><span>Sisa setelah top up</span><b class="num" id="tu-prev-sisa">Rp 0</b></div>' +
-          '<div class="pr"><span>Angsuran / bulan</span><b class="num" id="tu-prev-cicilan">Rp 0</b></div>' +
+        '<div class="form-block">' +
+          '<div class="form-block-title">Cicilan &amp; jadwal</div>' +
+          '<div class="form-group"><label class="form-label">Bunga tambahan (opsional)</label>' +
+            '<input class="form-input num num-input" id="f-topup-bunga" type="text" inputmode="numeric" placeholder="Contoh: 15.300">' +
+          '</div>' +
+          '<div class="row-2 form-group">' +
+            '<div><label class="form-label">Tenor sisa</label><input class="form-input num" id="f-topup-tenor" type="number" inputmode="numeric" placeholder="' + (h.Tenor || '') + '" value=""></div>' +
+            '<div><label class="form-label">Cicilan / bulan</label><input class="form-input num num-input" id="f-topup-cicilan" type="text" inputmode="numeric" placeholder="Opsional"></div>' +
+          '</div>' +
+          '<div class="form-group"><label class="form-label">Jatuh tempo berikutnya</label>' +
+            '<input class="form-input" id="f-topup-tempo" type="date" value="' + esc(h.JatuhTempo || '') + '">' +
+          '</div>' +
+          '<div class="preview-box" id="topup-preview" style="margin:0;">' +
+            '<div class="pr"><span>Sisa setelah top up</span><b class="num" id="tu-prev-sisa">Rp 0</b></div>' +
+            '<div class="pr"><span>Angsuran / bulan</span><b class="num" id="tu-prev-cicilan">Rp 0</b></div>' +
+          '</div>' +
         '</div>';
     }
     html +=
-      '<div class="form-group"><label class="form-label">Tanggal cair</label><input class="form-input" id="f-topup-tanggal" type="date" value="' + today + '"></div>';
+      '<div class="form-block">' +
+        '<div class="form-block-title">Pencairan</div>' +
+        '<div class="form-group"><label class="form-label">Tanggal cair</label><input class="form-input" id="f-topup-tanggal" type="date" value="' + today + '"></div>';
     if(h.Bentuk === 'Tunai'){
-      html += '<div class="form-group"><label class="form-label">' + (isHutang ? 'Rekening tujuan (uang masuk)' : 'Rekening sumber (uang keluar)') + '</label>' +
+      html += '<div class="form-group" style="margin:0;"><label class="form-label">' + (isHutang ? 'Rekening tujuan' : 'Rekening sumber') + '</label>' +
         '<select class="form-select" id="f-topup-akun">' + accountOptions(h.Akun || '') + '</select></div>';
     } else {
-      html += '<div style="font-size:11px; color:var(--ink-faint); margin:-8px 0 4px;">Bentuk Barang/Jasa — tidak dicatat ke rekening.</div>';
+      html += '<div style="font-size:11px; color:var(--ink-faint);">Barang/Jasa — tidak masuk rekening.</div>';
     }
-    html += '<button class="btn-primary" id="btn-save-topup">Tambahkan</button>';
+    html += '</div><button class="btn-primary" id="btn-save-topup">Tambahkan</button>';
     openSheet(html);
 
     function refreshTopUpPreview(){
