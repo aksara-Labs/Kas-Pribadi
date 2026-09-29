@@ -3019,7 +3019,7 @@
 
   // Polyfill google.script.run — GET + 1x retry (GAS sering cold-start / lambat)
   var API_TIMEOUT_MS = 22000;
-  var API_WRITE_TIMEOUT_MS = 28000;
+  var API_WRITE_TIMEOUT_MS = 45000;
   var __warmTimer = 0;
   function warmServer_(){
     try {
@@ -4325,6 +4325,7 @@
   });
 
   function openAddActionSheet(){
+    try { warmServer_(); } catch(e){}
     openSheet(
       '<div class="sheet-title">Tambah transaksi</div>' +
       '<div style="font-size:12.5px; color:var(--ink-faint); margin:-6px 0 12px;">Pilih jenis pencatatan</div>' +
@@ -4741,50 +4742,92 @@
   }
 
   function clearAppCache_(){
-    if(!confirm('Hapus cache di HP ini?\n\nData di spreadsheet tetap aman. Yang dihapus: cache data, filter, foto struk lokal, kategori custom di perangkat.')) return;
-    var keep = {
-      kasUiScale: localStorage.getItem('kasUiScale'),
-      kasDarkMode: localStorage.getItem('kasDarkMode'),
-      kasShowBalance: localStorage.getItem('kasShowBalance'),
-      kasViewMode: localStorage.getItem('kasViewMode'),
-      kasNotifOn: localStorage.getItem('kasNotifOn'),
-      kasWeatherV1: localStorage.getItem('kasWeatherV1')
+    if(!confirm('Hapus cache di HP ini?\n\nData di spreadsheet tetap aman. Yang dihapus: cache data, filter, foto struk lokal. Preferensi & token tetap.')) return;
+    // JANGAN hapus token/session/zoom/theme — biar API tetap jalan
+    var keepKeys = {
+      kasUiScale:1, kasDarkMode:1, kasShowBalance:1, kasViewMode:1,
+      kasNotifOn:1, kasWeatherV1:1, kasAppToken:1, kasSession:1,
+      kasDisplayName:1, kasPinHash:1, kasUnlocked:1
     };
     try {
-      // Hapus key app yang dikenal
-      ['kasCacheV1','kasFotoMap','kasTrxFilter'].forEach(function(k){
-        try { localStorage.removeItem(k); } catch(e) {}
-      });
-      // Hapus notif harian
       Object.keys(localStorage).forEach(function(k){
-        if(k.indexOf('kasNotifSent-') === 0) try { localStorage.removeItem(k); } catch(e) {}
-      });
-      // Kembalikan preferensi tampilan
-      Object.keys(keep).forEach(function(k){
-        if(keep[k] != null) try { localStorage.setItem(k, keep[k]); } catch(e) {}
+        if(keepKeys[k]) return;
+        if(k.indexOf('kas') === 0 || k.indexOf('kasNotifSent-') === 0){
+          try { localStorage.removeItem(k); } catch(e) {}
+        }
       });
     } catch(e) {}
-    // Reset filter di memori
-    try {
-      trxFilter = { akun: '', kategori: '', untuk: '' };
-    } catch(e) {}
-    toast('Cache dihapus');
+    try { trxFilter = { akun: '', kategori: '', untuk: '' }; } catch(e) {}
     closeSheet();
-    // Muat ulang data dari server
-    document.getElementById('loading').style.display = 'flex';
-    document.getElementById('app').style.display = 'none';
-    document.getElementById('loading').innerHTML =
-      '<div class="splash-brand"><img src="splash-logo.png" alt="AksaraLabs" width="280" height="280" decoding="async"></div>' +
-      '<div class="splash-title">Catatan Kas</div>' +
-      '<div class="spinner" style="margin-top:18px;"></div>' +
-      '<div class="splash-sub">Memuat ulang…</div>' +
-      '';
-    google.script.run.withSuccessHandler(function(data){
-      onDataLoaded(data, false);
-    }).withFailureHandler(function(err){
-      document.getElementById('loading').innerHTML =
-        '<div style="text-align:center;padding:20px;color:var(--ink-soft);">Gagal memuat ulang.<br>' + (err && err.message ? err.message : err) + '</div>';
-    }).getInitialData();
+    toast('Cache dihapus — memuat dari Spreadsheet…');
+
+    // Soft reload: app tetap terlihat, banner loading di atas (TIDAK full-screen forever)
+    var loadEl = document.getElementById('loading');
+    var appEl = document.getElementById('app');
+    if(appEl) appEl.style.display = 'flex';
+    if(loadEl){
+      loadEl.style.display = 'flex';
+      loadEl.style.opacity = '0.92';
+      loadEl.innerHTML =
+        '<div class="splash-brand"><img src="splash-logo.png" alt="AksaraLabs" width="200" height="200" decoding="async"></div>' +
+        '<div class="splash-title">Catatan Kas</div>' +
+        '<div class="spinner" style="margin-top:14px;"></div>' +
+        '<div class="splash-sub">Memuat dari Spreadsheet…</div>' +
+        '<button type="button" id="btn-cancel-cache-load" style="margin-top:18px;padding:10px 20px;border:1px solid rgba(255,255,255,.35);border-radius:10px;background:transparent;color:#fff;font-weight:700;font-size:13px;">Batal / tampilkan app</button>';
+      setTimeout(function(){
+        var c = document.getElementById('btn-cancel-cache-load');
+        if(c) c.onclick = function(){
+          if(loadEl) loadEl.style.display = 'none';
+          if(appEl) appEl.style.display = 'flex';
+          try { renderAll(); } catch(e){}
+        };
+      }, 0);
+    }
+
+    var finished = false;
+    function finishOk(data){
+      if(finished) return;
+      finished = true;
+      if(loadEl){ loadEl.style.display = 'none'; loadEl.style.opacity = ''; }
+      if(appEl) appEl.style.display = 'flex';
+      if(!data || data.needsPin){
+        toast('Data dimuat (sesi terbatas)');
+        try { renderAll(); } catch(e){}
+        return;
+      }
+      if(isEmptyPayload_(data)){
+        toast('Sheet kosong — cek Spreadsheet');
+        try { renderAll(); } catch(e){}
+        return;
+      }
+      try {
+        applyStateFromSheet_(data);
+        onDataLoaded(STATE, false);
+        toast('Cache bersih · data dari Spreadsheet');
+      } catch(e){
+        console.error(e);
+        toast('Gagal render: ' + (e.message || e));
+        try { renderAll(); } catch(e2){}
+      }
+    }
+    function finishFail(err){
+      if(finished) return;
+      finished = true;
+      if(loadEl){ loadEl.style.display = 'none'; loadEl.style.opacity = ''; }
+      if(appEl) appEl.style.display = 'flex';
+      try { renderAll(); } catch(e){}
+      toast((err && err.message) ? err.message : 'Gagal muat — app tetap jalan');
+    }
+    // Safety: max 18 detik, jangan stuck
+    setTimeout(function(){
+      if(!finished) finishFail(new Error('Server lambat — coba Muat ulang dari Spreadsheet'));
+    }, 18000);
+
+    try {
+      google.script.run.withSuccessHandler(finishOk).withFailureHandler(finishFail).getInitialData();
+    } catch(e){
+      finishFail(e);
+    }
   }
   function openZoomSheet(){
     var levels = [0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1];
@@ -5537,7 +5580,7 @@
   }
 
   function collapseTransferLegs_(list){
-    // Sembunyikan Transfer Masuk bila ada pasangan Keluar (tampil 1 kartu)
+    // Satu kartu per transfer/tarik/setor: sembunyikan kaki Pemasukan + biaya admin
     var hide = {};
     var byTfid = {};
     list.forEach(function(t){
@@ -5553,14 +5596,28 @@
         g.forEach(function(x){ if(x.Kategori === 'Biaya Admin Transfer') hide[x.ID] = 1; });
       }
     });
-    // legacy: hide Masuk same day same nominal if Keluar exists
+    // Legacy tanpa TFID: pasangan tgl+nominal (Transfer / Tarik / Setor)
     list.forEach(function(t){
-      if(t.Kategori !== 'Transfer Masuk') return;
       if(extractTfidClient_(t.Catatan)) return;
+      if(t.Jenis !== 'Pemasukan') return;
+      if(!isTransferLeg(t)) return;
       var pair = list.some(function(x){
-        return x.Kategori === 'Transfer Keluar'
-          && String(x.Tanggal) === String(t.Tanggal)
-          && Number(x.Nominal) === Number(t.Nominal);
+        if(x.ID === t.ID) return false;
+        if(x.Jenis !== 'Pengeluaran') return false;
+        if(x.Kategori === 'Biaya Admin Transfer') return false;
+        if(!isTransferLeg(x)) return false;
+        return String(x.Tanggal) === String(t.Tanggal) && Number(x.Nominal) === Number(t.Nominal);
+      });
+      if(pair) hide[t.ID] = 1;
+    });
+    // Admin fee leg ikut disembunyikan kalau ada transfer keluar di hari yang sama dari akun sama
+    list.forEach(function(t){
+      if(t.Kategori !== 'Biaya Admin Transfer') return;
+      if(extractTfidClient_(t.Catatan) && hide[t.ID]) return;
+      var pair = list.some(function(x){
+        return x.Jenis === 'Pengeluaran' && x.Kategori !== 'Biaya Admin Transfer'
+          && isTransferLeg(x) && String(x.Tanggal) === String(t.Tanggal)
+          && x.Akun === t.Akun && x.ID !== t.ID;
       });
       if(pair) hide[t.ID] = 1;
     });
@@ -5774,18 +5831,26 @@
   var TRX_FEED_LIMIT = 40; // how many most-recent transactions the "Transaksi Terbaru" feed shows before "Lihat Semua"
 
   function kategoriIconSvg_(kategori, isIn, isTransfer){
-    if(isTransfer) return ICON_TRANSFER;
     function ic(paths){
       return '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + paths + '</svg>';
     }
-    // normalisasi: lowercase, buang tanda aneh
     var k = String(kategori || '').toLowerCase()
       .replace(/&/g, ' dan ')
       .replace(/[^a-z0-9\s]/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
 
-    // —— Cocokkan nama kategori dulu (bukan jenis trx) ——
+    // Tarik Tunai = ATM/cash out (uang keluar dari rekening ke tunai)
+    if(/tarik tunai|tarik\b/.test(k))
+      return ic('<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M7 20h10"/><path d="M12 16v4"/><path d="M8 10h8"/><path d="M12 8v4"/>');
+    // Setor Tunai = masukkan uang ke rekening
+    if(/setor tunai|\bsetor\b/.test(k))
+      return ic('<rect x="2" y="7" width="16" height="12" rx="2"/><path d="M18 11h2a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><path d="M10 3v6"/><path d="M7 6l3 3 3-3"/>');
+    // Transfer antar rekening
+    if(isTransfer || /transfer keluar|transfer masuk|\btransfer\b/.test(k))
+      return ICON_TRANSFER;
+
+    // —— Cocokkan nama kategori dulu ——
     if(/makan|minum|kopi|nasi|food|resto|warung|cafe|kuliner|sarapan|makanan|minuman/.test(k))
       return ic('<path d="M4 11h16v2a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4v-2z"/><path d="M8 11V7a2 2 0 0 1 4 0v4"/><path d="M16 11V6"/>');
     if(/jajan|snack|cemilan|es krim|keripik|permen|gorengan/.test(k))
@@ -5880,6 +5945,7 @@
       title = (t.Kategori === 'Transfer Keluar') ? 'Transfer' : t.Kategori;
       var mTo = String(t.Catatan||'').match(/(?:Transfer ke|· ke)\s+([^•]+)/i);
       var tujuan = mTo ? mTo[1].replace(/TFID:.*/,'').trim() : '';
+      if(!tujuan && t.Kategori === 'Tarik Tunai') tujuan = 'Uang Tunai';
       bits.push((t.Akun||'') + (tujuan ? (' → ' + tujuan) : ''));
     } else if(t.Akun) bits.push(String(t.Akun));
     var untuk = parseUntuk_(t);
@@ -6596,6 +6662,7 @@
   }
 
   function openTransferForm(){
+    try { warmServer_(); } catch(e){}
     var today = toYMD(currentDate);
     openSheet(
       '<div class="sheet-title">Transfer Antar Rekening</div>' +
@@ -6664,21 +6731,48 @@
         biayaAdmin: biayaAdmin, tanggal: tanggal, catatan: catatan,
         clientKey: 'tf-' + tanggal + '-' + akunAsal + '-' + akunTujuan + '-' + nominal + '-' + biayaAdmin + '-' + Date.now()
       };
-      saveOptimistic('Transfer berhasil dicatat', function(ok, fail){
-        google.script.run.withSuccessHandler(function(data){
+      // Optimistic: tutup form & tampilkan dulu; sync server di background
+      closeSheet();
+      try { renderAll(); } catch(e){}
+      toast('Transfer dicatat');
+      try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e){}
+
+      function softOk(data){
+        if(btn){ btn.dataset.busy = '0'; }
+        if(data){
+          try { refreshState(data); } catch(e){}
+        }
+        try { recomputeSaldoLocal_(); renderAll(); } catch(e){}
+        try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e){}
+      }
+      function softFail(err){
+        var msg = String((err && err.message) || err || '');
+        var slow = /lambat|Timeout|Abort|network|fetch|internet/i.test(msg);
+        if(slow){
+          // JANGAN rollback — data lokal tetap; server sering tetap nulis meski response telat
           if(btn){ btn.dataset.busy = '0'; }
-          ok(data);
-        }).withFailureHandler(function(err){
-          // rollback kasar
-          localRows.forEach(function(row){
-            STATE.transaksi = (STATE.transaksi || []).filter(function(x){ return x.ID !== row.ID; });
-          });
-          adjSaldo(akunAsal, nominal + (biayaAdmin > 0 ? biayaAdmin : 0));
-          adjSaldo(akunTujuan, -nominal);
-          if(btn){ btn.dataset.busy = '0'; btn.disabled = false; btn.textContent = 'Transfer'; }
-          fail(err);
-        }).addTransfer(payload);
-      });
+          toast('Server lambat — transfer sudah di HP, nanti disamakan');
+          // retry 1x diam-diam setelah 2 dtk
+          setTimeout(function(){
+            try {
+              google.script.run.withSuccessHandler(softOk).withFailureHandler(function(){}).addTransfer(payload);
+            } catch(e){}
+          }, 2000);
+          return;
+        }
+        // Error nyata (validasi dll) → rollback
+        localRows.forEach(function(row){
+          STATE.transaksi = (STATE.transaksi || []).filter(function(x){ return x.ID !== row.ID; });
+        });
+        adjSaldo(akunAsal, nominal + (biayaAdmin > 0 ? biayaAdmin : 0));
+        adjSaldo(akunTujuan, -nominal);
+        if(btn){ btn.dataset.busy = '0'; btn.disabled = false; btn.textContent = 'Transfer'; }
+        try { renderAll(); } catch(e){}
+        toast(msg || 'Gagal transfer');
+      }
+      try {
+        google.script.run.withSuccessHandler(softOk).withFailureHandler(softFail).addTransfer(payload);
+      } catch(e){ softFail(e); }
     });
   }
 
