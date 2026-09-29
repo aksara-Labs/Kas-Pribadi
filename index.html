@@ -4575,6 +4575,7 @@
         }
         return true;
       });
+      results = collapseTransferLegs_(results);
       results.sort(function(a,b){ return b.Tanggal < a.Tanggal ? -1 : b.Tanggal > a.Tanggal ? 1 : 0; });
       if(!results.length){
         resEl.innerHTML = emptyState('Tidak ketemu', 'Coba kata lain, atau kosongkan filter tanggal.');
@@ -5580,48 +5581,53 @@
   }
 
   function collapseTransferLegs_(list){
-    // Satu kartu per transfer/tarik/setor: sembunyikan kaki Pemasukan + biaya admin
+    // Selalu 1 kartu: sembunyikan kaki Pemasukan + Biaya Admin dari pasangan transfer/tarik/setor
     var hide = {};
     var byTfid = {};
-    list.forEach(function(t){
+    (list || []).forEach(function(t){
       var tf = extractTfidClient_(t.Catatan);
-      if(tf){ if(!byTfid[tf]) byTfid[tf]=[]; byTfid[tf].push(t); }
+      if(tf){
+        if(!byTfid[tf]) byTfid[tf] = [];
+        byTfid[tf].push(t);
+      }
     });
     Object.keys(byTfid).forEach(function(tf){
       var g = byTfid[tf];
-      var keluar = g.filter(function(x){ return x.Jenis === 'Pengeluaran' && x.Kategori !== 'Biaya Admin Transfer'; });
-      var masuk = g.filter(function(x){ return x.Jenis === 'Pemasukan'; });
-      if(keluar.length && masuk.length){
-        masuk.forEach(function(x){ hide[x.ID] = 1; });
-        g.forEach(function(x){ if(x.Kategori === 'Biaya Admin Transfer') hide[x.ID] = 1; });
+      var hasOut = g.some(function(x){ return x.Jenis === 'Pengeluaran' && x.Kategori !== 'Biaya Admin Transfer'; });
+      var hasIn = g.some(function(x){ return x.Jenis === 'Pemasukan'; });
+      if(hasOut && hasIn){
+        g.forEach(function(x){
+          if(x.Jenis === 'Pemasukan' || x.Kategori === 'Biaya Admin Transfer') hide[x.ID] = 1;
+        });
       }
     });
-    // Legacy tanpa TFID: pasangan tgl+nominal (Transfer / Tarik / Setor)
-    list.forEach(function(t){
-      if(extractTfidClient_(t.Catatan)) return;
+    // Tanpa TFID / TFID beda (dobel sync): pair by tanggal+nominal+kategori transfer-ish
+    (list || []).forEach(function(t){
+      if(hide[t.ID]) return;
       if(t.Jenis !== 'Pemasukan') return;
       if(!isTransferLeg(t)) return;
-      var pair = list.some(function(x){
-        if(x.ID === t.ID) return false;
-        if(x.Jenis !== 'Pengeluaran') return false;
-        if(x.Kategori === 'Biaya Admin Transfer') return false;
+      var nom = Number(t.Nominal) || 0;
+      var tgl = String(t.Tanggal || '');
+      var pair = (list || []).some(function(x){
+        if(hide[x.ID] || x.ID === t.ID) return false;
+        if(x.Jenis !== 'Pengeluaran' || x.Kategori === 'Biaya Admin Transfer') return false;
         if(!isTransferLeg(x)) return false;
-        return String(x.Tanggal) === String(t.Tanggal) && Number(x.Nominal) === Number(t.Nominal);
+        return String(x.Tanggal || '') === tgl && Number(x.Nominal) === nom;
       });
       if(pair) hide[t.ID] = 1;
     });
-    // Admin fee leg ikut disembunyikan kalau ada transfer keluar di hari yang sama dari akun sama
-    list.forEach(function(t){
+    (list || []).forEach(function(t){
       if(t.Kategori !== 'Biaya Admin Transfer') return;
-      if(extractTfidClient_(t.Catatan) && hide[t.ID]) return;
-      var pair = list.some(function(x){
-        return x.Jenis === 'Pengeluaran' && x.Kategori !== 'Biaya Admin Transfer'
-          && isTransferLeg(x) && String(x.Tanggal) === String(t.Tanggal)
-          && x.Akun === t.Akun && x.ID !== t.ID;
+      if(hide[t.ID]) return;
+      var tgl = String(t.Tanggal || '');
+      var pair = (list || []).some(function(x){
+        return x.ID !== t.ID && x.Jenis === 'Pengeluaran' && isTransferLeg(x)
+          && x.Kategori !== 'Biaya Admin Transfer'
+          && String(x.Tanggal || '') === tgl && x.Akun === t.Akun;
       });
       if(pair) hide[t.ID] = 1;
     });
-    return list.filter(function(t){ return !hide[t.ID]; });
+    return (list || []).filter(function(t){ return !hide[t.ID]; });
   }
   function transferGroupIdsClient_(id){
     var list = STATE.transaksi || [];
@@ -5941,12 +5947,21 @@
     var icon = kategoriIconSvg_(t.Kategori, isIn, isTransfer);
     var title = t.Kategori || (isIn ? 'Pemasukan' : 'Pengeluaran');
     var bits = [];
-    if(t.Kategori === 'Transfer Keluar' || t.Kategori === 'Tarik Tunai' || t.Kategori === 'Setor Tunai'){
-      title = (t.Kategori === 'Transfer Keluar') ? 'Transfer' : t.Kategori;
-      var mTo = String(t.Catatan||'').match(/(?:Transfer ke|· ke)\s+([^•]+)/i);
-      var tujuan = mTo ? mTo[1].replace(/TFID:.*/,'').trim() : '';
-      if(!tujuan && t.Kategori === 'Tarik Tunai') tujuan = 'Uang Tunai';
-      bits.push((t.Akun||'') + (tujuan ? (' → ' + tujuan) : ''));
+    if(t.Kategori === 'Transfer Keluar' || t.Kategori === 'Tarik Tunai' || t.Kategori === 'Setor Tunai' || t.Kategori === 'Transfer Masuk'){
+      title = (t.Kategori === 'Transfer Keluar' || t.Kategori === 'Transfer Masuk') ? 'Transfer' : t.Kategori;
+      var cat = String(t.Catatan || '').replace(/TFID:[A-Za-z0-9\-_]+/g, '').replace(/\s*•\s*/g, ' · ').trim();
+      var mTo = cat.match(/(?:Transfer ke|· ke)\s+([^·]+)/i);
+      var mFrom = cat.match(/(?:Transfer dari|· dari)\s+([^·]+)/i);
+      var tujuan = mTo ? mTo[1].trim() : '';
+      var asal = mFrom ? mFrom[1].trim() : '';
+      if(t.Kategori === 'Tarik Tunai' || t.Kategori === 'Transfer Keluar'){
+        if(!tujuan && t.Kategori === 'Tarik Tunai') tujuan = 'Uang Tunai';
+        bits.push((t.Akun || asal || '') + (tujuan ? (' → ' + tujuan) : ''));
+      } else if(t.Kategori === 'Setor Tunai'){
+        bits.push((t.Akun || '') + (tujuan ? (' → ' + tujuan) : (asal ? (' ← ' + asal) : '')));
+      } else {
+        bits.push((asal || t.Akun || '') + (tujuan ? (' → ' + tujuan) : ''));
+      }
     } else if(t.Akun) bits.push(String(t.Akun));
     var untuk = parseUntuk_(t);
     if(untuk) bits.push(String(untuk));
