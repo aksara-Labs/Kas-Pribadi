@@ -2856,7 +2856,148 @@
     }
 
 
-  </style>
+  
+/* ===== UI POLISH 2026-09 ===== */
+    .insight-row{
+      display:flex; flex-wrap:wrap; gap:8px; margin:0 0 12px;
+    }
+    .insight-chip{
+      display:inline-flex; align-items:center; gap:6px;
+      padding:7px 12px; border-radius:var(--chip-radius);
+      font-size:11.5px; font-weight:700; letter-spacing:-.1px;
+      background:var(--card); border:1px solid var(--line);
+      color:var(--ink-soft); box-shadow:var(--shadow-sm);
+      max-width:100%;
+    }
+    html.dark .insight-chip{
+      background:rgba(255,255,255,.04);
+      border-color:rgba(255,255,255,.08);
+      color:var(--ink-soft);
+    }
+    .insight-chip.warn{ color:var(--amber); border-color:rgba(217,119,6,.25); background:var(--amber-pale); }
+    .insight-chip.danger{ color:var(--red); border-color:rgba(225,29,72,.22); background:var(--red-pale); }
+    .insight-chip.ok{ color:var(--green); border-color:rgba(5,150,105,.22); background:var(--green-pale); }
+
+    /* Hero ringkas */
+    .hero-mode.summary-compact .hero-flow-row{
+      display:flex; gap:8px; margin-top:10px;
+    }
+    .hero-mode.summary-compact .hero-flow-pill{
+      flex:1; display:flex; align-items:center; gap:8px;
+      padding:8px 12px; border-radius:12px;
+      background:rgba(255,255,255,.08); min-width:0;
+    }
+    .hero-mode.summary-compact .hero-flow-pill .hf-ic{
+      width:28px; height:28px; border-radius:9px;
+      display:flex; align-items:center; justify-content:center; flex:0 0 auto;
+    }
+    .hero-mode.summary-compact .hero-flow-pill .hf-ic.in{ background:rgba(5,150,105,.2); color:#34d399; }
+    .hero-mode.summary-compact .hero-flow-pill .hf-ic.out{ background:rgba(225,29,72,.2); color:#fb7185; }
+    .hero-mode.summary-compact .hero-flow-pill .hf-meta{ min-width:0; }
+    .hero-mode.summary-compact .hero-flow-pill .hf-l{
+      font-size:10px; font-weight:700; opacity:.7; text-transform:uppercase; letter-spacing:.3px;
+    }
+    .hero-mode.summary-compact .hero-flow-pill .hf-v{
+      font-size:13px; font-weight:800; letter-spacing:-.2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .hero-mode.summary-compact .hero-cashflow{
+      display:flex; justify-content:space-between; align-items:center;
+      margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,.1);
+      font-size:11.5px; font-weight:600; opacity:.85;
+    }
+
+    /* Bottom nav aktif lebih tegas */
+    #bottomnav button[data-tab].active{
+      color:var(--blue) !important;
+      font-weight:800;
+    }
+    #bottomnav button[data-tab].active .nav-label{
+      font-weight:800; opacity:1 !important;
+    }
+    #bottomnav button[data-tab].active::after{
+      content:''; position:absolute; top:6px; left:50%; transform:translateX(-50%);
+      width:4px; height:4px; border-radius:99px; background:var(--blue);
+    }
+    #bottomnav button[data-tab]{ position:relative; }
+    html.dark #bottomnav button[data-tab].active{ color:#93C5FD !important; }
+    html.dark #bottomnav button[data-tab].active::after{ background:#93C5FD; }
+
+    /* Day heading lebih tegas */
+    .day-heading{
+      font-size:12px !important; font-weight:800 !important;
+      letter-spacing:.2px; text-transform:uppercase;
+      color:var(--ink-faint) !important; margin:16px 4px 8px !important;
+    }
+
+    /* Form required flash */
+    .form-input.field-err, .form-select.field-err{
+      border-color:var(--red) !important;
+      box-shadow:0 0 0 3px rgba(225,29,72,.15);
+    }
+    .form-label .req{ color:var(--red); font-weight:800; margin-left:2px; }
+
+    /* Hutang urgency chips */
+    .urg-chip{
+      display:inline-flex; align-items:center; padding:3px 8px;
+      border-radius:99px; font-size:10.5px; font-weight:800; letter-spacing:.1px;
+    }
+    .urg-chip.overdue{ background:var(--red-pale); color:var(--red); }
+    .urg-chip.upcoming{ background:var(--amber-pale); color:var(--amber); }
+    .urg-chip.ok{ background:var(--green-pale); color:var(--green); }
+    .urg-chip.normal{ background:var(--input-bg); color:var(--ink-soft); }
+
+    /* Rekening wallet */
+    .rek-wallet{
+      display:flex; align-items:center; gap:14px; padding:14px 16px;
+      border-radius:var(--card-radius); background:var(--card);
+      border:1px solid var(--line); box-shadow:var(--shadow-card);
+      margin-bottom:10px; cursor:pointer;
+      transition: transform .12s ease, background .12s ease;
+    }
+    .rek-wallet:active{ transform:scale(.985); background:var(--input-bg); }
+    html.dark .rek-wallet{
+      background:rgba(255,255,255,.03); border-color:rgba(255,255,255,.07);
+    }
+    html.dark .rek-wallet:active{ background:rgba(255,255,255,.06); }
+    .rek-wallet .rw-logo{
+      width:44px; height:44px; border-radius:14px; flex:0 0 auto;
+      display:flex; align-items:center; justify-content:center;
+      overflow:hidden; background:var(--input-bg);
+    }
+    .rek-wallet .rw-logo img{ width:100%; height:100%; object-fit:contain; }
+    .rek-wallet .rw-body{ flex:1; min-width:0; }
+    .rek-wallet .rw-name{ font-size:14px; font-weight:800; letter-spacing:-.2px; color:var(--ink); }
+    .rek-wallet .rw-type{ font-size:11px; font-weight:600; color:var(--ink-faint); margin-top:1px; }
+    .rek-wallet .rw-saldo{ font-size:15px; font-weight:800; letter-spacing:-.3px; color:var(--ink); text-align:right; }
+
+    /* Micro press */
+    .item-card{ transition: transform .12s ease, background .12s ease; }
+    .item-card:active{ transform:scale(.98); }
+
+    /* Skeleton match cards */
+    .sk-wrap{ display:flex; flex-direction:column; gap:10px; padding:4px 0; }
+    .sk-hero{
+      height:120px; border-radius:18px;
+      background:linear-gradient(90deg, var(--input-bg) 25%, rgba(255,255,255,.35) 50%, var(--input-bg) 75%);
+      background-size:200% 100%; animation:sk-shine 1.2s ease infinite;
+    }
+    .sk-card{
+      height:64px; border-radius:16px;
+      background:linear-gradient(90deg, var(--input-bg) 25%, rgba(255,255,255,.35) 50%, var(--input-bg) 75%);
+      background-size:200% 100%; animation:sk-shine 1.2s ease infinite;
+    }
+    html.dark .sk-hero, html.dark .sk-card{
+      background:linear-gradient(90deg, #1a2740 25%, #243552 50%, #1a2740 75%);
+      background-size:200% 100%;
+    }
+    @keyframes sk-shine{ 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+    /* Dark chips more contrast */
+    html.dark .trx-d-chip, html.dark .filter-chip{
+      border-color:rgba(255,255,255,.1);
+      background:rgba(255,255,255,.05);
+    }
+</style>
 </head>
 <body>
 
@@ -3311,6 +3452,13 @@
     var neg = n < 0; n = Math.abs(n);
     var s = n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
     return (neg ? '-Rp ' : 'Rp ') + s;
+  }
+  function flashFieldErr_(id){
+    var el = document.getElementById(id);
+    if(!el) return;
+    el.classList.add('field-err');
+    try { el.focus(); } catch(e){}
+    setTimeout(function(){ try { el.classList.remove('field-err'); } catch(e){} }, 2200);
   }
   function toast(msg){
     msg = String(msg || '').trim();
@@ -4183,6 +4331,12 @@
     if(__kasSyncing > 0){ el.classList.add('on'); el.style.display = ''; el.textContent = 'Menyimpan…'; }
     else { el.classList.remove('on'); el.style.display = 'none'; }
   }
+  function resetSaveBtn_(btn, label){
+    if(!btn) return;
+    btn.dataset.busy = '0';
+    btn.disabled = false;
+    if(label) btn.textContent = label;
+  }
   function withBusyBtn_(btn, work){
     if(!btn){ work(function(){}); return; }
     if(btn.dataset.busy === '1') return;
@@ -4293,8 +4447,8 @@
   // ================= NAV =================
   function skeletonHtml_(kind){
     var rows = '';
-    for(var i = 0; i < 4; i++){
-      rows += '<div class="sk-card"><div class="sk-line w60"></div><div class="sk-line w40"></div></div>';
+    for(var i = 0; i < 5; i++){
+      rows += '<div class="sk-card"></div>';
     }
     if(kind === 'transaksi'){
       return '<div class="sk-wrap"><div class="sk-hero"></div>' + rows + '</div>';
@@ -5314,7 +5468,6 @@
       if(!limit || limit <= 0){ toast('Limit harus diisi'); return; }
       var btn = document.getElementById('btn-save-anggaran');
       if(btn && btn.dataset.busy==='1') return;
-      if(btn){ btn.dataset.busy='1'; btn.disabled=true; btn.textContent='Menyimpan…'; }
       google.script.run.withSuccessHandler(function(list){
         absorbServerData_(list, 'anggaran'); toast('Anggaran ditambahkan'); openAnggaranList();
       }).withFailureHandler(function(err){ btn.textContent='Tambah Anggaran'; toast('Gagal: ' + err.message); }).addAnggaran({ kategori: kategori, limitBulanan: limit });
@@ -5369,7 +5522,7 @@
     document.getElementById('btn-save-recurring').addEventListener('click', function(){
       var nominal = rawNum('f-rec-nominal');
       var tanggal = Number(document.getElementById('f-rec-tanggal').value);
-      if(!nominal || nominal <= 0){ toast('Nominal harus diisi'); return; }
+      if(!nominal || nominal <= 0){ toast('Nominal harus diisi'); flashFieldErr_('f-nominal'); return; }
       if(!tanggal || tanggal < 1 || tanggal > 28){ toast('Tanggal harus 1-28'); return; }
       var payload = { jenis: recJenis, nominal: nominal, tanggalPerBulan: tanggal, akun: document.getElementById('f-rec-akun').value, kategori: document.getElementById('f-rec-kategori').value };
       var btn = document.getElementById('btn-save-recurring');
@@ -5725,26 +5878,31 @@
     var prevW = weekRange_(prevStart);
     var cur = sumKeluarRange_(thisW.from, thisW.to);
     var prev = sumKeluarRange_(prevW.from, prevW.to);
-    var line1 = '';
-    if(prev <= 0 && cur <= 0) line1 = 'Belum ada pengeluaran minggu ini';
-    else if(prev <= 0) line1 = 'Keluar minggu ini ' + fmtRupiah(cur);
+    var chip1 = '';
+    var cls1 = '';
+    if(prev <= 0 && cur <= 0){ chip1 = 'Belum ada keluar minggu ini'; cls1 = ''; }
+    else if(prev <= 0){ chip1 = 'Keluar ' + fmtRupiah(cur); cls1 = ''; }
     else {
       var pct = Math.round((cur - prev) / prev * 100);
-      if(pct > 5) line1 = 'Minggu ini +' + pct + '% · ' + fmtRupiah(cur);
-      else if(pct < -5) line1 = 'Minggu ini ' + pct + '% · hemat ' + fmtRupiah(prev - cur);
-      else line1 = 'Stabil minggu ini · ' + fmtRupiah(cur);
+      if(pct > 5){ chip1 = 'Minggu ini +' + pct + '%'; cls1 = 'warn'; }
+      else if(pct < -5){ chip1 = 'Hemat ' + fmtRupiah(prev - cur); cls1 = 'ok'; }
+      else { chip1 = 'Stabil · ' + fmtRupiah(cur); cls1 = ''; }
     }
-    var due = 0;
+    var due = 0, overdue = 0;
     (STATE.hutangPiutang || []).forEach(function(h){
       if(h.Status === 'Lunas') return;
       var u = urgencyOf(h);
-      if(u === 'overdue' || u === 'upcoming') due++;
+      if(u === 'overdue'){ overdue++; due++; }
+      else if(u === 'upcoming') due++;
     });
-    var line2 = due > 0 ? (due + ' tagihan dekat tempo') : '';
-    return '<div class="insight-strip">' +
-      '<div class="insight-main">' + esc(line1) + '</div>' +
-      (line2 ? '<div class="insight-sub">' + esc(line2) + '</div>' : '') +
-    '</div>';
+    var html = '<div class="insight-row">';
+    html += '<span class="insight-chip' + (cls1 ? (' ' + cls1) : '') + '">' + esc(chip1) + '</span>';
+    if(due > 0){
+      html += '<span class="insight-chip ' + (overdue ? 'danger' : 'warn') + '">' +
+        due + ' tagihan dekat</span>';
+    }
+    html += '</div>';
+    return html;
   }
 
   function renderSummary(){
@@ -5949,18 +6107,20 @@
     var bits = [];
     if(t.Kategori === 'Transfer Keluar' || t.Kategori === 'Tarik Tunai' || t.Kategori === 'Setor Tunai' || t.Kategori === 'Transfer Masuk'){
       title = (t.Kategori === 'Transfer Keluar' || t.Kategori === 'Transfer Masuk') ? 'Transfer' : t.Kategori;
-      var cat = String(t.Catatan || '').replace(/TFID:[A-Za-z0-9\-_]+/g, '').replace(/\s*•\s*/g, ' · ').trim();
-      var mTo = cat.match(/(?:Transfer ke|· ke)\s+([^·]+)/i);
-      var mFrom = cat.match(/(?:Transfer dari|· dari)\s+([^·]+)/i);
-      var tujuan = mTo ? mTo[1].trim() : '';
-      var asal = mFrom ? mFrom[1].trim() : '';
-      if(t.Kategori === 'Tarik Tunai' || t.Kategori === 'Transfer Keluar'){
-        if(!tujuan && t.Kategori === 'Tarik Tunai') tujuan = 'Uang Tunai';
-        bits.push((t.Akun || asal || '') + (tujuan ? (' → ' + tujuan) : ''));
+      var cat = String(t.Catatan || '').replace(/TFID:[A-Za-z0-9\-_]+/gi, '').replace(/\s*[•|]\s*/g, ' · ').trim();
+      var mTo = cat.match(/(?:Transfer ke|·\s*ke)\s+([^·]+)/i);
+      var mFrom = cat.match(/(?:Transfer dari|·\s*dari)\s+([^·]+)/i);
+      var tujuan = mTo ? mTo[1].replace(/Tarik Tunai|Setor Tunai|Transfer/gi,'').trim() : '';
+      var asal = mFrom ? mFrom[1].replace(/Tarik Tunai|Setor Tunai|Transfer/gi,'').trim() : '';
+      if(t.Kategori === 'Tarik Tunai'){
+        if(!tujuan) tujuan = 'Uang Tunai';
+        bits.push((t.Akun || '') + ' → ' + tujuan);
       } else if(t.Kategori === 'Setor Tunai'){
-        bits.push((t.Akun || '') + (tujuan ? (' → ' + tujuan) : (asal ? (' ← ' + asal) : '')));
+        bits.push((t.Akun || 'Uang Tunai') + (tujuan ? (' → ' + tujuan) : ''));
+      } else if(t.Kategori === 'Transfer Keluar'){
+        bits.push((t.Akun || '') + (tujuan ? (' → ' + tujuan) : ''));
       } else {
-        bits.push((asal || t.Akun || '') + (tujuan ? (' → ' + tujuan) : ''));
+        bits.push((asal || '') + (t.Akun ? (' → ' + t.Akun) : ''));
       }
     } else if(t.Akun) bits.push(String(t.Akun));
     var untuk = parseUntuk_(t);
@@ -6560,19 +6720,19 @@
         var chip = isReimburse ? '<span class="rek-chip">Klaim</span>'
           : (isKreditNonKas ? '<span class="rek-chip">Virtual</span>' : '');
         var saldo = Number(r.Saldo) || 0;
+        var tipeRek = 'Rekening';
+        var nm = String(r.Nama||'').toLowerCase();
+        if(/tunai|cash|kas/.test(nm)) tipeRek = 'Tunai';
+        else if(/gopay|ovo|dana|shopeepay|linkaja|e-?wallet|dompet/.test(nm)) tipeRek = 'E-wallet';
+        else if(/bca|bni|bri|mandiri|seabank|btn|cimb|permata|jenius|bank/.test(nm)) tipeRek = 'Bank';
         html +=
-          '<div class="rek-card rekening-card" data-id="' + r.ID + '" data-kind="rek">' +
-            '<div class="rek-card-top">' +
-              bankLogoHtml(r.Nama, 'sm') +
-              '<div class="rek-card-name">' + esc(r.Nama) + chip + '</div>' +
-              '<div class="rek-card-more">' +
-                '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="5" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="12" cy="19" r="1.2"/></svg>' +
-              '</div>' +
+          '<div class="rek-wallet rekening-card" data-id="' + r.ID + '" data-kind="rek">' +
+            '<div class="rw-logo">' + bankLogoHtml(r.Nama, 'sm') + '</div>' +
+            '<div class="rw-body">' +
+              '<div class="rw-name">' + esc(r.Nama) + chip + '</div>' +
+              '<div class="rw-type">' + tipeRek + '</div>' +
             '</div>' +
-            '<div class="rek-card-saldo">' +
-              '<span class="rek-card-lbl">Saldo</span>' +
-              '<span class="rek-card-val num' + (saldo < 0 ? ' red' : '') + '">' + fmtRupiah(saldo) + '</span>' +
-            '</div>' +
+            '<div class="rw-saldo num' + (saldo < 0 ? ' red' : '') + '">' + fmtRupiah(saldo) + '</div>' +
           '</div>';
       });
     }
@@ -6702,7 +6862,7 @@
       if(!akunAsal || !akunTujuan){ toast('Pilih rekening asal dan tujuan'); return; }
       if(akunAsal === akunTujuan){ toast('Rekening asal dan tujuan tidak boleh sama'); return; }
       if(!nominal || nominal <= 0){ toast('Nominal transfer harus diisi'); return; }
-      if(!tanggal){ toast('Tanggal harus diisi'); return; }
+      if(!tanggal){ toast('Tanggal harus diisi'); flashFieldErr_('f-tanggal'); return; }
       if(btn){ btn.dataset.busy = '1'; btn.disabled = true; btn.textContent = 'Menyimpan…'; }
 
       // Update saldo lokal dulu (langsung terasa)
@@ -8617,15 +8777,23 @@
   }
 
   var __trxSubmitLock = false;
+  function unlockTrxSubmit_(){
+    __trxSubmitLock = false;
+    var btn = document.getElementById('btn-save-trx');
+    if(btn){
+      btn.dataset.busy = '0';
+      btn.disabled = false;
+      if(/Menyimpan|Simpan/.test(btn.textContent) || btn.textContent === 'Menyimpan…')
+        btn.textContent = 'Simpan';
+    }
+  }
   function submitTrxForm(today){
     if(__trxSubmitLock) return;
     var nominal = rawNum('f-nominal');
     var tanggal = document.getElementById('f-tanggal').value;
-    if(!nominal || nominal <= 0){ toast('Nominal harus diisi'); return; }
-    if(!tanggal){ toast('Tanggal harus diisi'); return; }
-    var btn = document.getElementById('btn-save-trx');
-    __trxSubmitLock = true;
-    setTimeout(function(){ __trxSubmitLock = false; }, 5000);
+    if(!nominal || nominal <= 0){ toast('Nominal harus diisi'); flashFieldErr_('f-nominal'); return; }
+    if(!tanggal){ toast('Tanggal harus diisi'); flashFieldErr_('f-tanggal'); return; }
+    // JANGAN kunci dulu — validasi dulu, baru kunci saat benar-benar simpan
 
     if(trxSumber === 'Hutang' && trxJenis === 'Pengeluaran'){
       var kategori = document.getElementById('f-kategori').value.trim();
@@ -8645,35 +8813,41 @@
       } else if(trxHutangMetode === 'Paylater'){
         payload.biayaLayanan = rawNum('f-h-biaya') || 0;
       }
+      __trxSubmitLock = true;
+      setTimeout(unlockTrxSubmit_, 3000);
       saveOptimistic('Dicatat sebagai Hutang', function(ok, fail){
         google.script.run.withSuccessHandler(function(data){
+          unlockTrxSubmit_();
           ok(data);
           var hb = document.querySelector('#bottomnav button[data-tab="hutang"]');
           if(hb) hb.click();
-        }).withFailureHandler(fail).addHutangPiutang(payload);
+        }).withFailureHandler(function(err){ unlockTrxSubmit_(); fail(err); }).addHutangPiutang(payload);
       });
       return;
     }
 
     if(trxSumber === 'Reimburse' && trxJenis === 'Pengeluaran'){
       var akun = document.getElementById('f-akun').value;
-      if(!akun){ toast('Pilih sumber rekening'); return; }
+      if(!akun){ toast('Pilih sumber rekening'); flashFieldErr_('f-akun'); return; }
       var payload = {
         nominal: nominal, akun: akun, tanggal: tanggal,
         persentase: Math.max(0, Math.min(100, Number(document.getElementById('f-reimburse-persen').value) || 0)),
         kategori: document.getElementById('f-kategori').value,
         catatan: document.getElementById('f-catatan').value
       };
+      __trxSubmitLock = true;
+      setTimeout(unlockTrxSubmit_, 3000);
       saveOptimistic('Transaksi Reimburse dicatat', function(ok, fail){
-        google.script.run.withSuccessHandler(ok).withFailureHandler(fail).addReimburseTransaksi(payload);
+        google.script.run.withSuccessHandler(function(d){ unlockTrxSubmit_(); ok(d); })
+          .withFailureHandler(function(err){ unlockTrxSubmit_(); fail(err); }).addReimburseTransaksi(payload);
       });
       return;
     }
 
     var akun = document.getElementById('f-akun').value;
     var kategori = (document.getElementById('f-kategori').value || '').trim();
-    if(!akun){ toast('Pilih akun'); return; }
-    if(!kategori){ toast('Pilih kategori'); return; }
+    if(!akun){ toast('Pilih akun'); flashFieldErr_('f-akun'); return; }
+    if(!kategori){ toast('Pilih kategori'); flashFieldErr_('f-kategori'); return; }
 
     // Lainnya → input manual jadi kategori baru
     if(kategori === 'Lainnya'){
@@ -8703,8 +8877,8 @@
       var tempat = (document.getElementById('f-tempat') && document.getElementById('f-tempat').value || '').trim();
       var needDetail = /makan|minum|jajan|rokok|belanja/i.test(kategori);
       if(needDetail){
-        if(!item){ toast('Isi beli apa'); return; }
-        if(!tempat){ toast('Isi beli di mana'); return; }
+        if(!item){ toast('Isi beli apa'); flashFieldErr_('f-item-detail'); return; }
+        if(!tempat){ toast('Isi beli di mana'); flashFieldErr_('f-tempat'); return; }
       }
       if(item) catatanParts.push('Item: ' + item);
       if(tempat) catatanParts.push('Tempat: ' + tempat);
@@ -8733,6 +8907,9 @@
       clientKey: tempId
     };
 
+    // Semua valid — baru kunci tombol (cegah double-tap)
+    __trxSubmitLock = true;
+    setTimeout(unlockTrxSubmit_, 2500);
     // Langsung tampil di list (optimistic), baru sync ke server
     var localRow = {
       ID: tempId,
@@ -8918,8 +9095,8 @@
     document.getElementById('btn-save-edit-trx').addEventListener('click', function(){
       var nominal = rawNum('f-e-nominal');
       var tanggal = document.getElementById('f-e-tanggal').value;
-      if(!nominal || nominal <= 0){ toast('Nominal harus diisi'); return; }
-      if(!tanggal){ toast('Tanggal harus diisi'); return; }
+      if(!nominal || nominal <= 0){ toast('Nominal harus diisi'); flashFieldErr_('f-nominal'); return; }
+      if(!tanggal){ toast('Tanggal harus diisi'); flashFieldErr_('f-tanggal'); return; }
       var payload = {
         id: t.ID, jenis: editJenis, nominal: nominal, tanggal: tanggal,
         akun: document.getElementById('f-e-akun').value,
@@ -9167,8 +9344,8 @@
     var bentuk = bentukBtn ? bentukBtn.dataset.b : 'Tunai';
     var akun = document.getElementById('f-akun-hp').value;
     if(!nama){ toast('Nama harus diisi'); return; }
-    if(!pokok || pokok <= 0){ toast('Nominal harus diisi'); return; }
-    if(!tanggal){ toast('Tanggal harus diisi'); return; }
+    if(!pokok || pokok <= 0){ toast('Nominal harus diisi'); flashFieldErr_('f-nominal'); return; }
+    if(!tanggal){ toast('Tanggal harus diisi'); flashFieldErr_('f-tanggal'); return; }
     if(bentuk === 'Tunai' && !akun){ toast('Pilih rekening sumber dana'); return; }
     var payload = {
       jenis: hpJenis, nama: nama, metode: hpMetode, bentuk: bentuk, pokok: pokok, tanggal: tanggal,
@@ -9456,7 +9633,7 @@
         var tanggal = document.getElementById('f-bayar-tanggal').value;
         var akun = document.getElementById('f-akun-lunas').value;
         if(!nominal || nominal <= 0){ toast('Nominal bayar harus diisi'); return; }
-        if(!tanggal){ toast('Tanggal harus diisi'); return; }
+        if(!tanggal){ toast('Tanggal harus diisi'); flashFieldErr_('f-tanggal'); return; }
         if(!akun){ toast('Pilih rekening'); return; }
         var payload = { id: h.ID, nominal: nominal, tanggal: tanggal, akun: akun };
         saveOptimistic('Pembayaran dicatat', function(ok, fail){
@@ -9587,7 +9764,7 @@
       var nama = document.getElementById('f-e-nama').value.trim();
       var pokok = rawNum('f-e-pokok');
       if(!nama){ toast('Nama harus diisi'); return; }
-      if(!pokok || pokok <= 0){ toast('Nominal harus diisi'); return; }
+      if(!pokok || pokok <= 0){ toast('Nominal harus diisi'); flashFieldErr_('f-nominal'); return; }
       var baseCat = document.getElementById('f-e-catatan').value || '';
       var jadwalEl = document.getElementById('f-e-jadwal');
       if(jadwalEl && jadwalEl.value.trim()){
@@ -9699,7 +9876,7 @@
       var nominalTambahan = rawNum('f-topup-nominal');
       var tanggal = document.getElementById('f-topup-tanggal').value;
       if(!nominalTambahan || nominalTambahan <= 0){ toast('Pokok tambahan harus diisi'); return; }
-      if(!tanggal){ toast('Tanggal harus diisi'); return; }
+      if(!tanggal){ toast('Tanggal harus diisi'); flashFieldErr_('f-tanggal'); return; }
       var akunEl = document.getElementById('f-topup-akun');
       if(h.Bentuk === 'Tunai' && (!akunEl || !akunEl.value)){ toast('Pilih rekening'); return; }
       var payload = {
@@ -9781,7 +9958,7 @@
         if(!akunTujuan){ toast('Pilih rekening tujuan'); return; }
         if(!nominal || nominal <= 0){ toast('Nominal claim harus diisi'); return; }
         if(nominal > saldo){ toast('Nominal claim melebihi saldo reimburse'); return; }
-        if(!tanggal){ toast('Tanggal harus diisi'); return; }
+        if(!tanggal){ toast('Tanggal harus diisi'); flashFieldErr_('f-tanggal'); return; }
         var payload = { akunAsal: 'Reimburse', akunTujuan: akunTujuan, nominal: nominal, biayaAdmin: 0, tanggal: tanggal, catatan: 'Claim Reimburse' };
         saveOptimistic('Claim berhasil dicatat', function(ok, fail){
           google.script.run.withSuccessHandler(ok).withFailureHandler(fail).addTransfer(payload);
