@@ -2998,6 +2998,78 @@
       border-color:rgba(255,255,255,.1);
       background:rgba(255,255,255,.05);
     }
+
+    /* ===== PERF + POLISH 2026-09b ===== */
+    #app, #views, .view-panel{
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-y: contain;
+    }
+    .trx-card, .item-card, .rek-wallet, .hp-list-card{
+      will-change: transform;
+      content-visibility: auto;
+      contain: layout style;
+    }
+    .balance-hero{
+      padding: 14px 16px 12px !important;
+    }
+    .balance-hero .amount{
+      font-size: 28px !important;
+      letter-spacing: -0.6px;
+      margin: 2px 0 6px !important;
+    }
+    .trx-card{
+      padding: 12px 14px !important;
+      margin-bottom: 8px !important;
+      border-radius: 14px !important;
+    }
+    .trx-card-title{
+      font-size: 13.5px !important;
+      font-weight: 800 !important;
+      letter-spacing: -0.2px;
+    }
+    .trx-card-sub{
+      font-size: 11.5px !important;
+      opacity: 0.72;
+      margin-top: 2px;
+      line-height: 1.35;
+    }
+    .trx-card-amt{
+      font-size: 13.5px !important;
+      font-weight: 800 !important;
+    }
+    .icon-badge{
+      width: 40px !important;
+      height: 40px !important;
+      border-radius: 12px !important;
+    }
+    .sheet{
+      transition: transform .28s cubic-bezier(.22,1,.36,1), opacity .2s ease;
+    }
+    .empty-state{
+      padding: 36px 20px !important;
+    }
+    .empty-state .t1{
+      font-size: 15px !important;
+      font-weight: 800 !important;
+    }
+    .empty-state .t2{
+      font-size: 12.5px !important;
+      line-height: 1.45;
+      max-width: 260px;
+      margin: 6px auto 0;
+    }
+    #sync-pill{
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .2px;
+    }
+    .filter-one-btn{
+      border-radius: 12px !important;
+      padding: 10px 12px !important;
+    }
+    html.dark .trx-card, html.dark .item-card{
+      border-color: rgba(255,255,255,.06);
+    }
 </style>
 </head>
 <body>
@@ -4319,9 +4391,7 @@
       applyStateFromSheet_(data);
     }
     try { renderAll(); } catch(e) { console.error(e); }
-    if(!isEmptyPayload_(STATE)){
-      try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e) {}
-    }
+    if(!isEmptyPayload_(STATE)) schedulePersistCache_();
   }
 
   // Optimistic save: tutup sheet + toast dulu, server jalan di background.
@@ -4414,18 +4484,32 @@
   }
 
   var __renderRaf = 0;
+  var __persistTimer = 0;
+  function schedulePersistCache_(){
+    if(__persistTimer) clearTimeout(__persistTimer);
+    __persistTimer = setTimeout(function(){
+      __persistTimer = 0;
+      try {
+        if(!isEmptyPayload_(STATE))
+          localStorage.setItem('kasCacheV1', JSON.stringify(STATE));
+      } catch(e){}
+    }, 400);
+  }
+  function renderActiveView_(){
+    if(currentTab === 'transaksi') renderTransaksi();
+    else if(currentTab === 'hutang') renderHutang();
+    else if(currentTab === 'rekening') renderRekening();
+    else if(currentTab === 'rekap') renderRekap();
+  }
   function renderAll(){
     if(__renderRaf) cancelAnimationFrame(__renderRaf);
     __renderRaf = requestAnimationFrame(function(){
       __renderRaf = 0;
-      renderTopbar();
-      renderSummary();
-      renderHutangBadge();
-      if(currentTab === 'transaksi') renderTransaksi();
-      if(currentTab === 'hutang') renderHutang();
-      if(currentTab === 'rekening') renderRekening();
-      if(currentTab === 'rekap') renderRekap();
-      updateSyncPill_();
+      try { renderTopbar(); } catch(e){}
+      try { renderSummary(); } catch(e){}
+      try { renderHutangBadge(); } catch(e){}
+      try { renderActiveView_(); } catch(e){}
+      try { updateSyncPill_(); } catch(e){}
     });
   }
 
@@ -5993,7 +6077,7 @@
   }
 
   var ICON_CAL_SM = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg>';
-  var TRX_FEED_LIMIT = 40; // how many most-recent transactions the "Transaksi Terbaru" feed shows before "Lihat Semua"
+  var TRX_FEED_LIMIT = 25; // feed awal lebih ringan; "Lihat semua" menambah batch
 
   function kategoriIconSvg_(kategori, isIn, isTransfer){
     function ic(paths){
