@@ -375,6 +375,7 @@
     }
     .item-card:active{background:#F8FAFC; box-shadow:none;}
     html.dark .item-card:active{background:#1A2740;}
+    .icon-badge img{ width:22px; height:22px; object-fit:contain; }
     .icon-badge{
       width:46px; height:46px; border-radius:15px; flex:0 0 auto;
       display:flex; align-items:center; justify-content:center;
@@ -6049,6 +6050,8 @@
       return ic('<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/>');
     if(/anak|susu|popok|baby|mainan/.test(k))
       return ic('<circle cx="12" cy="8" r="3"/><path d="M6 20v-1a6 6 0 0 1 12 0v1"/>');
+    if(/keluarga|orang tua|mertua|saudara|kakak|adik|ponakan|kasih keluarga/.test(k))
+      return ic('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>');
     if(/donasi|zakat|sedekah|infaq|amal|infak/.test(k))
       return ic('<path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-6"/><path d="M12 3v13"/><path d="M8 7l4-4 4 4"/>');
     if(/cicilan|hutang|kredit|pinjam|paylater|kpr|leasing|pinjol|utang/.test(k))
@@ -6103,6 +6106,11 @@
     var badgeClass = isTransfer ? 'blue' : (isIn ? 'green' : 'red');
     var amountClass = isTransfer ? 'blue' : (isIn ? 'green' : 'red');
     var icon = kategoriIconSvg_(t.Kategori, isIn, isTransfer);
+    // Logo Pertamina jika isi BBM di SPBU Pertamina
+    var catAll = String(t.Catatan || '') + ' ' + String(t.Kategori || '');
+    if(/spbu\s*pertamina/i.test(catAll) || (/\b(bbm|bensin)\b/i.test(String(t.Kategori||'')) && /pertamina/i.test(String(t.Catatan||'')))){
+      icon = '<img src="' + LOGO_PERTAMINA_DATA + '" alt="Pertamina" width="22" height="22" style="object-fit:contain;display:block;">';
+    }
     var title = t.Kategori || (isIn ? 'Pemasukan' : 'Pengeluaran');
     var bits = [];
     if(t.Kategori === 'Transfer Keluar' || t.Kategori === 'Tarik Tunai' || t.Kategori === 'Setor Tunai' || t.Kategori === 'Transfer Masuk'){
@@ -8335,7 +8343,7 @@
   }
 
   // Kategori dasar + custom (localStorage) + dari riwayat transaksi (spreadsheet)
-  var KATEGORI_PENGELUARAN_BASE = ['Makan & Minum', 'Jajan', 'Rokok', 'Listrik', 'Belanja Bulanan', 'Transport', 'Bensin', 'Tagihan', 'Internet', 'Pulsa', 'Kesehatan', 'Pendidikan', 'Hiburan', 'Entertainment', 'Fashion', 'Rumah', 'Anak', 'Donasi / Zakat', 'Cicilan', 'Olahraga', 'Kecantikan', 'Laundry', 'Service', 'Liburan', 'Asuransi', 'Biaya Admin', 'Lainnya'];
+  var KATEGORI_PENGELUARAN_BASE = ['Makan & Minum', 'Jajan', 'Rokok', 'Listrik', 'Belanja Bulanan', 'Transport', 'Bensin', 'Tagihan', 'Internet', 'Pulsa', 'Kesehatan', 'Pendidikan', 'Hiburan', 'Entertainment', 'Fashion', 'Rumah', 'Anak', 'Keluarga', 'Donasi / Zakat', 'Cicilan', 'Olahraga', 'Kecantikan', 'Laundry', 'Service', 'Liburan', 'Asuransi', 'Biaya Admin', 'Lainnya'];
   var KATEGORI_PEMASUKAN = ['Gaji', 'Bonus', 'Freelance', 'Hadiah', 'Investasi', 'Lainnya'];
   var PENGELUARAN_UNTUK = ['Pribadi', 'Istri', 'Anak', 'Bersama'];
   var KATEGORI_SKIP = {
@@ -8636,6 +8644,45 @@
     };
     return '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + (paths[kind] || paths.car) + '</svg>';
   }
+  function tempatFieldSpec_(kat){
+    var k = String(kat || '').toLowerCase();
+    if(/keluarga|donasi|zakat|sedekah|infaq|amal/.test(k))
+      return { label: 'Diberikan kepada', ph: 'Contoh: Kakak, ponakan, orang tua', prefix: 'ke' };
+    if(/cicilan|hutang|kredit|paylater|kpr|pinjol/.test(k))
+      return { label: 'Dibayar ke', ph: 'Contoh: SeaBank, BTN, Shopee PayLater', prefix: 'ke' };
+    if(/tagihan|listrik|pdam|wifi|internet|pulsa|kuota|pln|token|asuransi/.test(k))
+      return { label: 'Bayar lewat / ke', ph: 'Contoh: PLN Mobile, IndiHome, counter', prefix: 'via' };
+    if(/\bbbm\b|bensin|pertamina|shell|spbu/.test(k))
+      return { label: 'Isi di mana', ph: '', prefix: 'di', mode: 'bbm' };
+    if(/parkir|tol/.test(k))
+      return { label: 'Lokasi', ph: 'Contoh: Mall ABC, Tol Japek', prefix: 'di' };
+    if(/ojek|grab|gojek|ride|transport/.test(k))
+      return { label: 'Dari / ke mana', ph: 'Contoh: Rumah → Kantor', prefix: '' };
+    if(/transfer|kirim uang/.test(k))
+      return { label: 'Dikirim ke', ph: 'Contoh: Rekening mama', prefix: 'ke' };
+    if(/admin|biaya admin/.test(k))
+      return { label: 'Untuk transaksi', ph: 'Contoh: Transfer BCA, top up GoPay', prefix: 'untuk' };
+    if(/gaji|bonus|freelance|hadiah|investasi/.test(k))
+      return { label: 'Dari mana', ph: 'Contoh: Kantor, klien', prefix: 'dari' };
+    return { label: 'Beli di mana', ph: 'Contoh: Indomaret, warung, online', prefix: 'di' };
+  }
+  var LOGO_PERTAMINA_DATA = 'data:image/png;base64,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';
+  var BBM_LOKASI = [
+    'SPBU Pertamina',
+    'POM Mini',
+    'SPBU Lain'
+  ];
+  function tempatInputHtml_(spec){
+    if(spec.mode === 'bbm'){
+      return '<div class="form-group"><label class="form-label">' + spec.label + ' *</label>' +
+        '<select class="form-select" id="f-tempat">' +
+          '<option value="">Pilih lokasi…</option>' +
+          BBM_LOKASI.map(function(x){ return '<option value="' + x + '">' + x + '</option>'; }).join('') +
+        '</select></div>';
+    }
+    return '<div class="form-group"><label class="form-label">' + spec.label + ' *</label>' +
+      '<input class="form-input" id="f-tempat" type="text" placeholder="' + (spec.ph || '') + '"></div>';
+  }
   function renderKategoriDetailFields_(){
     var box = document.getElementById('trx-kategori-detail');
     if(!box) return;
@@ -8660,9 +8707,7 @@
             }).join('') +
           '</div></div>';
       if(window.__trxTransportSub){
-        html +=
-          '<div class="form-group"><label class="form-label">Beli / bayar di mana *</label>' +
-            '<input class="form-input" id="f-tempat" type="text" placeholder="Contoh: SPBU Pertamina, Mall ABC"></div>';
+        html += tempatInputHtml_(tempatFieldSpec_(window.__trxTransportSub));
       }
       box.innerHTML = html;
       document.querySelectorAll('#trx-transport-sub .transport-sub-btn').forEach(function(b){
@@ -8673,10 +8718,7 @@
       });
       return;
     }
-    // Cukup 1 pertanyaan: beli di mana
-    html +=
-      '<div class="form-group"><label class="form-label">Beli di mana *</label>' +
-        '<input class="form-input" id="f-tempat" type="text" placeholder="Contoh: Indomaret, warung, SPBU, online"></div>';
+    html += tempatInputHtml_(tempatFieldSpec_(kat));
     box.innerHTML = html;
   }
 
@@ -8849,8 +8891,10 @@
       catatanParts.push('Untuk: ' + untuk);
 
       var tempat = (document.getElementById('f-tempat') && document.getElementById('f-tempat').value || '').trim();
-      if(!tempat){ toast('Isi beli di mana'); flashFieldErr_('f-tempat'); return; }
-      catatanParts.push('di ' + tempat);
+      var sp = (typeof tempatFieldSpec_ === 'function') ? tempatFieldSpec_(kategori) : { label:'Beli di mana', prefix:'di' };
+      if(!tempat){ toast('Isi ' + (sp.label || 'detail').toLowerCase()); flashFieldErr_('f-tempat'); return; }
+      if(sp.prefix) catatanParts.push(sp.prefix + ' ' + tempat);
+      else catatanParts.push(tempat);
       var bidEl = document.getElementById('f-liburan-id');
       if(bidEl && bidEl.value){
         catatanParts.push('LiburanID:' + bidEl.value);
