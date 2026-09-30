@@ -8464,7 +8464,7 @@
     document.getElementById('btn-save-trx').addEventListener('click', function(){
       var b = document.getElementById('btn-save-trx');
       if(b && b.dataset.busy === '1') return;
-      if(b){ b.dataset.busy = '1'; b.disabled = true; b.textContent = 'OK…'; }
+      // Jangan kunci di sini — biar validasi gagal masih bisa klik lagi
       submitTrxForm(today);
     });
   }
@@ -8645,9 +8645,8 @@
     if(kat === 'Lainnya'){
       html +=
         '<div class="form-group"><label class="form-label">Nama kategori baru *</label>' +
-          '<input class="form-input" id="f-kategori-custom" type="text" placeholder="Contoh: Transport, Tagihan, dll" autofocus></div>';
+          '<input class="form-input" id="f-kategori-custom" type="text" placeholder="Contoh: Gas LPG, dll" autofocus></div>';
     }
-
     if(/^transport$/i.test(String(kat).trim())){
       window.__trxTransportSub = window.__trxTransportSub || '';
       html +=
@@ -8659,21 +8658,12 @@
                 '<span class="ts-ic">' + transportSubIcon_(s.icon) + '</span>' +
                 '<span class="ts-lb">' + s.label + '</span></button>';
             }).join('') +
-          '</div>' +
-          '<div style="font-size:11.5px;color:var(--ink-faint);margin-top:6px;">Pilih salah satu — tersimpan sebagai BBM / Parkir / dll (ikon menyesuaikan).</div>' +
-        '</div>';
-      var sub = window.__trxTransportSub;
-      var itemLbl = sub === 'BBM' ? 'Jenis BBM / liter (opsional)' :
-        (sub === 'Parkir' ? 'Detail parkir (opsional)' :
-        (sub === 'Tol' ? 'Ruas tol (opsional)' :
-        (sub === 'Ojek / Grab' ? 'Tujuan / app (opsional)' : 'Keterangan (opsional)')));
-      var tempatLbl = sub === 'Parkir' ? 'Lokasi / gedung' :
-        (sub === 'BBM' ? 'SPBU / tempat isi' : 'Tempat / keterangan');
-      html +=
-        '<div class="form-group"><label class="form-label">' + itemLbl + '</label>' +
-          '<input class="form-input" id="f-item-detail" type="text" placeholder="Opsional"></div>' +
-        '<div class="form-group"><label class="form-label">' + tempatLbl + ' (opsional)</label>' +
-          '<input class="form-input" id="f-tempat" type="text" placeholder="Contoh: SPBU Pertamina, Mall ABC"></div>';
+          '</div></div>';
+      if(window.__trxTransportSub){
+        html +=
+          '<div class="form-group"><label class="form-label">Beli / bayar di mana *</label>' +
+            '<input class="form-input" id="f-tempat" type="text" placeholder="Contoh: SPBU Pertamina, Mall ABC"></div>';
+      }
       box.innerHTML = html;
       document.querySelectorAll('#trx-transport-sub .transport-sub-btn').forEach(function(b){
         b.addEventListener('click', function(){
@@ -8683,24 +8673,10 @@
       });
       return;
     }
-
-    var needStar = /makan|minum|jajan|rokok|belanja/i.test(kat);
-    var star = needStar ? ' *' : ' (opsional)';
-    var itemLbl = kat === 'Makan & Minum' ? 'Makan / minum apa' + star :
-      (kat === 'Jajan' ? 'Jajan apa' + star :
-      (kat === 'Rokok' ? 'Rokok / item' + star :
-      (kat === 'Listrik' ? 'Item / periode' + star :
-      (kat === 'Belanja Bulanan' ? 'Belanja apa' + star :
-      (kat === 'BBM' ? 'Jenis BBM (opsional)' :
-      (kat === 'Parkir' ? 'Detail parkir (opsional)' : 'Beli apa' + star))))));
-    var tempatPh = kat === 'Listrik' ? 'Contoh: Token PLN, Tagihan rumah' :
-      (kat === 'BBM' ? 'Contoh: SPBU Pertamina' :
-      (kat === 'Parkir' ? 'Contoh: Mall, Kantor' : 'Contoh: Indomaret, Warung, Online'));
+    // Cukup 1 pertanyaan: beli di mana
     html +=
-      '<div class="form-group"><label class="form-label">' + itemLbl + '</label>' +
-        '<input class="form-input" id="f-item-detail" type="text" placeholder="Contoh: Nasi goreng, Marlboro, Token 50rb"></div>' +
-      '<div class="form-group"><label class="form-label">Beli di mana' + star + '</label>' +
-        '<input class="form-input" id="f-tempat" type="text" placeholder="' + tempatPh + '"></div>';
+      '<div class="form-group"><label class="form-label">Beli di mana *</label>' +
+        '<input class="form-input" id="f-tempat" type="text" placeholder="Contoh: Indomaret, warung, SPBU, online"></div>';
     box.innerHTML = html;
   }
 
@@ -8783,8 +8759,7 @@
     if(btn){
       btn.dataset.busy = '0';
       btn.disabled = false;
-      if(/Menyimpan|Simpan/.test(btn.textContent) || btn.textContent === 'Menyimpan…')
-        btn.textContent = 'Simpan';
+      btn.textContent = 'Simpan';
     }
   }
   function submitTrxForm(today){
@@ -8873,15 +8848,9 @@
       if(!untuk){ toast('Pilih pengeluaran untuk siapa'); return; }
       catatanParts.push('Untuk: ' + untuk);
 
-      var item = (document.getElementById('f-item-detail') && document.getElementById('f-item-detail').value || '').trim();
       var tempat = (document.getElementById('f-tempat') && document.getElementById('f-tempat').value || '').trim();
-      var needDetail = /makan|minum|jajan|rokok|belanja/i.test(kategori);
-      if(needDetail){
-        if(!item){ toast('Isi beli apa'); flashFieldErr_('f-item-detail'); return; }
-        if(!tempat){ toast('Isi beli di mana'); flashFieldErr_('f-tempat'); return; }
-      }
-      if(item) catatanParts.push('Item: ' + item);
-      if(tempat) catatanParts.push('Tempat: ' + tempat);
+      if(!tempat){ toast('Isi beli di mana'); flashFieldErr_('f-tempat'); return; }
+      catatanParts.push('di ' + tempat);
       var bidEl = document.getElementById('f-liburan-id');
       if(bidEl && bidEl.value){
         catatanParts.push('LiburanID:' + bidEl.value);
@@ -8909,6 +8878,8 @@
 
     // Semua valid — baru kunci tombol (cegah double-tap)
     __trxSubmitLock = true;
+    var bSave = document.getElementById('btn-save-trx');
+    if(bSave){ bSave.dataset.busy = '1'; bSave.disabled = true; bSave.textContent = 'Menyimpan…'; }
     setTimeout(unlockTrxSubmit_, 2500);
     // Langsung tampil di list (optimistic), baru sync ke server
     var localRow = {
