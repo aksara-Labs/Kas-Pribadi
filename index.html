@@ -6260,15 +6260,27 @@
         var name = STATE.userName || 'Pengguna';
         var hour = new Date().getHours();
         var sapaan = hour < 11 ? 'Selamat pagi' : hour < 15 ? 'Selamat siang' : hour < 19 ? 'Selamat sore' : 'Selamat malam';
+        var dateStr = DAYS_SHORT[currentDate.getDay()] + ', ' + currentDate.getDate() + ' ' + MONTHS_SHORT[currentDate.getMonth()];
+        var wxCached = null;
+        try { wxCached = readWxCache_(); } catch(e){}
         greetEl.innerHTML =
           '<div class="greeting-row greet-clean">' +
             '<div class="greet-text">' +
-              '<div class="hello">' + sapaan + '</div>' +
+              '<div class="hello hello-row">' + sapaan +
+                ' <span id="wx-slot">' + renderWxPillHtml_(wxCached, !wxCached) + '</span>' +
+              '</div>' +
               '<button type="button" class="name name-edit-btn" id="btn-edit-name-inline">' + esc(name) + '</button>' +
             '</div>' +
+            '<button type="button" class="date-pill" id="btn-date-jump" aria-label="Pilih tanggal">' +
+              '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>' +
+              '<span>' + dateStr + '</span>' +
+            '</button>' +
           '</div>';
+        var dj = document.getElementById('btn-date-jump');
+        if(dj) dj.addEventListener('click', openDateJumpPicker);
         var en = document.getElementById('btn-edit-name-inline');
         if(en) en.addEventListener('click', function(){ try{ openRenameSheet(); }catch(e){} });
+        try { loadWeather_(); } catch(e){}
       } else {
         greetEl.innerHTML = '';
       }
@@ -6474,13 +6486,99 @@
       else if(u === 'upcoming') due++;
     });
     var html = '<div class="insight-row">';
-    html += '<span class="insight-chip' + (cls1 ? (' ' + cls1) : '') + '">' + esc(chip1) + '</span>';
+    html += '<button type="button" class="insight-chip' + (cls1 ? (' ' + cls1) : '') + '" data-insight="spend">' + esc(chip1) + '</button>';
     if(due > 0){
-      html += '<span class="insight-chip ' + (overdue ? 'danger' : 'warn') + '">' +
-        due + ' tagihan dekat</span>';
+      html += '<button type="button" class="insight-chip ' + (overdue ? 'danger' : 'warn') + '" data-insight="bills">' +
+        due + ' tagihan dekat</button>';
     }
     html += '</div>';
     return html;
+  }
+
+  function openInsightSpend_(){
+    var today = new Date();
+    var thisW = weekRange_(today);
+    var prevStart = new Date(today);
+    prevStart.setDate(today.getDate() - 7);
+    var prevW = weekRange_(prevStart);
+    var cur = sumKeluarRange_(thisW.from, thisW.to);
+    var prev = sumKeluarRange_(prevW.from, prevW.to);
+    var delta = cur - prev;
+    var html = '<div class="sheet-title">Pengeluaran minggu ini</div>' +
+      '<div class="preview-box">' +
+        '<div class="pr"><span>Minggu ini</span><b class="num">' + fmtRupiah(cur) + '</b></div>' +
+        '<div class="pr"><span>Minggu lalu</span><b class="num">' + fmtRupiah(prev) + '</b></div>' +
+        '<div class="pr big"><span>Selisih</span><b class="num">' +
+          (delta > 0 ? ('+' + fmtRupiah(delta) + ' (lebih boros)') :
+           delta < 0 ? (fmtRupiah(Math.abs(delta)) + ' hemat') : 'Sama') +
+        '</b></div>' +
+      '</div>' +
+      '<div class="sheet-hint">Periode: ' + thisW.from + ' s/d ' + thisW.to + '</div>' +
+      '<button class="btn-primary" id="btn-insight-rekap">Lihat di Rekap</button>';
+    openSheet(html);
+    var b = document.getElementById('btn-insight-rekap');
+    if(b) b.addEventListener('click', function(){
+      closeSheet();
+      currentTab = 'rekap';
+      rekapSubTab = 'realtime';
+      try {
+        document.querySelectorAll('#bottomnav button[data-tab]').forEach(function(x){
+          x.classList.toggle('active', x.dataset.tab === 'rekap');
+        });
+        document.querySelectorAll('.view').forEach(function(v){ v.classList.remove('active'); });
+        var ve = document.getElementById('view-rekap');
+        if(ve) ve.classList.add('active');
+        renderAll();
+      } catch(e){}
+    });
+  }
+
+  function openInsightBills_(){
+    var overdue = [], upcoming = [];
+    (STATE.hutangPiutang || []).forEach(function(h){
+      if(h.Status === 'Lunas') return;
+      var u = urgencyOf(h);
+      if(u === 'overdue') overdue.push(h);
+      else if(u === 'upcoming') upcoming.push(h);
+    });
+    var list = overdue.concat(upcoming);
+    var html = '<div class="sheet-title">Tagihan dekat</div>';
+    if(!list.length){
+      html += emptyState('Semua aman', 'Tidak ada tagihan dekat saat ini.');
+    } else {
+      list.forEach(function(h){
+        var due = nextDueDateFor_(h) || h.JatuhTempo || '';
+        var days = due ? daysUntil(due) : null;
+        var chip = '';
+        if(days !== null && days < 0) chip = '<span class="hp-list-chip danger">Telat ' + Math.abs(days) + 'h</span>';
+        else if(days === 0) chip = '<span class="hp-list-chip warn">Hari ini</span>';
+        else if(days !== null) chip = '<span class="hp-list-chip warn">' + days + 'h lagi</span>';
+        html += '<button type="button" class="item-card insight-bill-card" data-id="' + esc(h.ID) + '" style="width:100%;text-align:left;margin-bottom:8px;">' +
+          '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;">' +
+            '<div style="min-width:0;"><div style="font-weight:800;">' + esc(h.Nama) + '</div>' +
+            '<div class="item-sub">' + esc(due || '-') + ' · ' + fmtRupiah(amountShownFor(h)) + '</div></div>' +
+            chip +
+          '</div></button>';
+      });
+    }
+    openSheet(html);
+    document.querySelectorAll('.insight-bill-card').forEach(function(card){
+      card.addEventListener('click', function(){
+        var id = card.dataset.id;
+        closeSheet();
+        setTimeout(function(){ openHutangDetail(id); }, 220);
+      });
+    });
+  }
+
+  function wireInsightChips_(){
+    document.querySelectorAll('.insight-chip[data-insight]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var k = btn.getAttribute('data-insight');
+        if(k === 'spend') openInsightSpend_();
+        else if(k === 'bills') openInsightBills_();
+      });
+    });
   }
 
   function renderSummary(){
@@ -6519,6 +6617,7 @@
         '</div>' +
         '<div class="insight-strip">' + insightStripHtml_() + '</div>'
       document.getElementById('btn-toggle-balance').addEventListener('click', toggleShowBalance);
+      try { wireInsightChips_(); } catch(e){}
     } else if(currentTab === 'hutang'){
       var hutang = 0, piutang = 0;
       STATE.hutangPiutang.forEach(function(h){
