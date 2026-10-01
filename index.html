@@ -9541,21 +9541,73 @@
   function renderTrxDynamicFields(today){
     var el = document.getElementById('trx-dynamic-fields');
     if(trxSumber === 'Hutang' && trxJenis === 'Pengeluaran'){
+      // Sama seperti pengeluaran biasa: nominal, untuk siapa, kategori, detail —
+      // plus data hutang (pihak & metode).
+      window.__trxUntuk = window.__trxUntuk || 'Pribadi';
+      window.__trxTransportSub = '';
       el.innerHTML =
-        '<div class="form-group"><label class="form-label">Nominal Belanja</label><input class="form-input num num-input" id="f-nominal" type="text" inputmode="numeric" placeholder="0"></div>' +
-        '<div class="form-group"><label class="form-label">Kategori / Nama Barang</label><input class="form-input" id="f-kategori" type="text" list="kategori-list" placeholder="Contoh: TV Samsung 55 inch"></div>' + kategoriDatalist() +
-        '<div class="form-group"><label class="form-label">Berhutang / Beli Dari (opsional)</label><input class="form-input" id="f-h-nama" type="text" placeholder="Contoh: Toko Jaya, Kredivo, Leasing ABC"></div>' +
-        '<div class="form-group"><label class="form-label">Metode</label>' +
-          '<div class="metode-grid" id="trx-h-metode-grid">' +
-            Object.keys(METODE_INFO).map(function(m){
-              return '<button type="button" class="metode-btn' + (m===trxHutangMetode?' active':'') + '" data-m="' + m + '">' + m + '<small>' + METODE_INFO[m] + '</small></button>';
-            }).join('') +
-          '</div>' +
+        '<div class="form-hero">' +
+          '<div class="form-hero-lbl">Nominal belanja</div>' +
+          '<input class="form-input num num-input form-hero-input" id="f-nominal" type="text" inputmode="numeric" placeholder="0" autocomplete="off">' +
         '</div>' +
-        '<div id="trx-h-metode-fields"></div>' +
-        '<div class="form-group"><label class="form-label">Tanggal</label><input class="form-input" id="f-tanggal" type="date" value="' + today + '"></div>' +
-        '<div class="form-group"><label class="form-label">Catatan (opsional)</label><input class="form-input" id="f-catatan" type="text" placeholder="Catatan tambahan"></div>' +
-        '<div style="font-size:11px; color:var(--ink-faint); margin:-8px 0 4px;">Dicatat sebagai <b>Hutang</b> (bentuk Barang/Jasa). Pengeluaran masuk Transaksi &amp; Rekap lewat akun virtual (saldo kas tidak berkurang). Saat bayar cicilan, baru kas rekening yang berkurang.</div>';
+        '<div class="form-block">' +
+          '<div class="form-block-title">Detail belanja</div>' +
+          '<div class="form-group" style="margin-bottom:10px;"><label class="form-label">Tanggal *</label>' +
+            '<input class="form-input" id="f-tanggal" type="date" value="' + today + '"></div>' +
+          '<div class="form-group" style="margin-bottom:10px;"><label class="form-label">Pengeluaran untuk *</label>' +
+            '<button type="button" class="form-select" id="btn-untuk-pick" style="text-align:left; width:100%; display:flex; justify-content:space-between; align-items:center;">' +
+              '<span id="btn-untuk-label">' + esc(window.__trxUntuk || 'Pribadi') + '</span>' +
+              '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>' +
+            '</button>' +
+            '<div id="trx-untuk-options" style="display:none; margin-top:8px; background:var(--input-bg); border-radius:12px; border:1px solid var(--line); overflow:hidden;">' +
+              PENGELUARAN_UNTUK.map(function(u,i){
+                return '<button type="button" data-u="' + u + '" class="settings-row" style="width:100%; border:none;' + (i < PENGELUARAN_UNTUK.length-1 ? ' border-bottom:1px solid var(--line);' : '') + '"><span>' + u + '</span></button>';
+              }).join('') +
+            '</div>' +
+          '</div>' +
+          '<div class="form-group" style="margin-bottom:0;"><label class="form-label">Kategori *</label>' + kategoriSelectHtml('') + '</div>' +
+          '<div id="trx-kategori-detail"></div>' +
+        '</div>' +
+        '<div class="form-block" style="margin-top:12px;">' +
+          '<div class="form-block-title">Data hutang</div>' +
+          '<div class="form-group"><label class="form-label">Berhutang / beli dari</label>' +
+            '<input class="form-input" id="f-h-nama" type="text" placeholder="Contoh: Kredivo, Toko Jaya, Leasing"></div>' +
+          '<div class="form-group"><label class="form-label">Metode</label>' +
+            '<div class="metode-grid" id="trx-h-metode-grid">' +
+              Object.keys(METODE_INFO).map(function(m){
+                return '<button type="button" class="metode-btn' + (m===trxHutangMetode?' active':'') + '" data-m="' + m + '">' + m + '<small>' + METODE_INFO[m] + '</small></button>';
+              }).join('') +
+            '</div>' +
+          '</div>' +
+          '<div id="trx-h-metode-fields"></div>' +
+        '</div>' +
+        '<details class="form-more">' +
+          '<summary>Catatan (opsional)</summary>' +
+          '<div class="form-more-body">' +
+            '<div class="form-group" style="margin-bottom:0;"><input class="form-input" id="f-catatan" type="text" placeholder="Catatan tambahan"></div>' +
+          '</div>' +
+        '</details>' +
+        '<div style="font-size:11px; color:var(--ink-faint); margin:8px 0 4px; line-height:1.4;">Dicatat sebagai <b>Hutang barang/jasa</b>. Saldo kas tidak berkurang sekarang — berkurang saat bayar cicilan. Kategori &amp; “untuk siapa” masuk rekap seperti pengeluaran biasa.</div>';
+
+      var btnUntuk = document.getElementById('btn-untuk-pick');
+      if(btnUntuk){
+        btnUntuk.addEventListener('click', function(){
+          var opt = document.getElementById('trx-untuk-options');
+          if(opt) opt.style.display = opt.style.display === 'none' ? 'block' : 'none';
+        });
+      }
+      document.querySelectorAll('#trx-untuk-options button').forEach(function(b){
+        b.addEventListener('click', function(){
+          window.__trxUntuk = b.dataset.u;
+          document.getElementById('btn-untuk-label').textContent = b.dataset.u;
+          document.getElementById('trx-untuk-options').style.display = 'none';
+        });
+      });
+      var katSel = document.getElementById('f-kategori');
+      if(katSel){
+        katSel.addEventListener('change', function(){ renderKategoriDetailFields_(); });
+        renderKategoriDetailFields_();
+      }
       document.querySelectorAll('#trx-h-metode-grid .metode-btn').forEach(function(b){
         b.addEventListener('click', function(){
           trxHutangMetode = b.dataset.m;
@@ -9565,20 +9617,14 @@
         });
       });
       renderTrxHMetodeFields(today);
-      document.getElementById('f-nominal').addEventListener('input', function(){
-        if(trxHutangMetode === 'Cicilan Tetap'){
-          var persenEl = document.getElementById('f-h-bunga-persen');
-          var nominalEl = document.getElementById('f-h-bunga-nominal');
-          if(persenEl && persenEl.value){
-            var p = rawNum(this) || 0, per = Number(persenEl.value) || 0;
-            nominalEl.value = p && per ? ribuanStr(Math.round(p * per / 100)) : '';
-          }
-          updateTrxHPreview();
-        } else if(trxHutangMetode === 'Paylater'){
-          updateTrxHPaylaterPreview();
-        }
-      });
+      var nomEl = document.getElementById('f-nominal');
+      if(nomEl){
+        nomEl.addEventListener('input', function(){
+          if(trxHutangMetode === 'Cicilan Tetap') renderTrxHMetodeFields(today);
+        });
+      }
     } else if(trxSumber === 'Reimburse' && trxJenis === 'Pengeluaran'){
+
       el.innerHTML =
         '<div class="form-group"><label class="form-label">Nominal Transaksi</label><input class="form-input num num-input" id="f-nominal" type="text" inputmode="numeric" placeholder="0"></div>' +
         '<div class="row-2 form-group">' +
@@ -9874,13 +9920,36 @@
     // JANGAN kunci dulu — validasi dulu, baru kunci saat benar-benar simpan
 
     if(trxSumber === 'Hutang' && trxJenis === 'Pengeluaran'){
-      var kategori = document.getElementById('f-kategori').value.trim();
-      var namaHutang = document.getElementById('f-h-nama').value.trim() || kategori || 'Pembelian';
+      var kategori = (document.getElementById('f-kategori') && document.getElementById('f-kategori').value || '').trim();
+      if(!kategori){ toast('Pilih kategori'); flashFieldErr_('f-kategori'); return; }
+      if(kategori === 'Lainnya'){
+        var customKat = (document.getElementById('f-kategori-custom') && document.getElementById('f-kategori-custom').value || '').trim();
+        if(!customKat){ toast('Isi nama kategori baru'); return; }
+        kategori = customKat;
+        saveCustomKategori_(kategori);
+      }
+      if(/^transport$/i.test(kategori)){
+        var tsub = window.__trxTransportSub || '';
+        if(!tsub){ toast('Pilih jenis transport: BBM, Parkir, dll'); return; }
+        kategori = tsub;
+        saveCustomKategori_(kategori);
+      }
+      var untuk = window.__trxUntuk || 'Pribadi';
+      if(!untuk){ toast('Pilih pengeluaran untuk siapa'); return; }
+      var tempat = (document.getElementById('f-tempat') && document.getElementById('f-tempat').value || '').trim();
+      var sp = (typeof tempatFieldSpec_ === 'function') ? tempatFieldSpec_(kategori) : { label:'Beli di mana', prefix:'di' };
+      if(!tempat){ toast('Isi ' + (sp.label || 'detail').toLowerCase()); flashFieldErr_('f-tempat'); return; }
+      var catatanParts = ['Untuk: ' + untuk];
+      if(sp.prefix) catatanParts.push(sp.prefix + ' ' + tempat);
+      else catatanParts.push(tempat);
+      var catatanExtra = (document.getElementById('f-catatan') && document.getElementById('f-catatan').value || '').trim();
+      if(catatanExtra) catatanParts.push(catatanExtra);
+      var namaHutang = (document.getElementById('f-h-nama') && document.getElementById('f-h-nama').value || '').trim() || kategori || 'Pembelian';
       var payload = {
         jenis: 'Hutang', nama: namaHutang, metode: trxHutangMetode, bentuk: 'Barang',
         pokok: nominal, tanggal: tanggal, kategori: kategori,
         jatuhTempo: document.getElementById('f-h-tempo') ? document.getElementById('f-h-tempo').value : '',
-        catatan: document.getElementById('f-catatan').value || ''
+        catatan: catatanParts.join(' • ')
       };
       if(trxHutangMetode === 'Cicilan Tetap'){
         var tenor = Number(document.getElementById('f-h-tenor').value);
