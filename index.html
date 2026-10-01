@@ -3632,6 +3632,160 @@
     #appInner{
       max-width: 100% !important;
     }
+
+    /* ===== UI polish 3: chips / filter / kartu ===== */
+    .insight-strip{
+      margin: 4px 0 4px !important;
+      padding: 0 !important;
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      overflow: visible !important;
+    }
+    .insight-row{
+      display: flex !important;
+      flex-wrap: nowrap !important;
+      gap: 8px !important;
+      overflow-x: auto !important;
+      overflow-y: hidden !important;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      padding: 2px 12px 6px !important;
+      margin: 0 -12px !important; /* bleed ke tepi biar scroll natural */
+    }
+    .insight-row::-webkit-scrollbar{ display: none; }
+    .insight-chip{
+      flex: 0 0 auto !important;
+      white-space: nowrap !important;
+      margin: 0 !important;
+      padding: 8px 12px !important;
+      font-size: 12px !important;
+      font-weight: 700 !important;
+      border-radius: 999px !important;
+      line-height: 1.2 !important;
+    }
+
+    .trx-list-head{
+      margin: 2px 0 6px;
+      padding: 10px 12px 10px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: var(--shadow-sm);
+    }
+    .trx-list-head .section-header{
+      margin: 0 0 8px !important;
+      padding: 0 !important;
+    }
+    .trx-list-head .section-header .t{
+      font-size: 12px !important;
+      letter-spacing: .35px !important;
+      text-transform: uppercase !important;
+      color: var(--ink-faint) !important;
+      font-weight: 800 !important;
+    }
+    .trx-list-head .section-header .more{
+      font-size: 12.5px !important;
+      font-weight: 700 !important;
+      color: var(--blue) !important;
+      background: none; border: none; padding: 0;
+    }
+    .trx-list-head .filter-one-btn,
+    .trx-list-head .trx-filter-bar{
+      margin: 0 !important;
+    }
+    .trx-list-head .filter-one-btn{
+      width: 100%;
+      min-height: 42px !important;
+      padding: 10px 12px !important;
+      border-radius: 12px !important;
+      border: 1px solid var(--line) !important;
+      background: var(--input-bg) !important;
+      box-shadow: none !important;
+    }
+    html.dark .trx-list-head{
+      background: var(--card);
+      border-color: rgba(148,163,184,.2);
+    }
+
+    /* Kartu transaksi seragam */
+    .trx-card.item-card,
+    .item-card[data-kind="trx"]{
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      gap: 12px !important;
+      padding: 12px 12px !important;
+      margin: 0 0 8px !important;
+      border-radius: 14px !important;
+      min-height: 58px;
+      border: 1px solid var(--line) !important;
+      background: var(--card) !important;
+      box-shadow: none !important;
+    }
+    .trx-card-left{
+      display: flex !important;
+      align-items: center !important;
+      gap: 11px !important;
+      min-width: 0 !important;
+      flex: 1 1 auto !important;
+    }
+    .trx-card .icon-badge{
+      width: 40px !important;
+      height: 40px !important;
+      border-radius: 12px !important;
+      flex: 0 0 auto !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+    }
+    .trx-card .icon-badge svg,
+    .trx-card .icon-badge img{
+      width: 20px !important;
+      height: 20px !important;
+    }
+    .trx-card-text{
+      min-width: 0 !important;
+      flex: 1 1 auto !important;
+    }
+    .trx-card-title{
+      font-size: 14px !important;
+      font-weight: 800 !important;
+      letter-spacing: -.2px;
+      color: var(--ink) !important;
+      line-height: 1.25 !important;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .trx-card-sub{
+      font-size: 12px !important;
+      font-weight: 600 !important;
+      color: var(--ink-faint) !important;
+      margin-top: 2px !important;
+      line-height: 1.25 !important;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .trx-card-amt,
+    .trx-card .item-amount{
+      flex: 0 0 auto !important;
+      font-size: 13.5px !important;
+      font-weight: 800 !important;
+      letter-spacing: -.2px;
+      white-space: nowrap !important;
+      text-align: right !important;
+      padding-left: 4px;
+    }
+    .day-group{ margin-bottom: 2px; }
+    .day-heading.trx-day-heading,
+    .trx-day-heading{
+      margin: 12px 2px 6px !important;
+      font-size: 12px !important;
+      font-weight: 700 !important;
+      color: var(--ink-faint) !important;
+    }
 </style>
 </head>
 <body>
@@ -7174,9 +7328,11 @@
     var el = document.getElementById('view-transaksi');
     var all = collapseTransferLegs_(applyTrxFilter_(STATE.transaksi.slice()));
     var html = liburanHomeBannerHtml_();
-    html += '<div class="section-header"><span class="t">Transaksi Terbaru</span>' +
-      '<button class="more" id="btn-lihat-semua">Cari <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg></button></div>';
-    html += trxFilterBarHtml_();
+    html += '<div class="trx-list-head">' +
+      '<div class="section-header"><span class="t">Transaksi terbaru</span>' +
+      '<button class="more" id="btn-lihat-semua">Cari ›</button></div>' +
+      trxFilterBarHtml_() +
+      '</div>';
 
     if(!all.length){
       html += emptyState(
