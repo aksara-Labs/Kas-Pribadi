@@ -8487,6 +8487,9 @@
         '<tr><td>Istri</td><td class="r">' + fmtRupiah(u.Istri||0) + '</td></tr>' +
         '<tr><td>Anak</td><td class="r">' + fmtRupiah(u.Anak||0) + '</td></tr>' +
         '<tr><td>Bersama</td><td class="r">' + fmtRupiah(u.Bersama||0) + '</td></tr>' +
+        '<tr style="font-weight:800;border-top:2px solid #1A365D"><td>Total</td><td class="r n">' +
+          fmtRupiah((Number(u.Pribadi)||0)+(Number(u.Istri)||0)+(Number(u.Anak)||0)+(Number(u.Bersama)||0)) +
+        '</td></tr>' +
         '</table></div></div>';
 
       if(katArr.length){
