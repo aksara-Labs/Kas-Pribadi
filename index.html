@@ -6485,14 +6485,85 @@
       if(u === 'overdue'){ overdue++; due++; }
       else if(u === 'upcoming') due++;
     });
+    var monthInfo = monthTagihanSummary_();
     var html = '<div class="insight-row">';
     html += '<button type="button" class="insight-chip' + (cls1 ? (' ' + cls1) : '') + '" data-insight="spend">' + esc(chip1) + '</button>';
     if(due > 0){
       html += '<button type="button" class="insight-chip ' + (overdue ? 'danger' : 'warn') + '" data-insight="bills">' +
         due + ' tagihan dekat</button>';
     }
+    if(monthInfo.total > 0){
+      html += '<button type="button" class="insight-chip warn" data-insight="month">' +
+        'Tagihan ' + esc(monthInfo.short) + ' · ' + fmtRupiah(monthInfo.total) + '</button>';
+    }
     html += '</div>';
     return html;
+  }
+
+  function monthTagihanSummary_(){
+    var now = new Date();
+    var y = now.getFullYear(), m = now.getMonth();
+    var from = toYMD(new Date(y, m, 1));
+    var to = toYMD(new Date(y, m + 1, 0));
+    var items = [];
+    var total = 0;
+    var seen = {};
+    (STATE.hutangPiutang || []).forEach(function(h){
+      if(h.Status === 'Lunas') return;
+      var jadwal = [];
+      try { jadwal = parseJadwalTagihan_(h.Catatan) || []; } catch(e){ jadwal = []; }
+      if(jadwal.length){
+        jadwal.forEach(function(j){
+          if(!j.date || j.date < from || j.date > to) return;
+          var key = h.ID + '|' + j.date + '|' + j.amount;
+          if(seen[key]) return;
+          seen[key] = 1;
+          items.push({ id: h.ID, nama: h.Nama, date: j.date, amount: Number(j.amount)||0 });
+          total += Number(j.amount)||0;
+        });
+      } else {
+        var due = '';
+        try { due = nextDueDateFor_(h) || h.JatuhTempo || ''; } catch(e){ due = h.JatuhTempo || ''; }
+        if(!due || due < from || due > to) return;
+        var amt = 0;
+        try { amt = Number(amountShownFor(h))||0; } catch(e){ amt = Number(h.SisaHutang)||0; }
+        var key2 = h.ID + '|' + due;
+        if(seen[key2]) return;
+        seen[key2] = 1;
+        items.push({ id: h.ID, nama: h.Nama, date: due, amount: amt });
+        total += amt;
+      }
+    });
+    items.sort(function(a,b){ return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+    var short = (typeof MONTHS_SHORT !== 'undefined' ? MONTHS_SHORT[m] : String(m+1));
+    return { total: total, items: items, from: from, to: to, short: short, label: short + ' ' + y };
+  }
+
+  function openInsightMonth_(){
+    var info = monthTagihanSummary_();
+    var html = '<div class="sheet-title">Tagihan ' + esc(info.label) + '</div>' +
+      '<div class="preview-box"><div class="pr big"><span>Total jatuh tempo</span><b class="num">' +
+        fmtRupiah(info.total) + '</b></div></div>';
+    if(!info.items.length){
+      html += emptyState('Tidak ada tagihan', 'Tidak ada cicilan jatuh tempo di bulan ini.');
+    } else {
+      info.items.forEach(function(it){
+        html += '<button type="button" class="item-card insight-bill-card" data-id="' + esc(it.id) + '" style="width:100%;text-align:left;margin-bottom:8px;">' +
+          '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;">' +
+            '<div style="min-width:0;"><div style="font-weight:800;">' + esc(it.nama) + '</div>' +
+            '<div class="item-sub">' + esc(it.date) + '</div></div>' +
+            '<div class="num" style="font-weight:800;color:var(--amber);">' + fmtRupiah(it.amount) + '</div>' +
+          '</div></button>';
+      });
+    }
+    openSheet(html);
+    document.querySelectorAll('.insight-bill-card').forEach(function(card){
+      card.addEventListener('click', function(){
+        var id = card.dataset.id;
+        closeSheet();
+        setTimeout(function(){ openHutangDetail(id); }, 220);
+      });
+    });
   }
 
   function openInsightSpend_(){
@@ -6577,6 +6648,7 @@
         var k = btn.getAttribute('data-insight');
         if(k === 'spend') openInsightSpend_();
         else if(k === 'bills') openInsightBills_();
+        else if(k === 'month') openInsightMonth_();
       });
     });
   }
@@ -9721,9 +9793,9 @@
     });
     try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e){}
     closeSheet();
+    toast('Tersimpan');
     __kasSyncing++;
     updateSyncPill_();
-    // Data sudah tampil — tidak toast "Menyimpan…" biar terasa instan
     renderAll();
 
     function pushTrxToServer_(){
@@ -9739,13 +9811,18 @@
           }
           // Jangan full renderAll — list sudah tampil; cukup patch ID di DOM jika ada
           try {
-            var card = document.querySelector('.item-card[data-id="' + tempId + '"]');
-            if(card && data.trxPatch && data.trxPatch.upsert && data.trxPatch.upsert[0]){
-              card.setAttribute('data-id', data.trxPatch.upsert[0].ID);
-            } else {
-              renderAll();
+            var card = document.querySelector('.item-card[data-id="' + tempId + '"], .trx-card[data-id="' + tempId + '"]');
+            var newId = null;
+            if(data.trxPatch && data.trxPatch.upsert && data.trxPatch.upsert[0])
+              newId = data.trxPatch.upsert[0].ID;
+            else if(data.transaksi && data.transaksi[0]) newId = data.transaksi[0].ID;
+            if(card && newId){
+              card.setAttribute('data-id', newId);
+              // update local row id if still in STATE
+              (STATE.transaksi || []).forEach(function(x){ if(x.ID === tempId) x.ID = newId; });
             }
-          } catch(e){ try { renderAll(); } catch(e2){} }
+            // jangan full re-render — list sudah benar
+          } catch(e){}
           try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e){}
           /* tersimpan silent */
           try { clearOfflineFlag_(); } catch(e){}
@@ -9881,17 +9958,76 @@
     document.getElementById('btn-save-edit-trx').addEventListener('click', function(){
       var nominal = rawNum('f-e-nominal');
       var tanggal = document.getElementById('f-e-tanggal').value;
-      if(!nominal || nominal <= 0){ toast('Nominal harus diisi'); flashFieldErr_('f-nominal'); return; }
-      if(!tanggal){ toast('Tanggal harus diisi'); flashFieldErr_('f-tanggal'); return; }
+      if(!nominal || nominal <= 0){ toast('Nominal harus diisi'); flashFieldErr_('f-e-nominal'); return; }
+      if(!tanggal){ toast('Tanggal harus diisi'); flashFieldErr_('f-e-tanggal'); return; }
+      var newAkun = document.getElementById('f-e-akun').value;
+      var newKat = document.getElementById('f-e-kategori').value;
+      var newCat = document.getElementById('f-e-catatan').value;
       var payload = {
         id: t.ID, jenis: editJenis, nominal: nominal, tanggal: tanggal,
-        akun: document.getElementById('f-e-akun').value,
-        kategori: document.getElementById('f-e-kategori').value,
-        catatan: document.getElementById('f-e-catatan').value
+        akun: newAkun, kategori: newKat, catatan: newCat
       };
-      saveOptimistic('Transaksi diperbarui', function(ok, fail){
-        google.script.run.withSuccessHandler(ok).withFailureHandler(fail).updateTransaksi(payload);
+      // Snapshot untuk rollback
+      var old = {
+        Jenis: t.Jenis, Nominal: Number(t.Nominal)||0, Tanggal: t.Tanggal,
+        Akun: t.Akun, Kategori: t.Kategori, Catatan: t.Catatan
+      };
+      // Balik saldo lama, terapkan saldo baru (kasar)
+      STATE.rekening.forEach(function(r){
+        if(r.Nama === old.Akun){
+          var s = Number(r.Saldo)||0;
+          r.Saldo = old.Jenis === 'Pemasukan' ? s - old.Nominal : s + old.Nominal;
+        }
       });
+      STATE.rekening.forEach(function(r){
+        if(r.Nama === newAkun){
+          var s = Number(r.Saldo)||0;
+          r.Saldo = editJenis === 'Pemasukan' ? s + nominal : s - nominal;
+        }
+      });
+      t.Jenis = editJenis;
+      t.Nominal = nominal;
+      t.Tanggal = tanggal;
+      t.Akun = newAkun;
+      t.Kategori = newKat;
+      t.Catatan = newCat;
+      try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e){}
+      closeSheet();
+      toast('Diperbarui');
+      __kasSyncing++;
+      updateSyncPill_();
+      renderAll();
+      google.script.run.withSuccessHandler(function(data){
+        __kasSyncing = Math.max(0, __kasSyncing - 1);
+        updateSyncPill_();
+        if(data){
+          if(data.trxPatch || data.delta) applyDelta_(data);
+          else applyDelta_(data);
+          try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e){}
+        }
+        try { clearOfflineFlag_(); } catch(e){}
+      }).withFailureHandler(function(err){
+        __kasSyncing = Math.max(0, __kasSyncing - 1);
+        updateSyncPill_();
+        // Rollback
+        STATE.rekening.forEach(function(r){
+          if(r.Nama === newAkun){
+            var s = Number(r.Saldo)||0;
+            r.Saldo = editJenis === 'Pemasukan' ? s - nominal : s + nominal;
+          }
+        });
+        STATE.rekening.forEach(function(r){
+          if(r.Nama === old.Akun){
+            var s = Number(r.Saldo)||0;
+            r.Saldo = old.Jenis === 'Pemasukan' ? s + old.Nominal : s - old.Nominal;
+          }
+        });
+        t.Jenis = old.Jenis; t.Nominal = old.Nominal; t.Tanggal = old.Tanggal;
+        t.Akun = old.Akun; t.Kategori = old.Kategori; t.Catatan = old.Catatan;
+        try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e){}
+        renderAll();
+        toast((err && err.message) ? err.message : 'Gagal sync — dikembalikan');
+      }).updateTransaksi(payload);
     });
   }
 
