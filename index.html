@@ -3786,6 +3786,120 @@
       font-weight: 700 !important;
       color: var(--ink-faint) !important;
     }
+
+    .icon-badge.neutral{
+      background: rgba(100,116,139,.14) !important;
+      color: #475569 !important;
+    }
+    .item-amount.neutral,
+    .trx-card-amt.neutral,
+    .v.neutral{
+      color: #334155 !important;
+    }
+    html.dark .icon-badge.neutral{
+      background: rgba(148,163,184,.16) !important;
+      color: #cbd5e1 !important;
+    }
+    html.dark .item-amount.neutral,
+    html.dark .trx-card-amt.neutral,
+    html.dark .v.neutral{
+      color: #e2e8f0 !important;
+    }
+
+
+    /* ===== Fase C: samakan napas UI antar tab ===== */
+    #content{
+      padding-left: 12px !important;
+      padding-right: 12px !important;
+      padding-bottom: calc(108px + env(safe-area-inset-bottom, 0px)) !important;
+    }
+    #bottomnav{
+      padding: 8px 10px calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      background: color-mix(in srgb, var(--card) 92%, transparent) !important;
+      border-top: 1px solid var(--line) !important;
+    }
+    html.dark #bottomnav{
+      background: color-mix(in srgb, var(--card) 90%, transparent) !important;
+    }
+    /* Kartu seragam: hutang / rekening / rekap */
+    .hp-list-card,
+    .rekening-card,
+    .rekap-card,
+    .hutang-card{
+      border-radius: 14px !important;
+      padding: 12px 12px !important;
+      margin-bottom: 8px !important;
+      border: 1px solid var(--line) !important;
+      background: var(--card) !important;
+      box-shadow: none !important;
+    }
+    .hp-list-card:active,
+    .rekening-card:active,
+    .rekap-card:active{
+      transform: scale(.985);
+      background: var(--input-bg) !important;
+    }
+    .hp-section-title,
+    .riwayat-title,
+    .section-header .t{
+      font-size: 12px !important;
+      letter-spacing: .35px !important;
+      text-transform: uppercase !important;
+      color: var(--ink-faint) !important;
+      font-weight: 800 !important;
+      margin: 12px 2px 8px !important;
+    }
+    /* Rekap rows lebih rapat & jelas */
+    .rekap-card .rekap-row,
+    .rekap-row{
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 2px !important;
+      border-bottom: 1px solid var(--line);
+      gap: 10px;
+    }
+    .rekap-row:last-child{ border-bottom: none; }
+    .rekap-row .k{
+      font-size: 13.5px !important;
+      font-weight: 600 !important;
+      color: var(--ink-soft) !important;
+    }
+    .rekap-row .v{
+      font-size: 13.5px !important;
+      font-weight: 800 !important;
+    }
+    .rekap-row.rekap-hero{
+      padding-top: 12px !important;
+      padding-bottom: 12px !important;
+    }
+    .rekap-row.rekap-hero .k,
+    .rekap-row.rekap-hero .v{
+      font-size: 15px !important;
+    }
+    /* Empty state konsisten */
+    .empty-state{
+      padding: 28px 16px !important;
+      text-align: center;
+    }
+    .empty-state .t1{
+      font-size: 15px !important;
+      font-weight: 800 !important;
+      letter-spacing: -.2px;
+    }
+    .empty-state .t2{
+      font-size: 13px !important;
+      color: var(--ink-faint) !important;
+      margin-top: 6px !important;
+      line-height: 1.45;
+    }
+    /* FAB tidak ketutup gesture bar */
+    #bottomnav button.nav-add .nav-add-ic{
+      box-shadow: 0 6px 16px rgba(26,54,93,.28) !important;
+    }
+
 </style>
 </head>
 <body>
@@ -3948,9 +4062,10 @@
   }
 
   // Polyfill google.script.run — GET + 1x retry (GAS sering cold-start / lambat)
-  var API_TIMEOUT_MS = 22000;
-  var API_WRITE_TIMEOUT_MS = 45000;
+  var API_TIMEOUT_MS = 18000;
+  var API_WRITE_TIMEOUT_MS = 32000;
   var __warmTimer = 0;
+  var __warmFastLeft = 0;
   function warmServer_(){
     try {
       google.script.run.withSuccessHandler(function(){}).withFailureHandler(function(){}).ping();
@@ -3959,9 +4074,22 @@
   function startWarmLoop_(){
     try { clearInterval(__warmTimer); } catch(e){}
     warmServer_();
+    __warmFastLeft = 6; // 6x tiap 45 dtk dulu, lalu jarang
     __warmTimer = setInterval(function(){
+      if(document.visibilityState !== 'visible' || !isUnlocked_()) return;
+      if(__warmFastLeft > 0){
+        __warmFastLeft--;
+        warmServer_();
+        return;
+      }
+      // setelah warmup: setiap 3 menit
+    }, 45000);
+    // timer kedua untuk interval panjang
+    try { clearInterval(window.__warmSlow); } catch(e){}
+    window.__warmSlow = setInterval(function(){
+      if(__warmFastLeft > 0) return;
       if(document.visibilityState === 'visible' && isUnlocked_()) warmServer_();
-    }, 180000); // 3 menit — jaga GAS tetap hangat
+    }, 180000);
   }
 
   function friendlyApiError_(err) {
@@ -4515,6 +4643,7 @@
         applyStateFromSheet_(data);
         onDataLoaded(STATE, false);
         try { startWarmLoop_(); } catch(e){}
+        try { setTimeout(flushPendingWrites_, 1500); } catch(e){}
       } else if(cacheHasData_(readCache_())){
         onDataLoaded(readCache_(), true);
         toast('Sheet kosong/terkunci — cache HP sementara');
@@ -4566,6 +4695,7 @@
       google.script.run.withSuccessHandler(function(){
         clearOfflineFlag_();
         try { warmServer_(); } catch(e){}
+        try { flushPendingWrites_(); } catch(e){}
       }).withFailureHandler(function(){
         // coba lagi nanti
         if(window.__kasOffline) scheduleOnlineRetry_();
@@ -5164,38 +5294,124 @@
     var m = String((err && err.message) || err || '');
     return /Sesi|session|belum unlock|PIN lagi/i.test(m);
   }
-  function saveOptimistic(msg, startRun){
+
+  // ===== Fase A: sheet = truth + antrian tulis gagal =====
+  function softPullFromSheet_(cb){
+    try {
+      google.script.run.withSuccessHandler(function(data){
+        if(data && !isEmptyPayload_(data)){
+          try { refreshState(data); } catch(e){}
+        } else if(data){
+          try { applyDelta_(data); } catch(e){}
+        }
+        if(typeof cb === 'function') cb(true);
+      }).withFailureHandler(function(){
+        if(typeof cb === 'function') cb(false);
+      }).getInitialData();
+    } catch(e){
+      if(typeof cb === 'function') cb(false);
+    }
+  }
+  function syncAfterWrite_(data, opts){
+    opts = opts || {};
+    try {
+      if(data && (data.delta || data.trxPatch)){
+        applyDelta_(data);
+        schedulePersistCache_();
+        // Patch ringan: cukup refresh view aktif, bukan seluruh UI berat
+        if(opts.render !== false){
+          if(opts.light) renderActiveView_();
+          else renderAll();
+        }
+        return;
+      }
+      if(data && !isEmptyPayload_(data)){
+        refreshState(data);
+        schedulePersistCache_();
+        if(opts.render !== false) renderAll();
+        return;
+      }
+      // Sukses tanpa payload → soft pull (jangan blok UI)
+      if(opts.forcePull) softPullFromSheet_();
+      else schedulePersistCache_();
+    } catch(e){
+      if(opts.forcePull !== false) softPullFromSheet_();
+    }
+  }
+  function loadPendingWrites_(){
+    try { return JSON.parse(localStorage.getItem('kasPendingWrites') || '[]') || []; } catch(e){ return []; }
+  }
+  function savePendingWrites_(arr){
+    try { localStorage.setItem('kasPendingWrites', JSON.stringify(arr || [])); } catch(e){}
+  }
+  function enqueuePendingWrite_(entry){
+    // entry: { id, action, payload, label, ts }
+    var arr = loadPendingWrites_();
+    arr = arr.filter(function(x){ return x && x.id !== entry.id; });
+    arr.push(entry);
+    if(arr.length > 30) arr = arr.slice(-30);
+    savePendingWrites_(arr);
+  }
+  function removePendingWrite_(id){
+    savePendingWrites_(loadPendingWrites_().filter(function(x){ return x && x.id !== id; }));
+  }
+  function flushPendingWrites_(){
+    if(!navigator.onLine) return;
+    var arr = loadPendingWrites_();
+    if(!arr.length) return;
+    var one = arr[0];
+    if(!one || !one.action){ removePendingWrite_(one && one.id); return; }
+    __kasSyncing++;
+    updateSyncPill_();
+    try {
+      google.script.run.withSuccessHandler(function(data){
+        __kasSyncing = Math.max(0, __kasSyncing - 1);
+        updateSyncPill_();
+        removePendingWrite_(one.id);
+        syncAfterWrite_(data);
+        // lanjut antrian
+        setTimeout(flushPendingWrites_, 400);
+      }).withFailureHandler(function(){
+        __kasSyncing = Math.max(0, __kasSyncing - 1);
+        updateSyncPill_();
+      })[one.action](one.payload);
+    } catch(e){
+      __kasSyncing = Math.max(0, __kasSyncing - 1);
+      updateSyncPill_();
+    }
+  }
+  // Retry antrian saat online
+  try {
+    window.addEventListener('online', function(){ setTimeout(flushPendingWrites_, 800); });
+  } catch(e){}
+
+    function saveOptimistic(msg, startRun){
     if(!guardOnline_()) return;
     closeSheet();
     __kasSyncing++;
     updateSyncPill_();
     var finished = false;
-    var retriedSession = false;
     function doneOk(data){
       if(finished) return;
       finished = true;
       __kasSyncing = Math.max(0, __kasSyncing - 1);
       updateSyncPill_();
-      if(data) refreshState(data);
+      try { syncAfterWrite_(data, { light: !!(data && (data.delta || data.trxPatch)) }); } catch(e){ try { if(data) refreshState(data); } catch(e2){} }
       try { clearOfflineFlag_(); } catch(e){}
       toast(msg || 'Tersimpan');
+      setTimeout(flushPendingWrites_, 500);
     }
     function doneFail(err){
-      if(finished) return;
-      // Sesi invalid → minta PIN, kirim ulang 1x
-      doneFailFinal(err);
-    }
-    function doneFailFinal(err){
       if(finished) return;
       finished = true;
       __kasSyncing = Math.max(0, __kasSyncing - 1);
       updateSyncPill_();
-      toast(err && err.message ? err.message : 'Gagal menyimpan. Coba lagi.');
+      var m = (err && err.message) ? err.message : 'Gagal menyimpan';
+      toast(m + ' — data di HP bisa belum sama dengan sheet');
     }
     function kickOff(){
       try { startRun(doneOk, doneFail); } catch(e){ doneFail(e); }
     }
-    // PIN aktif tapi belum ada sesi → ambil sesi dulu
     kickOff();
   }
 
@@ -5209,7 +5425,7 @@
         if(!isEmptyPayload_(STATE))
           localStorage.setItem('kasCacheV1', JSON.stringify(STATE));
       } catch(e){}
-    }, 400);
+    }, 700);
   }
   function renderActiveView_(){
     if(currentTab === 'transaksi') renderTransaksi();
@@ -6529,6 +6745,28 @@
     return k === 'Transfer Keluar' || k === 'Transfer Masuk' || k === 'Biaya Admin Transfer'
       || k === 'Tarik Tunai' || k === 'Setor Tunai';
   }
+  function isReimburseClaimLeg(t){
+    // Kaki kedua reimburse (klaim masuk ke pot Reimburse) — disembunyikan di list
+    if(!t) return false;
+    var k = String(t.Kategori || '');
+    if(k === 'Klaim Reimburse') return true;
+    if(t.Jenis === 'Pemasukan' && String(t.Akun || '') === 'Reimburse' && /klaim|reimburse/i.test(k + ' ' + (t.Catatan || '')))
+      return true;
+    return false;
+  }
+  function isPairedLeg(t){
+    return isTransferLeg(t) || isReimburseClaimLeg(t);
+  }
+  function isReimburseTrx_(t){
+    if(!t) return false;
+    if(isReimburseClaimLeg(t)) return true;
+    var blob = String(t.Kategori || '') + ' ' + String(t.Catatan || '');
+    return /RBID:|reimburse\s*\d+\s*%|klaim\s*reimburse/i.test(blob);
+  }
+  function extractRbidClient_(catatan){
+    var m = String(catatan || '').match(/RBID:([A-Za-z0-9\-_]+)/);
+    return m ? m[1] : '';
+  }
   function transferLabelFromAccounts_(asal, tujuan){
     if(isCashAccountName_(tujuan) && !isCashAccountName_(asal)) return 'Tarik Tunai';
     if(isCashAccountName_(asal) && !isCashAccountName_(tujuan)) return 'Setor Tunai';
@@ -6540,14 +6778,20 @@
   }
 
   function collapseTransferLegs_(list){
-    // Selalu 1 kartu: sembunyikan kaki Pemasukan + Biaya Admin dari pasangan transfer/tarik/setor
+    // 1 kartu: sembunyikan kaki pasangan transfer/tarik/setor + klaim reimburse
     var hide = {};
     var byTfid = {};
+    var byRbid = {};
     (list || []).forEach(function(t){
       var tf = extractTfidClient_(t.Catatan);
       if(tf){
         if(!byTfid[tf]) byTfid[tf] = [];
         byTfid[tf].push(t);
+      }
+      var rb = extractRbidClient_(t.Catatan);
+      if(rb){
+        if(!byRbid[rb]) byRbid[rb] = [];
+        byRbid[rb].push(t);
       }
     });
     Object.keys(byTfid).forEach(function(tf){
@@ -6560,7 +6804,19 @@
         });
       }
     });
-    // Tanpa TFID / TFID beda (dobel sync): pair by tanggal+nominal+kategori transfer-ish
+    // Reimburse: RBID → sembunyikan kaki Klaim (Pemasukan)
+    Object.keys(byRbid).forEach(function(rb){
+      var g = byRbid[rb];
+      g.forEach(function(x){
+        if(isReimburseClaimLeg(x) || (x.Jenis === 'Pemasukan' && String(x.Akun||'') === 'Reimburse'))
+          hide[x.ID] = 1;
+      });
+    });
+    // Selalu sembunyikan Klaim Reimburse di feed (kaki kedua)
+    (list || []).forEach(function(t){
+      if(isReimburseClaimLeg(t)) hide[t.ID] = 1;
+    });
+    // Tanpa TFID: pair transfer by tanggal+nominal
     (list || []).forEach(function(t){
       if(hide[t.ID]) return;
       if(t.Jenis !== 'Pemasukan') return;
@@ -6586,19 +6842,55 @@
       });
       if(pair) hide[t.ID] = 1;
     });
+    // Tanpa RBID: pair klaim reimburse by tanggal + catatan
+    (list || []).forEach(function(t){
+      if(hide[t.ID]) return;
+      if(!isReimburseClaimLeg(t)) return;
+      hide[t.ID] = 1;
+    });
     return (list || []).filter(function(t){ return !hide[t.ID]; });
   }
   function transferGroupIdsClient_(id){
+    return trxGroupIdsClient_(id);
+  }
+  /** Semua ID kaki pasangan: transfer (TFID) atau reimburse (RBID). */
+  function trxGroupIdsClient_(id){
     var list = STATE.transaksi || [];
     var target = null;
     for(var i=0;i<list.length;i++){ if(list[i].ID === id){ target = list[i]; break; } }
     if(!target) return [id];
+
+    // --- Reimburse: RBID ---
+    var rbid = extractRbidClient_(target.Catatan);
+    if(rbid || isReimburseTrx_(target) || isReimburseClaimLeg(target)){
+      if(rbid){
+        var rbIds = list.filter(function(x){ return extractRbidClient_(x.Catatan) === rbid; }).map(function(x){ return x.ID; });
+        if(rbIds.length) return rbIds;
+      }
+      // legacy: klaim + pengeluaran reimburse hari yang sama
+      var tglR = String(target.Tanggal || '');
+      var idsR = [target.ID];
+      list.forEach(function(x){
+        if(x.ID === target.ID) return;
+        if(String(x.Tanggal || '') !== tglR) return;
+        if(isReimburseClaimLeg(x) || isReimburseTrx_(x) || isReimburseClaimLeg(target) || isReimburseTrx_(target)){
+          // pasangan: satu pengeluaran + satu klaim reimburse
+          if(target.Jenis === 'Pengeluaran' && isReimburseClaimLeg(x)) idsR.push(x.ID);
+          else if(isReimburseClaimLeg(target) && x.Jenis === 'Pengeluaran' && isReimburseTrx_(x)) idsR.push(x.ID);
+          else if(isReimburseTrx_(target) && isReimburseClaimLeg(x)) idsR.push(x.ID);
+        }
+      });
+      var seenR = {}, outR = [];
+      idsR.forEach(function(x){ if(!seenR[x]){ seenR[x]=1; outR.push(x);} });
+      if(outR.length > 1) return outR;
+    }
+
+    // --- Transfer / tarik / setor: TFID ---
     if(!isTransferLeg(target)) return [id];
     var tfid = extractTfidClient_(target.Catatan);
     if(tfid){
       return list.filter(function(x){ return extractTfidClient_(x.Catatan) === tfid; }).map(function(x){ return x.ID; });
     }
-    // legacy
     var nom = Number(target.Nominal)||0;
     var tgl = String(target.Tanggal||'');
     var ids = [target.ID];
@@ -6609,11 +6901,14 @@
       if(x.Kategori === 'Transfer Keluar' || x.Kategori === 'Transfer Masuk'){
         if(Number(x.Nominal) !== nom) return;
       }
-      // pasangan kasar: keluar+masuk nominal sama hari
       if((target.Kategori === 'Transfer Keluar' && x.Kategori === 'Transfer Masuk') ||
          (target.Kategori === 'Transfer Masuk' && x.Kategori === 'Transfer Keluar') ||
          (x.Kategori === 'Biaya Admin Transfer' && target.Akun === x.Akun) ||
-         (target.Kategori === 'Biaya Admin Transfer' && (x.Kategori==='Transfer Keluar'||x.Kategori==='Transfer Masuk'))){
+         (target.Kategori === 'Biaya Admin Transfer' && (x.Kategori==='Transfer Keluar'||x.Kategori==='Transfer Masuk')) ||
+         (target.Kategori === 'Tarik Tunai' && x.Kategori === 'Tarik Tunai' && Number(x.Nominal)===nom) ||
+         (target.Kategori === 'Setor Tunai' && x.Kategori === 'Setor Tunai' && Number(x.Nominal)===nom) ||
+         ((target.Kategori === 'Tarik Tunai' || target.Kategori === 'Setor Tunai') &&
+          (x.Kategori === 'Tarik Tunai' || x.Kategori === 'Setor Tunai') && Number(x.Nominal)===nom && x.Jenis !== target.Jenis)){
         ids.push(x.ID);
       }
     });
@@ -6670,7 +6965,7 @@
   function sumKeluarRange_(from, to){
     var n = 0;
     (STATE.transaksi || []).forEach(function(t){
-      if(t.Jenis !== 'Pengeluaran' || isTransferLeg(t)) return;
+      if(t.Jenis !== 'Pengeluaran' || isTransferLeg(t) || isReimburseClaimLeg(t)) return;
       if(t.Tanggal < from || t.Tanggal > to) return;
       n += Number(t.Nominal) || 0;
     });
@@ -6911,7 +7206,7 @@
       var masuk = 0, keluar = 0;
       STATE.transaksi.forEach(function(t){
         if(t.Tanggal < range.from || t.Tanggal > range.to) return;
-        if(isTransferLeg(t)) return; // perpindahan antar rekening sendiri, bukan pemasukan/pengeluaran riil
+        if(isTransferLeg(t) || isReimburseClaimLeg(t)) return; // kaki pasangan, bukan cashflow utama
         if(t.Jenis==='Pemasukan') masuk += Number(t.Nominal); else keluar += Number(t.Nominal);
       });
       var selisih = masuk - keluar;
@@ -7096,8 +7391,9 @@
   function renderTrxCard(t){
     var isIn = t.Jenis === 'Pemasukan';
     var isTransfer = isTransferLeg(t);
-    var badgeClass = isTransfer ? 'blue' : (isIn ? 'green' : 'red');
-    var amountClass = isTransfer ? 'blue' : (isIn ? 'green' : 'red');
+    var isRb = isReimburseTrx_(t);
+    var badgeClass = isTransfer || isRb ? (isRb ? 'neutral' : 'blue') : (isIn ? 'green' : 'red');
+    var amountClass = isTransfer || isRb ? (isRb ? 'neutral' : 'blue') : (isIn ? 'green' : 'red');
     var icon = kategoriIconSvg_(t.Kategori, isIn, isTransfer);
     // Logo Pertamina jika isi BBM di SPBU Pertamina
     var catAll = String(t.Catatan || '') + ' ' + String(t.Kategori || '');
@@ -7124,6 +7420,9 @@
         bits.push((asal || '') + (t.Akun ? (' → ' + t.Akun) : ''));
       }
     } else if(t.Akun) bits.push(String(t.Akun));
+    if(/reimburse\s*\d+\s*%/i.test(String(t.Catatan || '')) || /RBID:/i.test(String(t.Catatan || ''))){
+      bits.unshift('Reimburse');
+    }
     var untuk = parseUntuk_(t);
     if(untuk) bits.push(String(untuk));
     else if(t.Catatan){
@@ -7133,7 +7432,7 @@
     }
     if(isTransfer) bits.unshift('Transfer');
     var sub = bits.filter(Boolean).join(' · ');
-    var sign = isTransfer ? '' : (isIn ? '+' : '−');
+    var sign = (isTransfer || isRb) ? '' : (isIn ? '+' : '−');
     return '<div class="trx-card item-card" data-id="' + t.ID + '" data-kind="trx">' +
       '<div class="trx-card-left">' +
         '<div class="icon-badge ' + badgeClass + '">' + icon + '</div>' +
@@ -7644,6 +7943,7 @@
   function bankMeta_(nama){
     var n = String(nama || '').toLowerCase().replace(/\s+/g, '');
     var map = [
+      { keys: ['reimburse'], label: 'RMB', bg: '#0B1220', img: 'data:image/jpeg;base64,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' },
       { keys: ['bca'], label: 'BCA', bg: '#FFFFFF', img: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAoHBwgHBgoICAgLCgoLDhgQDg0NDh0VFhEYIx8lJCIfIiEmKzcvJik0KSEiMEExNDk7Pj4+JS5ESUM8SDc9Pjv/2wBDAQoLCw4NDhwQEBw7KCIoOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozv/wAARCABAAEADASIAAhEBAxEB/8QAGwAAAgIDAQAAAAAAAAAAAAAAAAMCBwEEBgX/xAAxEAACAQQABQIDBgcAAAAAAAABAgMABAURBhMhMVESQgdBYSIycYGRoRUkM1JiscH/xAAYAQEBAQEBAAAAAAAAAAAAAAAAAgEDBP/EACERAAICAgEEAwAAAAAAAAAAAAABAgMREjEEExRxQVHh/9oADAMBAAIRAxEAPwC5qKXI5TWgOtQ5zeBQD6KRzm8CjnN4FAPopHObwKOc3gUA+ikc5vAqcbl9710oCM/trXkmih0ZZUj329bBd/rWMxO9vjppY+kgQhD4Y6A/ciq543ztvZxyYzATAZC1k/nJDF6pWXXydgd9SN68+N12ppdssIic9VkslWV09SMGU+5TsfrWa4fh3OWd7jVUugzdhGkl2YY/QHHrAYHWlbodH69ql8QOKMlg77G2ONuILZrpmMk0wVgo2FG99h1JJ+lV483ZouTO4lHY7aiq6xnHGSsZcxJlbq2ydhYRry7q1jCLJKxHpRT2O9nfj0k1C1z3xHyiw3tri7eK0mdSm4h90nudt6iuvnV+JNctJezO7Esimwe6qn4n+IGftc3kYcS8C2diyxM5iV/tdt7Plt9PpVoYe4N3jLa6bW5oI5DryVB/7XOyidcVKXyVGxSbSMZiF7jHTRxjchTaDywIIH6gVxF/hcPfcQfxEX9wlw0vNZZIFOtjRTfRgBvse2qsCf21ryRRTf1Ykk1/eob/AHU12uHAlHY4jA4HG42KSGwvp7m4uESF1MSoCCwLOddegB+8en51q8XYniC845hytngxkLW0jVY0lZeW50Sdgnfdv2qw0RY19KKqr4UaFZrqupkp74z7/MEutNYKtf4fZy84eyUkqwW95d3S3CWMbARqB6tjp0B+10/Dv1r2cPkeOUxlxb3eERHtbT0W7AAPNJ0VfdrQHU/hXc0flWy6qU1iSTCqS4ZUEvw94ji4VLLLLJcXM6vPj1RSdgnTF99SO+v8qtLhWG4tuG8fb3cTRXEVtGkiN3Uga1W7TYPdU29TO1Yl95NhWoPKJSIX1rXSoclvIp9FeY6COS3kUclvIp9FAI5LeRRyW8in0UAjkt5FTjQpvfzplFAf/9k=' },
       { keys: ['bni'], label: 'BNI', bg: '#F15A22' },
       { keys: ['bri', 'brimo'], label: 'BRI', bg: '#003399' },
@@ -7662,7 +7962,6 @@
       { keys: ['linkaja'], label: 'LINKA', bg: '#E30613' },
       { keys: ['sakuku'], label: 'SK', bg: '#00A651' },
       { keys: ['tunai', 'cash', 'uangtunai', 'dompet'], label: 'CASH', bg: '#10B981' },
-      { keys: ['reimburse'], label: 'RMB', bg: '#8B6DD9' },
       { keys: ['kredit', 'non-kas', 'nonkas'], label: 'KR', bg: '#6E675F' }
     ];
     for(var i=0;i<map.length;i++){
@@ -7712,7 +8011,13 @@
         '<option value="saldo-asc"' + (rekeningSortBy==='saldo-asc'?' selected':'') + '>Saldo Terkecil</option>' +
       '</select>';
     }
-    var visibleRek = STATE.rekening.filter(function(r){ return r.Nama && String(r.Nama).trim(); });
+    var visibleRek = STATE.rekening.filter(function(r){
+      if(!r.Nama || !String(r.Nama).trim()) return false;
+      // Sembunyikan rekening virtual (bikin bingung) — Reimburse tetap tampil
+      if(r.Nama === 'Kredit (Non-Kas)') return false;
+      if(/non-?kas/i.test(r.Nama) && !/reimburse/i.test(r.Nama)) return false;
+      return true;
+    });
     if(!visibleRek.length){
       html += emptyState('Belum ada rekening', 'Yuk tambah rekening pertama — BCA, Gopay, atau tunai — biar saldo ke-track.');
     } else {
@@ -7725,7 +8030,8 @@
         var saldo = Number(r.Saldo) || 0;
         var tipeRek = 'Rekening';
         var nm = String(r.Nama||'').toLowerCase();
-        if(/tunai|cash|kas/.test(nm)) tipeRek = 'Tunai';
+        if(isReimburse) tipeRek = 'Pot klaim';
+        else if(/tunai|cash|kas/.test(nm)) tipeRek = 'Tunai';
         else if(/gopay|ovo|dana|shopeepay|linkaja|e-?wallet|dompet/.test(nm)) tipeRek = 'E-wallet';
         else if(/bca|bni|bri|mandiri|seabank|btn|cimb|permata|jenius|bank/.test(nm)) tipeRek = 'Bank';
         html +=
@@ -8639,14 +8945,15 @@
           byDay[day].forEach(function(t){
             var isIn = t.Jenis === 'Pemasukan';
             var isTransfer = isTransferLeg(t);
-            var badgeClass = isTransfer ? 'blue' : (isIn ? 'green' : 'red');
+            var isRb = isReimburseTrx_(t);
+            var badgeClass = isTransfer || isRb ? (isRb ? 'neutral' : 'blue') : (isIn ? 'green' : 'red');
             var icon = isTransfer ? ICON_TRANSFER : (isIn ? ICON_INCOME : ICON_EXPENSE);
-            var amountClass = isTransfer ? 'blue' : (isIn ? 'green' : 'red');
+            var amountClass = isTransfer || isRb ? (isRb ? 'neutral' : 'blue') : (isIn ? 'green' : 'red');
             html += '<div class="item-card">' +
               '<div class="icon-badge ' + badgeClass + '">' + icon + '</div>' +
               '<div class="item-main"><div class="item-title">' + esc(t.Kategori || (isIn?'Pemasukan':'Pengeluaran')) + '</div>' +
               '<div class="item-sub">' + esc(t.Akun || '-') + (t.Catatan ? ' • ' + esc(t.Catatan) : '') + '</div></div>' +
-              '<div class="item-amount ' + amountClass + ' num">' + (isTransfer ? '' : (isIn?'+':'-')) + fmtRupiah(t.Nominal) + '</div>' +
+              '<div class="item-amount ' + amountClass + ' num">' + ((isTransfer || isReimburseTrx_(t)) ? '' : (isIn?'+':'-')) + fmtRupiah(t.Nominal) + '</div>' +
             '</div>';
           });
           html += '</div>';
@@ -10008,18 +10315,64 @@
     if(trxSumber === 'Reimburse' && trxJenis === 'Pengeluaran'){
       var akun = document.getElementById('f-akun').value;
       if(!akun){ toast('Pilih sumber rekening'); flashFieldErr_('f-akun'); return; }
+      var persen = Math.max(0, Math.min(100, Number(document.getElementById('f-reimburse-persen').value) || 0));
+      var kat = (document.getElementById('f-kategori') && document.getElementById('f-kategori').value) || 'Reimburse';
+      var cat0 = (document.getElementById('f-catatan') && document.getElementById('f-catatan').value) || '';
+      var rbid = 'rb-' + Date.now() + '-' + Math.floor(Math.random()*1e5);
+      var klaim = Math.round(nominal * persen / 100);
+      var catatanOut = (cat0 ? cat0 + ' • ' : '') + 'Reimburse ' + persen + '% (klaim Rp' + klaim.toLocaleString('id-ID') + ') • RBID:' + rbid;
       var payload = {
         nominal: nominal, akun: akun, tanggal: tanggal,
-        persentase: Math.max(0, Math.min(100, Number(document.getElementById('f-reimburse-persen').value) || 0)),
-        kategori: document.getElementById('f-kategori').value,
-        catatan: document.getElementById('f-catatan').value
+        persentase: persen,
+        kategori: kat,
+        catatan: catatanOut,
+        clientKey: rbid
       };
+      // Optimistic: 1 kartu di list (pengeluaran). Klaim pot Reimburse disembunyikan di collapse.
+      var tempId = 'local-' + rbid;
+      STATE.transaksi = [{
+        ID: tempId, Tanggal: tanggal, Jenis: 'Pengeluaran', Kategori: kat,
+        Akun: akun, Nominal: nominal, Catatan: catatanOut
+      }].concat(STATE.transaksi || []);
+      if(klaim > 0){
+        STATE.transaksi = [{
+          ID: tempId + '-klaim', Tanggal: tanggal, Jenis: 'Pemasukan', Kategori: 'Klaim Reimburse',
+          Akun: 'Reimburse', Nominal: klaim, Catatan: 'Dari: ' + kat + ' • RBID:' + rbid
+        }].concat(STATE.transaksi || []);
+        STATE.rekening.forEach(function(r){
+          if(r.Nama === 'Reimburse') r.Saldo = (Number(r.Saldo)||0) + klaim;
+        });
+      }
+      STATE.rekening.forEach(function(r){
+        if(r.Nama === akun) r.Saldo = (Number(r.Saldo)||0) - nominal;
+      });
+      try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e){}
       __trxSubmitLock = true;
       setTimeout(unlockTrxSubmit_, 3000);
-      saveOptimistic('Transaksi Reimburse dicatat', function(ok, fail){
-        google.script.run.withSuccessHandler(function(d){ unlockTrxSubmit_(); ok(d); })
-          .withFailureHandler(function(err){ unlockTrxSubmit_(); fail(err); }).addReimburseTransaksi(payload);
-      });
+      closeSheet();
+      toast('Tersimpan');
+      __kasSyncing++;
+      updateSyncPill_();
+      renderAll();
+      google.script.run.withSuccessHandler(function(d){
+        unlockTrxSubmit_();
+        __kasSyncing = Math.max(0, __kasSyncing - 1);
+        updateSyncPill_();
+        STATE.transaksi = (STATE.transaksi || []).filter(function(x){
+          return x.ID !== tempId && x.ID !== tempId + '-klaim';
+        });
+        if(d){
+          if(d.delta || d.trxPatch) applyDelta_(d);
+          else if(!isEmptyPayload_(d)) applyStateFromSheet_(d);
+        }
+        try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e){}
+        renderAll();
+      }).withFailureHandler(function(err){
+        unlockTrxSubmit_();
+        __kasSyncing = Math.max(0, __kasSyncing - 1);
+        updateSyncPill_();
+        toast((err && err.message) ? err.message : 'Gagal sync — masih di HP');
+      }).addReimburseTransaksi(payload);
       return;
     }
 
@@ -10165,7 +10518,8 @@
     if(!t) return;
     var isIn = t.Jenis === 'Pemasukan';
     var isTransfer = isTransferLeg(t);
-    var groupIds = isTransfer ? transferGroupIdsClient_(id) : [id];
+    var isRb = isReimburseTrx_(t) || isReimburseClaimLeg(t);
+    var groupIds = (isTransfer || isRb) ? trxGroupIdsClient_(id) : [id];
     var groupRows = (STATE.transaksi || []).filter(function(x){ return groupIds.indexOf(x.ID) >= 0; });
     var untuk = parseUntuk_(t);
     var catatanBersih = (typeof stripJadwalFromCatatan_ === 'function')
@@ -10173,10 +10527,10 @@
       : String(t.Catatan || '');
     catatanBersih = String(catatanBersih || '')
       .replace(/Untuk:\s*[^•|]+/i, '')
-      .replace(/TFID:[A-Za-z0-9\-_]+/g, '')
+      .replace(/TFID:[A-Za-z0-9\-_]+/g, '').replace(/RBID:[A-Za-z0-9\-_]+/g, '')
       .replace(/\s*•\s*/g, ' ').trim();
-    var sign = isTransfer ? '' : (isIn ? '+' : '−');
-    var amtColor = isTransfer ? 'var(--blue-dark)' : (isIn ? 'var(--green)' : 'var(--red)');
+    var sign = (isTransfer || isReimburseTrx_(t)) ? '' : (isIn ? '+' : '−');
+    var amtColor = isRb ? 'var(--ink)' : (isTransfer ? 'var(--blue-dark)' : (isIn ? 'var(--green)' : 'var(--red)'));
     var titleKat = t.Kategori || t.Jenis;
     var heroAmt = fmtRupiah(t.Nominal);
     if(isTransfer && groupRows.length > 1){
@@ -10203,7 +10557,7 @@
           '<div class="trx-detail-kat">' + esc(titleKat) + '</div>' +
           '<div class="trx-detail-amt num" style="color:' + amtColor + '">' + sign + heroAmt + '</div>' +
           '<div class="trx-detail-chips">' +
-            '<span class="trx-d-chip">' + esc(isTransfer ? 'Transfer' : t.Jenis) + '</span>' +
+            '<span class="trx-d-chip">' + esc(isTransfer ? 'Transfer' : (isRb ? 'Reimburse' : t.Jenis)) + '</span>' +
             (!isTransfer && t.Akun ? '<span class="trx-d-chip">' + esc(t.Akun) + '</span>' : '') +
             (untuk ? '<span class="trx-d-chip">' + esc(untuk) + '</span>' : '') +
           '</div>' +
@@ -10218,7 +10572,7 @@
         })() +
         (isTransfer ? '' : '<div class="hp-actions" style="margin-top:16px;"><button class="btn-secondary" id="btn-edit-trx" style="flex:1;">Edit</button></div>') +
         '<button class="btn-danger-text" id="btn-del-trx">' + ICON_TRASH + ' &nbsp;' +
-          (isTransfer && groupIds.length > 1 ? 'Hapus transfer (semua bagian)' : 'Hapus transaksi') + '</button>' +
+          (groupIds.length > 1 ? (isTransfer ? 'Hapus transfer (semua bagian)' : (isRb ? 'Hapus reimburse (semua bagian)' : 'Hapus semua bagian')) : 'Hapus transaksi') + '</button>' +
       '</div>'
     );
     var editBtn = document.getElementById('btn-edit-trx');
@@ -10226,25 +10580,66 @@
     document.getElementById('btn-del-trx').addEventListener('click', function(){
       closeSheet();
       var ids = groupIds.slice();
+      if(!ids.length) ids = [id];
       var removed = (STATE.transaksi || []).filter(function(x){ return ids.indexOf(x.ID) >= 0; });
       STATE.transaksi = (STATE.transaksi || []).filter(function(x){ return ids.indexOf(x.ID) < 0; });
-      try { recomputeSaldoLocal_(); renderAll(); } catch(e){}
+      // Kembalikan saldo rekening + pot Reimburse dari kaki yang dihapus
+      try {
+        removed.forEach(function(row){
+          var n = Number(row.Nominal) || 0;
+          STATE.rekening.forEach(function(r){
+            if(r.Nama !== row.Akun) return;
+            var s = Number(r.Saldo) || 0;
+            r.Saldo = row.Jenis === 'Pemasukan' ? s - n : s + n;
+          });
+        });
+      } catch(e){}
+      try { renderAll(); } catch(e){}
       try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e){}
-      toast(isTransfer ? 'Transfer dihapus' : 'Transaksi dihapus');
-      google.script.run.withSuccessHandler(function(data){
-        if(data) try { refreshState(data); } catch(e){}
-      }).withFailureHandler(function(err){
-        var msg = String((err && err.message) || err || '');
-        if(/lambat|Timeout|Abort|network|fetch/i.test(msg)){
-          setTimeout(function(){
-            try { google.script.run.withSuccessHandler(function(){}).withFailureHandler(function(){}).deleteTransaksi(id); } catch(e){}
-          }, 2500);
+      toast(isTransfer ? 'Transfer dihapus' : (isRb ? 'Reimburse dihapus' : 'Transaksi dihapus'));
+      __kasSyncing++;
+      updateSyncPill_();
+      // Hapus semua kaki di server (berurutan, terakhir refresh)
+      var pending = ids.slice();
+      var lastData = null;
+      function delNext_(){
+        if(!pending.length){
+          __kasSyncing = Math.max(0, __kasSyncing - 1);
+          updateSyncPill_();
+          // Jangan full getInitialData — pakai response terakhir / soft pull ringan
+          if(lastData){
+            try { syncAfterWrite_(lastData, { light: true }); } catch(e){}
+          } else {
+            try { softPullFromSheet_(); } catch(e){}
+          }
           return;
         }
-        removed.forEach(function(row){ STATE.transaksi.unshift(row); });
-        try { recomputeSaldoLocal_(); renderAll(); } catch(e){}
-        toast('Gagal hapus: ' + msg);
-      }).deleteTransaksi(id);
+        var one = pending.shift();
+        google.script.run.withSuccessHandler(function(data){
+          if(data) lastData = data;
+          delNext_();
+        }).withFailureHandler(function(err){
+          var msg = String((err && err.message) || err || '');
+          if(/lambat|Timeout|Abort|network|fetch/i.test(msg)){
+            setTimeout(function(){
+              try { google.script.run.withSuccessHandler(function(){}).withFailureHandler(function(){}).deleteTransaksi(one); } catch(e){}
+              delNext_();
+            }, 2000);
+            return;
+          }
+          // Rollback semua
+          __kasSyncing = Math.max(0, __kasSyncing - 1);
+          updateSyncPill_();
+          removed.forEach(function(row){
+            if(!(STATE.transaksi || []).some(function(x){ return x.ID === row.ID; }))
+              STATE.transaksi.unshift(row);
+          });
+          try { recomputeSaldoLocal_(); renderAll(); } catch(e){}
+          try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e){}
+          toast('Gagal hapus: ' + msg);
+        }).deleteTransaksi(one);
+      }
+      delNext_();
     });
   }
 
@@ -10600,6 +10995,18 @@
       payload.tenor = tenor;
       payload.bungaPersen = Number(document.getElementById('f-bunga-persen').value) || 0;
       payload.bungaNominal = rawNum('f-bunga-nominal') || 0;
+      // Samakan dengan top-up: simpan JADWAL di catatan
+      var tempo0 = payload.jatuhTempo || tanggal;
+      if(tempo0 && tenor > 0){
+        var totalCic = (pokok + (payload.bungaNominal || 0));
+        var cic = Math.round(totalCic / tenor);
+        var entries = [];
+        for(var i = 0; i < tenor; i++){
+          entries.push({ date: addMonthsJS(tempo0, i), amount: cic });
+        }
+        payload.catatan = mergeJadwalIntoCatatan_(payload.catatan || '', entries);
+        payload.nominalCicilan = cic;
+      }
     } else if(hpMetode === 'Paylater'){
       payload.biayaLayanan = rawNum('f-biaya') || 0;
     }
@@ -10877,12 +11284,56 @@
         if(!tanggal){ toast('Tanggal harus diisi'); flashFieldErr_('f-tanggal'); return; }
         if(!akun){ toast('Pilih rekening'); return; }
         var payload = { id: h.ID, nominal: nominal, tanggal: tanggal, akun: akun };
-        saveOptimistic('Pembayaran dicatat', function(ok, fail){
-          google.script.run.withSuccessHandler(function(data){
-            ok(data);
-            openHutangDetail(id);
-          }).withFailureHandler(fail).bayarCicilan(payload);
+        // Optimistic + sheet truth
+        var oldSisa = Number(h.SisaHutang) || 0;
+        var oldStatus = h.Status;
+        var oldCicil = Number(h.CicilanTerbayar) || 0;
+        var oldSaldo = null;
+        STATE.rekening.forEach(function(r){ if(r.Nama === akun) oldSaldo = Number(r.Saldo)||0; });
+        var newSisa = Math.max(0, oldSisa - nominal);
+        h.SisaHutang = newSisa;
+        h.Status = newSisa <= 0.01 ? 'Lunas' : (h.Status || 'Aktif');
+        if(h.Metode === 'Cicilan Tetap') h.CicilanTerbayar = oldCicil + 1;
+        STATE.rekening.forEach(function(r){
+          if(r.Nama === akun) r.Saldo = (Number(r.Saldo)||0) - nominal;
         });
+        var localTrxId = 'local-bayar-' + Date.now();
+        STATE.transaksi = [{
+          ID: localTrxId, Tanggal: tanggal, Jenis: 'Pengeluaran',
+          Kategori: 'Bayar Hutang', Akun: akun, Nominal: nominal,
+          Catatan: 'Bayar ' + (h.Nama || 'hutang')
+        }].concat(STATE.transaksi || []);
+        try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e){}
+        closeSheet();
+        toast('Pembayaran dicatat');
+        __kasSyncing++;
+        updateSyncPill_();
+        renderAll();
+        google.script.run.withSuccessHandler(function(data){
+          __kasSyncing = Math.max(0, __kasSyncing - 1);
+          updateSyncPill_();
+          STATE.transaksi = (STATE.transaksi || []).filter(function(x){ return x.ID !== localTrxId; });
+          try { syncAfterWrite_(data); } catch(e){ softPullFromSheet_(); }
+          try { clearOfflineFlag_(); } catch(e){}
+        }).withFailureHandler(function(err){
+          __kasSyncing = Math.max(0, __kasSyncing - 1);
+          updateSyncPill_();
+          h.SisaHutang = oldSisa;
+          h.Status = oldStatus;
+          h.CicilanTerbayar = oldCicil;
+          STATE.rekening.forEach(function(r){ if(r.Nama === akun && oldSaldo != null) r.Saldo = oldSaldo; });
+          STATE.transaksi = (STATE.transaksi || []).filter(function(x){ return x.ID !== localTrxId; });
+          try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e){}
+          renderAll();
+          enqueuePendingWrite_({
+            id: 'bayar-' + (payload.id || '') + '-' + Date.now(),
+            action: 'bayarCicilan',
+            payload: payload,
+            label: 'Bayar cicilan',
+            ts: Date.now()
+          });
+          toast((err && err.message) ? err.message : 'Gagal sync — antri ulang');
+        }).bayarCicilan(payload);
       });
     }
 
@@ -11043,116 +11494,205 @@
   }
 
   function openTopUpForm(h){
-    var today = toYMD(currentDate);
-    var isHutang = h.Jenis === 'Hutang';
-    var isCicilan = h.Metode === 'Cicilan Tetap';
+    var today = toYMD(new Date());
+    var isCicilan = h.Metode === 'Cicilan Tetap' || h.Metode === 'Cicilan Bebas' || !!parseJadwalTagihan_(h.Catatan || '').length;
+    var sisa0 = Number(h.SisaHutang) || 0;
     var html =
-      '<div class="sheet-title">Top Up</div>' +
-      '<div class="form-mini-hero">' +
-        '<div class="nm">' + esc(h.Nama) + '</div>' +
-        '<div class="sub">Pinjaman aktif · ' + esc(h.Metode) + '</div>' +
-        '<div class="val num">' + fmtRupiah(h.SisaHutang) + '</div>' +
-        '<div class="sub" style="margin-top:2px;">Sisa saat ini</div>' +
+      '<div class="sheet-title">Top Up · ' + esc(h.Nama) + '</div>' +
+      '<div class="sheet-hint" style="margin-top:-6px;margin-bottom:12px;">Jadwal cicilan lama + baru digabung. Tanggal sama = nominal dijumlah (contoh Feb 1rb + 1rb → 2rb).</div>' +
+      '<div class="form-block">' +
+        '<div class="form-block-title">Pinjaman tambahan</div>' +
+        '<div class="form-group"><label class="form-label">Pokok tambahan *</label>' +
+          '<input class="form-input num num-input" id="f-topup-nominal" type="text" inputmode="numeric" placeholder="Contoh: 3.000.000"></div>' +
+        '<div class="form-group"><label class="form-label">Bunga / biaya (opsional)</label>' +
+          '<input class="form-input num num-input" id="f-topup-bunga" type="text" inputmode="numeric" placeholder="0"></div>' +
+        '<div class="row-2 form-group">' +
+          '<div><label class="form-label">Tenor (bulan) *</label>' +
+            '<input class="form-input num" id="f-topup-tenor" type="number" inputmode="numeric" min="1" placeholder="3"></div>' +
+          '<div><label class="form-label">Tagihan pertama *</label>' +
+            '<input class="form-input" id="f-topup-tempo" type="date" value=""></div>' +
+        '</div>' +
+        '<div class="form-group"><label class="form-label">Cicilan / bulan (opsional)</label>' +
+          '<input class="form-input num num-input" id="f-topup-cicilan" type="text" inputmode="numeric" placeholder="Kosongkan = bagi rata">' +
+          '<div style="font-size:11px;color:var(--ink-faint);margin-top:4px;">Kalau kosong: (pokok + bunga) ÷ tenor</div></div>' +
+        '<div class="row-2 form-group">' +
+          '<div><label class="form-label">Tanggal cair</label>' +
+            '<input class="form-input" id="f-topup-tanggal" type="date" value="' + today + '"></div>' +
+          (h.Bentuk === 'Tunai'
+            ? '<div><label class="form-label">Rekening tujuan</label><select class="form-select" id="f-topup-akun">' + accountOptions(h.Akun || '') + '</select></div>'
+            : '<div></div>') +
+        '</div>' +
       '</div>' +
-      '<div class="form-block">' +
-        '<div class="form-block-title">Pokok tambahan</div>' +
-        '<div class="form-group" style="margin:0;"><input class="form-input num num-input" id="f-topup-nominal" type="text" inputmode="numeric" placeholder="Contoh: 300.000" style="font-size:18px;font-weight:800;"></div>' +
-      '</div>';
-    if(isCicilan){
-      html +=
-        '<div class="form-block">' +
-          '<div class="form-block-title">Cicilan &amp; jadwal</div>' +
-          '<div class="form-group"><label class="form-label">Bunga tambahan (opsional)</label>' +
-            '<input class="form-input num num-input" id="f-topup-bunga" type="text" inputmode="numeric" placeholder="Contoh: 15.300">' +
-          '</div>' +
-          '<div class="row-2 form-group">' +
-            '<div><label class="form-label">Tenor sisa</label><input class="form-input num" id="f-topup-tenor" type="number" inputmode="numeric" placeholder="' + (h.Tenor || '') + '" value=""></div>' +
-            '<div><label class="form-label">Cicilan / bulan</label><input class="form-input num num-input" id="f-topup-cicilan" type="text" inputmode="numeric" placeholder="Opsional"></div>' +
-          '</div>' +
-          '<div class="form-group"><label class="form-label">Jatuh tempo berikutnya</label>' +
-            '<input class="form-input" id="f-topup-tempo" type="date" value="' + esc(h.JatuhTempo || '') + '">' +
-          '</div>' +
-          '<div class="preview-box" id="topup-preview" style="margin:0;">' +
-            '<div class="pr"><span>Sisa setelah top up</span><b class="num" id="tu-prev-sisa">Rp 0</b></div>' +
-            '<div class="pr"><span>Angsuran / bulan</span><b class="num" id="tu-prev-cicilan">Rp 0</b></div>' +
-          '</div>' +
-        '</div>';
-    }
-    html +=
-      '<div class="form-block">' +
-        '<div class="form-block-title">Pencairan</div>' +
-        '<div class="form-group"><label class="form-label">Tanggal cair</label><input class="form-input" id="f-topup-tanggal" type="date" value="' + today + '"></div>';
-    if(h.Bentuk === 'Tunai'){
-      html += '<div class="form-group" style="margin:0;"><label class="form-label">' + (isHutang ? 'Rekening tujuan' : 'Rekening sumber') + '</label>' +
-        '<select class="form-select" id="f-topup-akun">' + accountOptions(h.Akun || '') + '</select></div>';
-    } else {
-      html += '<div style="font-size:11px; color:var(--ink-faint);">Barang/Jasa — tidak masuk rekening.</div>';
-    }
-    html += '</div><button class="btn-primary" id="btn-save-topup">Tambahkan</button>';
+      '<div class="preview-box" id="topup-preview">' +
+        '<div class="pr"><span>Sisa lama</span><b class="num" id="tu-prev-lama">' + fmtRupiah(sisa0) + '</b></div>' +
+        '<div class="pr"><span>Tambahan (pokok+bunga)</span><b class="num" id="tu-prev-tambah">Rp 0</b></div>' +
+        '<div class="pr big"><span>Sisa baru</span><b class="num" id="tu-prev-sisa">' + fmtRupiah(sisa0) + '</b></div>' +
+        '<div class="pr"><span>Cicilan baru / bln</span><b class="num" id="tu-prev-cicilan">Rp 0</b></div>' +
+      '</div>' +
+      '<div class="riwayat-title" style="margin-top:12px;">Pratinjau jadwal gabungan</div>' +
+      '<div id="topup-jadwal-preview" class="riwayat-empty">Isi nominal, tenor, dan tagihan pertama</div>' +
+      '<button class="btn-primary" id="btn-save-topup">Simpan top up</button>';
+
     openSheet(html);
 
-    function refreshTopUpPreview(){
-      if(!isCicilan) return;
-      var tambah = rawNum('f-topup-nominal') || 0;
-      var bunga = rawNum('f-topup-bunga') || 0;
-      var sisa = (Number(h.SisaHutang) || 0) + tambah + bunga;
-      var tenorEl = document.getElementById('f-topup-tenor');
-      var tenor = Number(tenorEl && tenorEl.value) || Number(h.Tenor) || 1;
-      var cicilanManual = rawNum('f-topup-cicilan');
-      var cicilan = cicilanManual > 0 ? cicilanManual : Math.round(sisa / Math.max(1, tenor));
-      var elS = document.getElementById('tu-prev-sisa');
-      var elC = document.getElementById('tu-prev-cicilan');
-      if(elS) elS.textContent = fmtRupiah(sisa);
-      if(elC) elC.textContent = fmtRupiah(cicilan);
-    }
-    if(isCicilan){
-      ['f-topup-nominal','f-topup-bunga','f-topup-tenor','f-topup-cicilan'].forEach(function(id){
-        var el = document.getElementById(id);
-        if(el) el.addEventListener('input', refreshTopUpPreview);
+    function remainingJadwalFrom_(hh){
+      var all = parseJadwalTagihan_(hh.Catatan || '');
+      if(!all.length && hh.Metode === 'Cicilan Tetap' && Number(hh.Tenor) > 0){
+        // bangun dari tenor rata jika belum ada JADWAL
+        var n = Number(hh.Tenor) || 0;
+        var paid = Number(hh.CicilanTerbayar) || 0;
+        var cic = Number(hh.NominalCicilan) || Math.round((Number(hh.SisaHutang)||0) / Math.max(1, n - paid));
+        var start = hh.JatuhTempo || toYMD(new Date());
+        all = [];
+        for(var i = 0; i < n; i++){
+          all.push({ date: addMonthsJS(start, i), amount: cic });
+        }
+      }
+      var terbayar = Math.max(0, Number(hh.TotalHutang) - Number(hh.SisaHutang));
+      var out = [];
+      var acc = 0;
+      all.forEach(function(j){
+        var prev = acc;
+        acc += Number(j.amount) || 0;
+        if(terbayar >= acc - 0.01) return; // lunas penuh
+        if(terbayar > prev + 0.01){
+          var sisaTag = Math.round(acc - terbayar);
+          if(sisaTag > 0) out.push({ date: j.date, amount: sisaTag });
+        } else {
+          out.push({ date: j.date, amount: Number(j.amount) || 0 });
+        }
       });
-      refreshTopUpPreview();
+      return out;
     }
+
+    function buildMergedPreview_(){
+      var tambahPokok = rawNum('f-topup-nominal') || 0;
+      var bunga = rawNum('f-topup-bunga') || 0;
+      var tambah = tambahPokok + bunga;
+      var tenor = Number(document.getElementById('f-topup-tenor').value) || 0;
+      var tempo = document.getElementById('f-topup-tempo').value || '';
+      var cicilanManual = rawNum('f-topup-cicilan');
+      var cicilan = cicilanManual > 0 ? cicilanManual : (tenor > 0 ? Math.round(tambah / tenor) : 0);
+      document.getElementById('tu-prev-tambah').textContent = fmtRupiah(tambah);
+      document.getElementById('tu-prev-sisa').textContent = fmtRupiah(sisa0 + tambah);
+      document.getElementById('tu-prev-cicilan').textContent = fmtRupiah(cicilan);
+      var box = document.getElementById('topup-jadwal-preview');
+      if(!box) return;
+      if(!tambah || !tenor || !tempo || !cicilan){
+        box.className = 'riwayat-empty';
+        box.innerHTML = 'Isi nominal, tenor, dan tagihan pertama';
+        return;
+      }
+      var oldRem = remainingJadwalFrom_(h);
+      var neu = [];
+      for(var i = 0; i < tenor; i++){
+        neu.push({ date: addMonthsJS(tempo, i), amount: cicilan });
+      }
+      // merge sum by date
+      var map = {};
+      oldRem.concat(neu).forEach(function(e){
+        if(!e || !e.date) return;
+        map[e.date] = (map[e.date] || 0) + (Number(e.amount) || 0);
+      });
+      var dates = Object.keys(map).sort();
+      box.className = '';
+      box.innerHTML = dates.map(function(d){
+        return '<div class="riwayat-row"><span class="d">' + esc(d) + '</span><span class="num">' + fmtRupiah(map[d]) + '</span></div>';
+      }).join('') || '<div class="riwayat-empty">—</div>';
+    }
+
+    ['f-topup-nominal','f-topup-bunga','f-topup-tenor','f-topup-cicilan','f-topup-tempo'].forEach(function(id){
+      var el = document.getElementById(id);
+      if(el) el.addEventListener('input', buildMergedPreview_);
+      if(el) el.addEventListener('change', buildMergedPreview_);
+    });
+    buildMergedPreview_();
 
     document.getElementById('btn-save-topup').addEventListener('click', function(){
       var nominalTambahan = rawNum('f-topup-nominal');
+      var bungaTambahan = rawNum('f-topup-bunga') || 0;
       var tanggal = document.getElementById('f-topup-tanggal').value;
-      if(!nominalTambahan || nominalTambahan <= 0){ toast('Pokok tambahan harus diisi'); return; }
-      if(!tanggal){ toast('Tanggal harus diisi'); flashFieldErr_('f-tanggal'); return; }
+      var tenorN = Number(document.getElementById('f-topup-tenor').value) || 0;
+      var tempo0 = document.getElementById('f-topup-tempo').value || '';
+      if(!nominalTambahan || nominalTambahan <= 0){ toast('Pokok tambahan harus diisi'); flashFieldErr_('f-topup-nominal'); return; }
+      if(!tanggal){ toast('Tanggal harus diisi'); return; }
+      if(!tenorN || tenorN <= 0){ toast('Tenor harus diisi'); flashFieldErr_('f-topup-tenor'); return; }
+      if(!tempo0){ toast('Isi tanggal tagihan pertama'); flashFieldErr_('f-topup-tempo'); return; }
       var akunEl = document.getElementById('f-topup-akun');
       if(h.Bentuk === 'Tunai' && (!akunEl || !akunEl.value)){ toast('Pilih rekening'); return; }
+      var totalTambah = nominalTambahan + bungaTambahan;
+      var cicilanManual = rawNum('f-topup-cicilan');
+      var cicilan = cicilanManual > 0 ? cicilanManual : Math.round(totalTambah / tenorN);
+      var oldRem = remainingJadwalFrom_(h);
+      var neu = [];
+      for(var i = 0; i < tenorN; i++){
+        neu.push({ date: addMonthsJS(tempo0, i), amount: cicilan });
+      }
+      // Jadwal = sisa lama (belum lunas) + cicilan top-up (tanggal sama dijumlah)
+      var baseCat = stripJadwalFromCatatan_(h.Catatan || '');
+      var tag = buildJadwalTag_(oldRem.concat(neu));
+      var catatanBaru = (baseCat ? baseCat + ' · ' : '') + (tag || '');
+
       var payload = {
         id: h.ID,
         nominalTambahan: nominalTambahan,
+        bungaTambahan: bungaTambahan,
         tanggal: tanggal,
-        akun: akunEl ? akunEl.value : ''
+        akun: akunEl ? akunEl.value : '',
+        tenorBaru: tenorN,
+        nominalCicilan: cicilan,
+        jatuhTempo: tempo0,
+        catatan: catatanBaru
       };
-      if(isCicilan){
-        payload.bungaTambahan = rawNum('f-topup-bunga') || 0;
-        var tenorV = document.getElementById('f-topup-tenor');
-        var tenorN = (tenorV && tenorV.value) ? Number(tenorV.value) : 0;
-        if(tenorN > 0) payload.tenorBaru = tenorN;
-        var cicV = rawNum('f-topup-cicilan');
-        if(cicV > 0) payload.nominalCicilan = cicV;
-        var tempoEl = document.getElementById('f-topup-tempo');
-        var tempo0 = tempoEl && tempoEl.value ? tempoEl.value : '';
-        if(tempo0) payload.jatuhTempo = tempo0;
-        // Susun / gabung jadwal cicilan (tanggal sama dijumlah)
-        if(tempo0 && cicV > 0 && (tenorN > 0 || Number(h.Tenor) > 0)){
-          var nTen = tenorN > 0 ? tenorN : Number(h.Tenor) || 1;
-          var entries = [];
-          for(var i = 0; i < nTen; i++){
-            entries.push({ date: addMonthsJS(tempo0, i), amount: cicV });
-          }
-          payload.catatan = mergeJadwalIntoCatatan_(h.Catatan || '', entries);
-        }
+      // Optimistic local
+      var addTotal = totalTambah;
+      h.Pokok = (Number(h.Pokok) || 0) + nominalTambahan;
+      h.BungaNominal = (Number(h.BungaNominal) || 0) + bungaTambahan;
+      h.TotalHutang = (Number(h.TotalHutang) || 0) + addTotal;
+      h.SisaHutang = (Number(h.SisaHutang) || 0) + addTotal;
+      h.Tenor = Math.max(Number(h.Tenor) || 0, tenorN);
+      h.NominalCicilan = cicilan;
+      h.JatuhTempo = nextTagihanDariJadwal_({ Catatan: payload.catatan, TotalHutang: h.TotalHutang, SisaHutang: h.SisaHutang }) 
+        ? nextTagihanDariJadwal_({ Catatan: payload.catatan, TotalHutang: h.TotalHutang, SisaHutang: h.SisaHutang }).date
+        : tempo0;
+      h.Catatan = payload.catatan;
+      h.Status = 'Aktif';
+      if(h.Bentuk === 'Tunai' && payload.akun){
+        STATE.rekening.forEach(function(r){
+          if(r.Nama === payload.akun) r.Saldo = (Number(r.Saldo)||0) + nominalTambahan;
+        });
+        STATE.transaksi = [{
+          ID: genLocalId_('trx'), Tanggal: tanggal, Jenis: 'Pemasukan',
+          Kategori: 'Top Up Hutang', Akun: payload.akun, Nominal: nominalTambahan,
+          Catatan: 'Top up ' + (h.Nama || '')
+        }].concat(STATE.transaksi || []);
       }
-      saveOptimistic('Top up tersimpan', function(ok, fail){
-        google.script.run.withSuccessHandler(ok).withFailureHandler(fail).topUpHutang(payload);
-      });
+      try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e){}
+      closeSheet();
+      toast('Top up dicatat');
+      __kasSyncing++;
+      updateSyncPill_();
+      renderAll();
+      google.script.run.withSuccessHandler(function(data){
+        __kasSyncing = Math.max(0, __kasSyncing - 1);
+        updateSyncPill_();
+        try { syncAfterWrite_(data); } catch(e){ softPullFromSheet_(); }
+      }).withFailureHandler(function(err){
+        __kasSyncing = Math.max(0, __kasSyncing - 1);
+        updateSyncPill_();
+        enqueuePendingWrite_({
+          id: 'topup-' + (payload.id || '') + '-' + Date.now(),
+          action: 'topUpHutang',
+          payload: payload,
+          label: 'Top up hutang',
+          ts: Date.now()
+        });
+        toast((err && err.message) ? err.message : 'Gagal sync top up — antri ulang otomatis');
+      }).topUpHutang(payload);
     });
   }
 
-  // ---- Tambah / Edit Rekening ----
+
   function openRekeningForm(){
     openSheet(
       '<div class="sheet-title">Tambah Rekening</div>' +
