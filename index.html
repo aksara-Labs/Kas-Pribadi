@@ -6704,13 +6704,18 @@
     var monthInfo = monthTagihanSummary_();
     var html = '<div class="insight-row">';
     html += '<button type="button" class="insight-chip' + (cls1 ? (' ' + cls1) : '') + '" data-insight="spend">' + esc(chip1) + '</button>';
-    if(due > 0){
-      html += '<button type="button" class="insight-chip ' + (overdue ? 'danger' : 'warn') + '" data-insight="bills">' +
-        due + ' tagihan dekat</button>';
-    }
-    if(monthInfo.total > 0){
-      html += '<button type="button" class="insight-chip warn" data-insight="month">' +
-        'Tagihan ' + esc(monthInfo.short) + ' · ' + fmtRupiah(monthInfo.total) + '</button>';
+    // Satu chip: tagihan dekat + total bulan
+    if(due > 0 || monthInfo.total > 0){
+      var clsB = overdue ? 'danger' : 'warn';
+      var labelB = '';
+      if(due > 0 && monthInfo.total > 0){
+        labelB = due + ' tagihan · ' + fmtRupiah(monthInfo.total);
+      } else if(due > 0){
+        labelB = due + ' tagihan dekat';
+      } else {
+        labelB = 'Tagihan ' + monthInfo.short + ' · ' + fmtRupiah(monthInfo.total);
+      }
+      html += '<button type="button" class="insight-chip ' + clsB + '" data-insight="bills">' + esc(labelB) + '</button>';
     }
     html += '</div>';
     return html;
@@ -6821,6 +6826,7 @@
   }
 
   function openInsightBills_(){
+    var monthInfo = monthTagihanSummary_();
     var overdue = [], upcoming = [];
     (STATE.hutangPiutang || []).forEach(function(h){
       if(h.Status === 'Lunas') return;
@@ -6828,23 +6834,50 @@
       if(u === 'overdue') overdue.push(h);
       else if(u === 'upcoming') upcoming.push(h);
     });
-    var list = overdue.concat(upcoming);
-    var html = '<div class="sheet-title">Tagihan dekat</div>';
-    if(!list.length){
-      html += emptyState('Semua aman', 'Tidak ada tagihan dekat saat ini.');
+    var near = overdue.concat(upcoming);
+    // Gabungkan item bulan + yang dekat (unik by id+date)
+    var items = [];
+    var seen = {};
+    (monthInfo.items || []).forEach(function(it){
+      var key = it.id + '|' + it.date;
+      if(seen[key]) return;
+      seen[key] = 1;
+      items.push(it);
+    });
+    near.forEach(function(h){
+      var due = '';
+      try { due = nextDueDateFor_(h) || h.JatuhTempo || ''; } catch(e){ due = h.JatuhTempo || ''; }
+      var amt = 0;
+      try { amt = Number(amountShownFor(h))||0; } catch(e){ amt = Number(h.SisaHutang)||0; }
+      var key = h.ID + '|' + due;
+      if(seen[key]) return;
+      seen[key] = 1;
+      items.push({ id: h.ID, nama: h.Nama, date: due, amount: amt, near: true });
+    });
+    items.sort(function(a,b){ return String(a.date) < String(b.date) ? -1 : String(a.date) > String(b.date) ? 1 : 0; });
+    var totalShow = monthInfo.total > 0 ? monthInfo.total : items.reduce(function(s,x){ return s + (Number(x.amount)||0); }, 0);
+    var html = '<div class="sheet-title">Tagihan</div>' +
+      '<div class="preview-box">' +
+        '<div class="pr big"><span>Total ' + esc(monthInfo.label || 'bulan ini') + '</span><b class="num">' + fmtRupiah(totalShow) + '</b></div>' +
+        (near.length ? '<div class="pr"><span>Mendekat / telat</span><b>' + near.length + ' tagihan</b></div>' : '') +
+      '</div>';
+    if(!items.length){
+      html += emptyState('Semua aman', 'Tidak ada tagihan dekat atau jatuh tempo bulan ini.');
     } else {
-      list.forEach(function(h){
-        var due = nextDueDateFor_(h) || h.JatuhTempo || '';
-        var days = due ? daysUntil(due) : null;
+      items.forEach(function(it){
+        var days = it.date ? daysUntil(it.date) : null;
         var chip = '';
         if(days !== null && days < 0) chip = '<span class="hp-list-chip danger">Telat ' + Math.abs(days) + 'h</span>';
         else if(days === 0) chip = '<span class="hp-list-chip warn">Hari ini</span>';
-        else if(days !== null) chip = '<span class="hp-list-chip warn">' + days + 'h lagi</span>';
-        html += '<button type="button" class="item-card insight-bill-card" data-id="' + esc(h.ID) + '" style="width:100%;text-align:left;margin-bottom:8px;">' +
+        else if(days !== null && days <= 7) chip = '<span class="hp-list-chip warn">' + days + 'h lagi</span>';
+        html += '<button type="button" class="item-card insight-bill-card" data-id="' + esc(it.id) + '" style="width:100%;text-align:left;margin-bottom:8px;">' +
           '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;">' +
-            '<div style="min-width:0;"><div style="font-weight:800;">' + esc(h.Nama) + '</div>' +
-            '<div class="item-sub">' + esc(due || '-') + ' · ' + fmtRupiah(amountShownFor(h)) + '</div></div>' +
-            chip +
+            '<div style="min-width:0;"><div style="font-weight:800;">' + esc(it.nama) + '</div>' +
+            '<div class="item-sub">' + esc(it.date || '-') + '</div></div>' +
+            '<div style="text-align:right;flex:0 0 auto;">' +
+              '<div class="num" style="font-weight:800;color:var(--amber);">' + fmtRupiah(it.amount) + '</div>' +
+              (chip ? '<div style="margin-top:4px;">' + chip + '</div>' : '') +
+            '</div>' +
           '</div></button>';
       });
     }
@@ -6863,8 +6896,7 @@
       btn.addEventListener('click', function(){
         var k = btn.getAttribute('data-insight');
         if(k === 'spend') openInsightSpend_();
-        else if(k === 'bills') openInsightBills_();
-        else if(k === 'month') openInsightMonth_();
+        else if(k === 'bills' || k === 'month') openInsightBills_();
       });
     });
   }
