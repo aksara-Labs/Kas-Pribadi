@@ -3920,6 +3920,134 @@
       opacity: .85;
     }
 
+
+    /* ===== Poles animasi & empty state ===== */
+    @keyframes emptyIn {
+      from { opacity: 0; transform: translate3d(0, 12px, 0) scale(.98); }
+      to   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+    }
+    @keyframes emptyIconFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-4px); }
+    }
+    @keyframes cardIn {
+      from { opacity: 0; transform: translate3d(0, 8px, 0); }
+      to   { opacity: 1; transform: translate3d(0, 0, 0); }
+    }
+    @keyframes softPulse {
+      0%, 100% { opacity: .55; }
+      50% { opacity: 1; }
+    }
+    @keyframes sheetUp {
+      from { transform: translate3d(0, 18%, 0); opacity: .92; }
+      to   { transform: translate3d(0, 0, 0); opacity: 1; }
+    }
+    .empty-state{
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: center !important;
+      justify-content: center !important;
+      padding: 36px 20px !important;
+      text-align: center !important;
+      animation: emptyIn .45s cubic-bezier(.22,1,.36,1) both;
+    }
+    .empty-state .empty-icon{
+      width: 64px !important;
+      height: 64px !important;
+      border-radius: 20px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      background: linear-gradient(145deg, rgba(26,54,93,.08), rgba(26,54,93,.02)) !important;
+      border: 1px solid rgba(26,54,93,.08) !important;
+      margin-bottom: 14px !important;
+      color: var(--blue-dark, #1A365D) !important;
+      animation: emptyIconFloat 3.2s ease-in-out infinite;
+    }
+    html.dark .empty-state .empty-icon{
+      background: linear-gradient(145deg, rgba(147,197,253,.12), rgba(147,197,253,.04)) !important;
+      border-color: rgba(148,163,184,.15) !important;
+      color: #93C5FD !important;
+    }
+    .empty-state .empty-icon svg{
+      width: 28px !important;
+      height: 28px !important;
+      opacity: .9 !important;
+      margin: 0 !important;
+    }
+    .empty-state .t1{
+      font-size: 15.5px !important;
+      font-weight: 800 !important;
+      letter-spacing: -.3px !important;
+      color: var(--ink) !important;
+    }
+    .empty-state .t2{
+      font-size: 13px !important;
+      line-height: 1.5 !important;
+      max-width: 280px !important;
+      margin-top: 6px !important;
+      color: var(--ink-faint) !important;
+      font-weight: 500 !important;
+    }
+    .empty-state .empty-cta,
+    .empty-state .btn-primary{
+      margin-top: 16px !important;
+      min-width: 160px !important;
+      animation: emptyIn .5s .12s cubic-bezier(.22,1,.36,1) both;
+    }
+    /* List cards stagger feel */
+    .trx-card, .item-card, .hp-list-card, .rekening-card, .rekap-card{
+      animation: cardIn .32s cubic-bezier(.22,1,.36,1) both;
+    }
+    .day-group .trx-card:nth-child(2){ animation-delay: .02s; }
+    .day-group .trx-card:nth-child(3){ animation-delay: .04s; }
+    .day-group .trx-card:nth-child(4){ animation-delay: .06s; }
+    .day-group .trx-card:nth-child(5){ animation-delay: .08s; }
+    .trx-card:active, .item-card:active, .hp-list-card:active, .rekening-card:active{
+      transform: scale(.985) !important;
+      transition: transform .12s ease, background-color .12s ease !important;
+    }
+    /* Sheet & overlay smoother */
+    #sheet-panel.show, .sheet-panel.show, #sheet.show{
+      animation: sheetUp .28s cubic-bezier(.32,.72,0,1) both;
+    }
+    #toast.show, .toast.show{
+      transition: opacity .2s ease, transform .22s cubic-bezier(.22,1,.36,1) !important;
+    }
+    /* Nav micro */
+    #bottomnav button{
+      transition: color .15s ease, background-color .15s ease, transform .12s ease !important;
+    }
+    #bottomnav button:active{
+      transform: scale(.92) !important;
+    }
+    #bottomnav button.nav-add .nav-add-ic{
+      transition: transform .18s cubic-bezier(.22,1,.36,1), box-shadow .18s ease !important;
+    }
+    #bottomnav button.nav-add:active .nav-add-ic{
+      transform: scale(.9) rotate(90deg) !important;
+    }
+    /* Toggle & chips */
+    .toggle-pair button, .chip, .insight-chip, .rekap-sum-cell{
+      transition: background-color .15s ease, color .15s ease, transform .12s ease, border-color .15s ease !important;
+    }
+    .toggle-pair button:active, .chip:active, .insight-chip:active, .rekap-sum-cell:active{
+      transform: scale(.97);
+    }
+    /* Skeleton loading softer */
+    .skel, .skeleton{
+      animation: softPulse 1.2s ease-in-out infinite !important;
+    }
+    @media (prefers-reduced-motion: reduce){
+      .empty-state, .empty-state .empty-icon, .trx-card, .item-card,
+      .hp-list-card, .rekening-card, .rekap-card, #sheet-panel.show{
+        animation: none !important;
+      }
+      #bottomnav button.nav-add:active .nav-add-ic{
+        transform: scale(.94) !important;
+      }
+    }
+
 </style>
 </head>
 <body>
@@ -9833,11 +9961,77 @@
     return '<datalist id="kategori-list">' + list.map(function(c){ return '<option value="' + esc(c) + '">'; }).join('') + '</datalist>';
   }
   function kategoriSelectHtml(selected){
-    var list = trxJenis === 'Pemasukan' ? KATEGORI_PEMASUKAN : listKategoriPengeluaran_();
-    var opts = '<option value="">— Pilih kategori —</option>' + list.map(function(c){
-      return '<option value="' + esc(c) + '"' + (c===selected?' selected':'') + '>' + esc(c) + '</option>';
-    }).join('');
-    return '<select class="form-select" id="f-kategori">' + opts + '</select>';
+    // Bisa diketik + saran filter (tidak perlu scroll panjang)
+    var val = selected || '';
+    return '<div class="kat-combo" id="kat-combo">' +
+      '<input class="form-input" id="f-kategori" type="text" inputmode="text" autocomplete="off" ' +
+        'placeholder="Ketik kategori… (mis. Makan)" value="' + esc(val) + '" ' +
+        'aria-autocomplete="list" aria-controls="kat-suggest">' +
+      '<div id="kat-suggest" class="kat-suggest" hidden></div>' +
+      kategoriDatalist() +
+    '</div>';
+  }
+  function listKategoriAktif_(){
+    return trxJenis === 'Pemasukan' ? KATEGORI_PEMASUKAN.slice() : listKategoriPengeluaran_();
+  }
+  function wireKategoriCombo_(){
+    var inp = document.getElementById('f-kategori');
+    var box = document.getElementById('kat-suggest');
+    if(!inp || !box) return;
+    if(inp.tagName === 'SELECT') return; // legacy
+    function renderSuggest_(q){
+      var list = listKategoriAktif_();
+      var qq = String(q || '').trim().toLowerCase();
+      var items = list.filter(function(c){
+        if(!qq) return true;
+        return String(c).toLowerCase().indexOf(qq) >= 0;
+      });
+      // kalau ketik persis "lainnya" tetap ada
+      if(!items.length && qq){
+        items = list.filter(function(c){ return /lain/i.test(c); }).slice(0, 3);
+      }
+      items = items.slice(0, 12);
+      if(!items.length){
+        box.hidden = true;
+        box.innerHTML = '';
+        return;
+      }
+      box.innerHTML = items.map(function(c){
+        return '<button type="button" class="kat-suggest-item" data-v="' + esc(c) + '">' + esc(c) + '</button>';
+      }).join('');
+      box.hidden = false;
+      box.querySelectorAll('.kat-suggest-item').forEach(function(btn){
+        btn.addEventListener('mousedown', function(e){
+          // mousedown sebelum blur input
+          e.preventDefault();
+          inp.value = btn.getAttribute('data-v') || '';
+          box.hidden = true;
+          try {
+            inp.dispatchEvent(new Event('change', { bubbles: true }));
+            inp.dispatchEvent(new Event('input', { bubbles: true }));
+          } catch(err){}
+          if(typeof renderKategoriDetailFields_ === 'function') renderKategoriDetailFields_();
+        });
+      });
+    }
+    inp.addEventListener('focus', function(){ renderSuggest_(inp.value); });
+    inp.addEventListener('input', function(){ renderSuggest_(inp.value); });
+    inp.addEventListener('keydown', function(e){
+      if(e.key === 'Escape'){ box.hidden = true; }
+      if(e.key === 'Enter'){
+        var first = box.querySelector('.kat-suggest-item');
+        if(first && !box.hidden){
+          e.preventDefault();
+          inp.value = first.getAttribute('data-v') || inp.value;
+          box.hidden = true;
+          try { inp.dispatchEvent(new Event('change', { bubbles: true })); } catch(err){}
+          if(typeof renderKategoriDetailFields_ === 'function') renderKategoriDetailFields_();
+        }
+      }
+    });
+    inp.addEventListener('blur', function(){
+      setTimeout(function(){ box.hidden = true; }, 180);
+    });
   }
 
   // ---- Tambah Transaksi ----
@@ -9980,7 +10174,8 @@
       });
       var katSel = document.getElementById('f-kategori');
       if(katSel){
-        katSel.addEventListener('change', function(){ renderKategoriDetailFields_(); });
+        katSel.addEventListener('change', function(){ renderKategoriDetailFields_();
+      try { wireKategoriCombo_(); } catch(e){} });
         renderKategoriDetailFields_();
       }
       document.querySelectorAll('#trx-h-metode-grid .metode-btn').forEach(function(b){
@@ -10103,7 +10298,8 @@
       }
       var katSel = document.getElementById('f-kategori');
       if(katSel){
-        katSel.addEventListener('change', function(){ renderKategoriDetailFields_(); });
+        katSel.addEventListener('change', function(){ renderKategoriDetailFields_();
+      try { wireKategoriCombo_(); } catch(e){} });
         renderKategoriDetailFields_();
       }
     }
