@@ -3900,6 +3900,26 @@
       box-shadow: 0 6px 16px rgba(26,54,93,.28) !important;
     }
 
+
+    .rekap-fold-btn,
+    .rekap-fold-body .rekap-row,
+    .rekap-fold-body .kategori-row,
+    .rekap-sum-cell[data-focus],
+    .rekap-row[data-focus],
+    .kategori-row[data-kategori]{
+      cursor: pointer !important;
+      pointer-events: auto !important;
+      -webkit-tap-highlight-color: rgba(26,54,93,.08);
+      position: relative;
+      z-index: 2;
+    }
+    .rekap-fold-btn:active,
+    .rekap-row[data-focus]:active,
+    .kategori-row[data-kategori]:active,
+    .rekap-sum-cell[data-focus]:active{
+      opacity: .85;
+    }
+
 </style>
 </head>
 <body>
@@ -8417,7 +8437,7 @@
     // Top kategori dilipat — 3 angka hero tetap fokus
     var katBars = topKategoriBars_(fromYMD, toYMD, 5);
     if(katBars.length){
-      html += '<div class="rekap-fold" data-fold="kat">' +
+      html += '<div class="rekap-fold open" data-fold="kat">' +
         '<button type="button" class="rekap-fold-btn">' +
           '<span>Top kategori</span><span class="rekap-fold-chev">›</span>' +
         '</button>' +
@@ -8428,7 +8448,7 @@
     // Hutang dilipat — tidak mengganggu cashflow
     var hasHp = data.hutangTambah || data.hutangKurang || data.piutangTambah || data.piutangKurang;
     if(hasHp && !rekapUntukFilter){
-      html += '<div class="rekap-fold" data-fold="hp">' +
+      html += '<div class="rekap-fold open" data-fold="hp">' +
         '<button type="button" class="rekap-fold-btn">' +
           '<span>Hutang &amp; piutang</span>' +
           '<span class="rekap-fold-chev">›</span>' +
@@ -8447,13 +8467,7 @@
     return html;
   }
   function wireRekapCards(container){
-    container.querySelectorAll('.rekap-fold-btn').forEach(function(btn){
-      btn.addEventListener('click', function(e){
-        e.stopPropagation();
-        var fold = btn.closest('.rekap-fold');
-        if(fold) fold.classList.toggle('open');
-      });
-    });
+    if(!container) return;
     function handleFocus_(from, to, focus){
       if(!focus) return;
       if(focus === 'hutang-tambah' || focus === 'hutang-kurang' || focus === 'piutang-tambah' || focus === 'piutang-kurang'){
@@ -8468,34 +8482,38 @@
         openRekapDetail(from, to, 'transaksi');
       }
     }
-    container.querySelectorAll('.rekap-card').forEach(function(card){
-      var from = card.dataset.from, to = card.dataset.to;
-      card.querySelectorAll('.rekap-sum-cell[data-focus]').forEach(function(cell){
-        cell.addEventListener('click', function(e){
-          e.stopPropagation();
-          handleFocus_(from, to, cell.dataset.focus);
-        });
-      });
-      card.querySelectorAll('.rekap-row[data-focus]').forEach(function(row){
-        row.addEventListener('click', function(e){
-          e.stopPropagation();
-          handleFocus_(from, to, row.dataset.focus);
-        });
-      });
-      card.querySelectorAll('.kategori-row[data-kategori]').forEach(function(row){
-        row.addEventListener('click', function(e){
-          e.stopPropagation();
-          openKategoriTransaksi(row.dataset.kategori, from, to);
-        });
-      });
-      card.querySelectorAll('.rekap-fold-btn').forEach(function(btn){
-        btn.addEventListener('click', function(e){
-          e.stopPropagation();
-          var fold = btn.closest('.rekap-fold');
-          if(fold) fold.classList.toggle('open');
-        });
-      });
-    });
+    // Event delegation — tahan banting meski fold dibuka/tutup
+    container.onclick = function(e){
+      var t = e.target;
+      if(!t || !t.closest) return;
+      var foldBtn = t.closest('.rekap-fold-btn');
+      if(foldBtn && container.contains(foldBtn)){
+        e.preventDefault();
+        e.stopPropagation();
+        var fold = foldBtn.closest('.rekap-fold');
+        if(fold) fold.classList.toggle('open');
+        return;
+      }
+      var card = t.closest('.rekap-card');
+      if(!card || !container.contains(card)) return;
+      var from = card.getAttribute('data-from') || '';
+      var to = card.getAttribute('data-to') || '';
+      var katEl = t.closest('[data-kategori]');
+      if(katEl && card.contains(katEl)){
+        e.preventDefault();
+        e.stopPropagation();
+        var kat = katEl.getAttribute('data-kategori') || '';
+        if(kat) openKategoriTransaksi(kat, from, to);
+        return;
+      }
+      var focusEl = t.closest('[data-focus]');
+      if(focusEl && card.contains(focusEl)){
+        e.preventDefault();
+        e.stopPropagation();
+        handleFocus_(from, to, focusEl.getAttribute('data-focus') || '');
+        return;
+      }
+    };
   }
 
   function openHutangRekapDetail(fromYMD, toYMD_, focus){
@@ -8979,26 +8997,44 @@
   }
 
   function openKategoriTransaksi(kategori, fromYMD, toYMD_){
+    var uf = rekapUntukFilter || '';
     var trx = STATE.transaksi.filter(function(t){
-      return t.Tanggal >= fromYMD && t.Tanggal <= toYMD_ && (t.Kategori || 'Tanpa Kategori') === kategori;
+      if(t.Tanggal < fromYMD || t.Tanggal > toYMD_) return false;
+      if(t.Jenis !== 'Pengeluaran') return false;
+      if(isTransferLeg(t) || isReimburseClaimLeg(t)) return false;
+      if((t.Kategori || 'Lainnya') !== kategori) return false;
+      if(uf){
+        var u = parseUntuk_(t) || '';
+        if(u !== uf) return false;
+      }
+      return true;
     });
+    var total = 0;
+    trx.forEach(function(t){ total += Number(t.Nominal) || 0; });
     var html = '<div class="sheet-title">' + esc(kategori) + '</div>' +
-      '<div style="font-size:12.5px; color:var(--ink-faint); margin-bottom:10px;">' + fmtRangeLabel(parseYMD(fromYMD), parseYMD(toYMD_)) + '</div>';
+      '<div style="font-size:12.5px; color:var(--ink-faint); margin-bottom:6px;">' + fmtRangeLabel(parseYMD(fromYMD), parseYMD(toYMD_)) + '</div>' +
+      '<div style="font-size:15px;font-weight:800;margin-bottom:12px;" class="num">Total ' + fmtRupiah(total) + ' · ' + trx.length + ' trx</div>';
     if(!trx.length){
-      html += emptyState('Tidak ada data', 'Tidak ada transaksi.');
+      html += emptyState('Tidak ada data', 'Tidak ada pengeluaran kategori ini di rentang ini.');
     } else {
       trx.sort(function(a,b){ return b.Tanggal < a.Tanggal ? -1 : b.Tanggal > a.Tanggal ? 1 : 0; });
       trx.forEach(function(t){
-        var isIn = t.Jenis === 'Pemasukan';
-        html += '<div class="item-card">' +
-          '<div class="icon-badge ' + (isIn?'green':'red') + '">' + (isIn?ICON_INCOME:ICON_EXPENSE) + '</div>' +
+        html += '<div class="item-card" data-id="' + t.ID + '" data-kind="trx" style="cursor:pointer;">' +
+          '<div class="icon-badge red">' + kategoriIconSvg_(t.Kategori, false, false) + '</div>' +
           '<div class="item-main"><div class="item-title">' + esc(t.Tanggal) + '</div>' +
-          '<div class="item-sub">' + esc(t.Akun || '-') + (t.Catatan ? ' • ' + esc(t.Catatan) : '') + '</div></div>' +
-          '<div class="item-amount ' + (isIn?'green':'red') + ' num">' + (isIn?'+':'-') + fmtRupiah(t.Nominal) + '</div>' +
+          '<div class="item-sub">' + esc(t.Akun || '-') + (parseUntuk_(t) ? ' · ' + esc(parseUntuk_(t)) : '') +
+            (t.Catatan ? ' · ' + esc(String(t.Catatan).replace(/Untuk:\s*[^•|]+/i,'').replace(/RBID:[A-Za-z0-9\-_]+/g,'').trim().slice(0,40)) : '') +
+          '</div></div>' +
+          '<div class="item-amount red num">−' + fmtRupiah(t.Nominal) + '</div>' +
         '</div>';
       });
     }
     openSheet(html);
+    document.querySelectorAll('#sheet-content .item-card[data-kind="trx"]').forEach(function(card){
+      card.addEventListener('click', function(){
+        try { openTrxDetail(card.dataset.id); } catch(e){}
+      });
+    });
   }
 
   function doExport(format, fromYMD, toYMD_, btn){
