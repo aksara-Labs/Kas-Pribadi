@@ -4125,30 +4125,50 @@
     }
 
 
-    /* Field yang sedang diketik — jangan ketutup keyboard */
+        #sheet-content .sheet-body{
+      scroll-padding-top: 16px;
+      scroll-padding-bottom: 120px;
+    }
+
+
+    /* Fokus field: cukup jelas, tidak terlalu bold */
     #sheet.kb-open .form-group.field-kb-focus{
       position: relative;
       z-index: 5;
-      background: var(--card);
-      border-radius: 12px;
-      padding: 6px 4px 8px;
-      margin-left: -4px;
-      margin-right: -4px;
-      box-shadow: 0 0 0 3px rgba(26,54,93,.12);
     }
     #sheet.kb-open .form-input.field-kb-focus,
     #sheet.kb-open input.field-kb-focus{
       border-color: var(--blue) !important;
-      background: #fff !important;
-      font-size: 18px !important;
-      font-weight: 800 !important;
+      font-weight: 600 !important;
+      font-size: 16px !important;
     }
-    html.dark #sheet.kb-open .form-input.field-kb-focus{
-      background: #0f172a !important;
+    /* Nominal: sticky di atas sheet saat keyboard buka */
+    #sheet.kb-open .sheet-body .form-group.is-nominal-row{
+      position: sticky;
+      top: 0;
+      z-index: 8;
+      background: var(--card);
+      padding: 8px 0 10px;
+      margin-bottom: 4px;
+      border-bottom: 1px solid var(--line);
+    }
+    #sheet.kb-open .sheet-body .form-group.is-nominal-row .form-input{
+      font-size: 20px !important;
+      font-weight: 700 !important;
+      letter-spacing: -0.3px;
     }
     #sheet-content .sheet-body{
-      scroll-padding-top: 16px;
-      scroll-padding-bottom: 120px;
+      scroll-padding-top: 8px;
+      scroll-padding-bottom: 140px;
+    }
+
+
+    #sheet .num-input{
+      font-weight: 700 !important;
+      font-size: 17px !important;
+    }
+    #sheet .form-label{
+      font-weight: 650 !important;
     }
 
 </style>
@@ -9481,34 +9501,38 @@
   function scrollFieldIntoSheet_(el){
     if(!el) return;
     var body = document.querySelector('#sheet-content .sheet-body');
-    var sheetEl = document.getElementById('sheet');
     try { fitViewport(); } catch(e){}
+    // tandai baris nominal biar sticky
+    try {
+      document.querySelectorAll('.is-nominal-row').forEach(function(x){ x.classList.remove('is-nominal-row'); });
+      if(el.id === 'f-nominal' || (el.classList && el.classList.contains('num-input') && /nominal/i.test(el.id||''))){
+        var g = el.closest('.form-group');
+        if(g) g.classList.add('is-nominal-row');
+      }
+    } catch(e){}
     if(!body){
-      try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch(e){}
+      try { el.scrollIntoView({ block: 'start', behavior: 'auto' }); } catch(e){}
       return;
     }
     try {
+      // Untuk nominal: scroll body ke paling atas biar field + label kelihatan
+      if(el.id === 'f-nominal' || (el.classList && el.classList.contains('num-input') && (el.id||'').indexOf('nominal')>=0)){
+        body.scrollTop = 0;
+        return;
+      }
       var bRect = body.getBoundingClientRect();
       var eRect = el.getBoundingClientRect();
-      // Target: field di 1/4 atas area sheet yang terlihat (di atas keyboard)
-      var targetY = bRect.top + Math.min(72, bRect.height * 0.18);
+      var targetY = bRect.top + 56;
       var delta = eRect.top - targetY;
-      if(Math.abs(delta) > 4){
+      if(Math.abs(delta) > 6){
         body.scrollTop = Math.max(0, body.scrollTop + delta);
       }
-      // label di atas field ikut kelihatan
-      var label = el.closest('.form-group');
-      if(label){
-        var lRect = label.getBoundingClientRect();
-        if(lRect.top < bRect.top + 8){
-          body.scrollTop = Math.max(0, body.scrollTop - (bRect.top + 12 - lRect.top));
-        }
-      }
     } catch(e){
-      try { el.scrollIntoView({ block: 'center', behavior: 'auto' }); } catch(e2){}
+      try { el.scrollIntoView({ block: 'start', behavior: 'auto' }); } catch(e2){}
     }
   }
-  function wireSheetKeyboardFix_(){
+  function wireSheetKeyboardFix_
+(){
     var sc = document.getElementById('sheet-content');
     if(!sc) return;
     if(!__sheetKbWired){
