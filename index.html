@@ -10178,19 +10178,38 @@
     if(!inp || !box) return;
     if(inp.dataset.katWired === '1') return;
     inp.dataset.katWired = '1';
-    function pick_(val){
-      inp.value = val || '';
+    var suppressSuggest_ = false;
+    function hideSuggest_(){
       box.hidden = true;
       box.innerHTML = '';
+    }
+    function pick_(val){
+      suppressSuggest_ = true;
+      inp.value = val || '';
+      hideSuggest_();
       try {
         inp.dispatchEvent(new Event('input', { bubbles: true }));
         inp.dispatchEvent(new Event('change', { bubbles: true }));
       } catch(err){}
       try { if(typeof renderKategoriDetailFields_ === 'function') renderKategoriDetailFields_(); } catch(e){}
+      // tutup keyboard + saran; fokus pindah ke field berikutnya kalau ada
+      try { inp.blur(); } catch(e){}
+      setTimeout(function(){
+        suppressSuggest_ = false;
+        hideSuggest_();
+        var next = document.getElementById('f-tempat') || document.getElementById('f-catatan');
+        if(next){ try { next.focus(); } catch(e){} }
+      }, 30);
     }
     function renderSuggest_(q, forceAll){
+      if(suppressSuggest_){ hideSuggest_(); return; }
       var list = listKategoriAktif_() || [];
       var qq = String(q || '').trim().toLowerCase();
+      // Kalau sudah tepat sama salah satu opsi & bukan forceAll → jangan tampil saran
+      if(!forceAll && qq){
+        var exact = list.some(function(c){ return String(c).toLowerCase() === qq; });
+        if(exact){ hideSuggest_(); return; }
+      }
       var items = list.filter(function(c){
         if(forceAll || !qq) return true;
         return String(c).toLowerCase().indexOf(qq) >= 0;
@@ -10200,13 +10219,11 @@
       }
       if(!forceAll && qq) items = items.slice(0, 14);
       if(!items.length){
-        box.hidden = true;
-        box.innerHTML = '<div class="kat-suggest-empty">Tidak ketemu — ketik lalu pilih Lainnya</div>';
-        box.hidden = false;
+        hideSuggest_();
         return;
       }
       box.innerHTML = items.map(function(c){
-        var active = String(inp.value) === String(c) ? ' active' : '';
+        var active = String(inp.value).toLowerCase() === String(c).toLowerCase() ? ' active' : '';
         return '<button type="button" class="kat-suggest-item' + active + '" data-v="' + esc(c) + '">' + esc(c) + '</button>';
       }).join('');
       box.hidden = false;
@@ -10218,19 +10235,31 @@
         });
         b.addEventListener('click', function(e){
           e.preventDefault();
+          e.stopPropagation();
           pick_(b.getAttribute('data-v') || '');
         });
       });
     }
     function openAll_(){
+      suppressSuggest_ = false;
       renderSuggest_('', true);
       try { inp.focus(); } catch(e){}
     }
-    inp.addEventListener('focus', function(){ renderSuggest_(inp.value, !String(inp.value||'').trim()); });
-    inp.addEventListener('click', function(){ if(box.hidden) renderSuggest_(inp.value, !String(inp.value||'').trim()); });
-    inp.addEventListener('input', function(){ renderSuggest_(inp.value, false); });
+    inp.addEventListener('focus', function(){
+      if(suppressSuggest_) return;
+      // fokus ulang: buka daftar hanya jika kosong / belum exact match
+      renderSuggest_(inp.value, !String(inp.value||'').trim());
+    });
+    inp.addEventListener('click', function(){
+      if(suppressSuggest_) return;
+      if(box.hidden) renderSuggest_(inp.value, !String(inp.value||'').trim());
+    });
+    inp.addEventListener('input', function(){
+      if(suppressSuggest_){ hideSuggest_(); return; }
+      renderSuggest_(inp.value, false);
+    });
     inp.addEventListener('keydown', function(e){
-      if(e.key === 'Escape'){ box.hidden = true; return; }
+      if(e.key === 'Escape'){ hideSuggest_(); return; }
       if(e.key === 'ArrowDown'){
         e.preventDefault();
         var first = box.querySelector('.kat-suggest-item');
@@ -10252,19 +10281,19 @@
         e.preventDefault();
         e.stopPropagation();
         if(box.hidden) openAll_();
-        else { box.hidden = true; }
+        else hideSuggest_();
       });
     }
-    // tutup saat klik di luar
     setTimeout(function(){
-      document.addEventListener('mousedown', function hideKat(ev){
+      document.addEventListener('mousedown', function(ev){
         if(!box || box.hidden) return;
         var combo = document.getElementById('kat-combo');
         if(combo && combo.contains(ev.target)) return;
-        box.hidden = true;
+        hideSuggest_();
       });
     }, 0);
   }
+
 
 
   // ---- Tambah Transaksi ----
