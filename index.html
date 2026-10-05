@@ -8150,7 +8150,7 @@
   // ================= HUTANG & PIUTANG VIEW =================
   var urgencyFilter = 'all'; // 'all' | 'overdue' | 'upcoming'
   var hutangStatusFilter = 'Aktif'; // 'Aktif' | 'Lunas'
-  var METODE_SHORT = { 'Sekaligus':'Sekaligus', 'Cicilan Tetap':'Cicilan', 'Cicilan Bebas':'Cicilan Bebas', 'Paylater':'Paylater' };
+  var METODE_SHORT = { 'Sekaligus':'Paylater', 'Paylater':'Paylater', 'Cicilan Tetap':'Cicilan', 'Cicilan Bebas':'Cicilan', 'Cicilan':'Cicilan' };
 
   function daysUntil(ymd){
     if(!ymd) return null;
@@ -9883,7 +9883,7 @@
       var totalHutang = pokok + bungaNominal;
       STATE.hutangPiutang.unshift({
         ID: hutangId, Jenis: 'Hutang', Nama: payload.hutangNama || payload.nama,
-        Metode: payload.metode || 'Sekaligus', Bentuk: 'Tunai',
+        Metode: payload.metode || 'Paylater', Bentuk: 'Tunai',
         Pokok: pokok, BungaPersen: Number(payload.bungaPersen)||0, BungaNominal: bungaNominal,
         Tenor: Number(payload.tenor)||1, NominalCicilan: totalHutang,
         TotalHutang: totalHutang, SisaHutang: totalHutang, CicilanTerbayar: 0,
@@ -9979,9 +9979,10 @@
           '<div class="form-group"><label class="form-label">Nama pinjol / pemberi</label><input class="form-input" id="f-lib-hnama" placeholder="Contoh: SeaBank, Kredivo"></div>' +
           '<div class="form-group"><label class="form-label">Metode</label>' +
             '<div class="metode-grid" id="lib-metode-grid">' +
-              Object.keys(METODE_INFO).map(function(m){
-                return '<button type="button" class="metode-btn' + (m==='Sekaligus'?' active':'') + '" data-m="' + m + '">' + m + '<small>' + METODE_INFO[m] + '</small></button>';
-              }).join('') +
+              METODE_UI.map(function(m){
+              var active = metodeUi_(libMetode) === m.id;
+              return '<button type="button" class="metode-btn' + (active?' active':'') + '" data-m="' + m.store + '" data-ui="' + m.id + '">' + m.label + '<small>' + m.info + '</small></button>';
+            }).join('') +
             '</div></div>' +
           '<div class="form-group"><label class="form-label">Bunga / admin (di luar budget)</label><input class="form-input num num-input" id="f-lib-bunga" type="text" inputmode="numeric" placeholder="0"></div>' +
           '<div class="preview-box"><div class="pr"><span>Plafon belanja</span><b class="num" id="lib-prev-pokok">Rp 0</b></div>' +
@@ -9999,7 +10000,7 @@
       '<button class="btn-secondary" id="btn-back-lib">Kembali</button>'
     );
     var libSumber = 'rekening';
-    var libMetode = 'Sekaligus';
+    var libMetode = 'Paylater';
     function rekVisible(){
       return STATE.rekening.filter(function(r){ return r.Nama && r.Nama !== 'Kredit (Non-Kas)' && r.Nama !== 'Reimburse'; });
     }
@@ -10483,11 +10484,11 @@
   // ---- Tambah Transaksi ----
   var trxJenis = 'Pengeluaran';
   var trxSumber = 'Rekening';
-  var trxHutangMetode = 'Sekaligus';
+  var trxHutangMetode = 'Paylater';
 
   function openTrxForm(presetJenis){
     trxJenis = presetJenis === 'Pemasukan' ? 'Pemasukan' : 'Pengeluaran';
-    trxSumber = 'Rekening'; trxHutangMetode = 'Sekaligus';
+    trxSumber = 'Rekening'; trxHutangMetode = 'Paylater';
     var today = toYMD(currentDate);
     openSheet(
       '<div class="sheet-title">Tambah Transaksi</div>' +
@@ -10589,9 +10590,10 @@
             '<input class="form-input" id="f-h-nama" type="text" placeholder="Contoh: Kredivo, Toko Jaya, Leasing"></div>' +
           '<div class="form-group"><label class="form-label">Metode</label>' +
             '<div class="metode-grid" id="trx-h-metode-grid">' +
-              Object.keys(METODE_INFO).map(function(m){
-                return '<button type="button" class="metode-btn' + (m===trxHutangMetode?' active':'') + '" data-m="' + m + '">' + m + '<small>' + METODE_INFO[m] + '</small></button>';
-              }).join('') +
+              METODE_UI.map(function(m){
+              var active = metodeUi_(trxHutangMetode) === m.id;
+              return '<button type="button" class="metode-btn' + (active?' active':'') + '" data-m="' + m.store + '" data-ui="' + m.id + '">' + m.label + '<small>' + m.info + '</small></button>';
+            }).join('') +
             '</div>' +
           '</div>' +
           '<div id="trx-h-metode-fields"></div>' +
@@ -10849,70 +10851,38 @@ document.querySelectorAll('#trx-h-metode-grid .metode-btn').forEach(function(b){
   }
 
   function renderTrxHMetodeFields(today){
-    var el = document.getElementById('trx-h-metode-fields');
-    var html = '';
-    if(trxHutangMetode === 'Cicilan Tetap'){
-      html +=
-        '<div class="form-group"><label class="form-label">Bunga</label>' +
-          '<div class="bunga-toggle"><button type="button" class="active" data-bm="persen">Persen (%)</button><button type="button" data-bm="nominal">Nominal (Rp)</button></div>' +
-          '<div class="row-2">' +
-            '<input class="form-input num" id="f-h-bunga-persen" type="number" inputmode="decimal" placeholder="Contoh: 10">' +
-            '<input class="form-input num num-input" id="f-h-bunga-nominal" type="text" inputmode="numeric" placeholder="Nominal bunga">' +
-          '</div>' +
-          '<div style="font-size:11px; color:var(--ink-faint); margin-top:5px;">Bunga flat untuk seluruh tenor. Isi salah satu, lainnya otomatis.</div>' +
+    var box = document.getElementById('trx-h-metode-fields');
+    if(!box) return;
+    var isCicilan = (trxHutangMetode === 'Cicilan Tetap' || trxHutangMetode === 'Cicilan Bebas' || trxHutangMetode === 'Cicilan');
+    var extra = '';
+    if(isCicilan){
+      extra =
+        '<div class="row-2 form-group">' +
+          '<div><label class="form-label">Tenor (bulan) *</label><input class="form-input num" id="f-h-tenor" type="number" inputmode="numeric" min="1" placeholder="3"></div>' +
+          '<div><label class="form-label">Tagihan pertama *</label><input class="form-input" id="f-h-tempo" type="date" value="' + (today||'') + '"></div>' +
         '</div>' +
-        '<div class="form-group"><label class="form-label">Tenor (bulan)</label><input class="form-input num" id="f-h-tenor" type="number" inputmode="numeric" placeholder="Contoh: 12"></div>' +
-        '<div class="preview-box">' +
-          '<div class="pr"><span>Total Bunga</span><b class="num" id="trxh-prev-bunga">Rp 0</b></div>' +
-          '<div class="pr big"><span>Total Hutang</span><b class="num" id="trxh-prev-total">Rp 0</b></div>' +
-          '<div class="pr"><span>Angsuran / bulan</span><b class="num" id="trxh-prev-angsuran">Rp 0</b></div>' +
-        '</div>' +
-        '<div class="form-group"><label class="form-label">Jatuh Tempo ke-1</label><input class="form-input" id="f-h-tempo" type="date" value="' + addMonthsJS(today,1) + '"></div>';
-    } else if(trxHutangMetode === 'Paylater'){
-      html +=
-        '<div class="form-group"><label class="form-label">Biaya Layanan / Admin (opsional)</label><input class="form-input num num-input" id="f-h-biaya" type="text" inputmode="numeric" placeholder="0"></div>' +
-        '<div class="preview-box"><div class="pr big"><span>Total Bayar</span><b class="num" id="trxh-prev-total">Rp 0</b></div></div>' +
-        '<div class="form-group"><label class="form-label">Jatuh Tempo</label><input class="form-input" id="f-h-tempo" type="date" value="' + addMonthsJS(today,1) + '"></div>';
-    } else if(trxHutangMetode === 'Cicilan Bebas'){
-      html += '<div class="form-group"><label class="form-label">Target Lunas (opsional)</label><input class="form-input" id="f-h-tempo" type="date"></div>' +
-        '<div style="font-size:11px; color:var(--ink-faint); margin:-6px 0 4px;">Bayar berkali-kali dengan nominal bebas sampai lunas.</div>';
-    } else { // Sekaligus
-      html += '<div class="form-group"><label class="form-label">Jatuh Tempo (opsional)</label><input class="form-input" id="f-h-tempo" type="date"></div>';
+        '<div class="form-group"><label class="form-label">Cicilan / bulan (opsional)</label>' +
+          '<input class="form-input num num-input" id="f-h-cicilan" type="text" inputmode="numeric" placeholder="Kosongkan = bagi rata">' +
+          '<div style="font-size:11px;color:var(--ink-faint);margin-top:4px;">Kosong = (pokok+bunga) ÷ tenor</div></div>';
+    } else {
+      // Paylater (= sekaligus)
+      extra =
+        '<div class="form-group"><label class="form-label">Jatuh tempo *</label><input class="form-input" id="f-h-tempo" type="date" value="' + (today||'') + '"></div>' +
+        '<div class="form-group"><label class="form-label">Biaya layanan / admin (opsional)</label>' +
+          '<input class="form-input num num-input" id="f-h-biaya" type="text" inputmode="numeric" placeholder="0"></div>';
     }
-    el.innerHTML = html;
-
-    if(trxHutangMetode === 'Cicilan Tetap'){
-      document.querySelectorAll('#trx-h-metode-fields .bunga-toggle button').forEach(function(b){
-        b.addEventListener('click', function(){
-          document.querySelectorAll('#trx-h-metode-fields .bunga-toggle button').forEach(function(x){ x.classList.remove('active'); });
-          b.classList.add('active');
-        });
+    box.innerHTML = extra;
+    if(isCicilan){
+      var up = function(){ try { updateTrxHCicilanPreview && updateTrxHCicilanPreview(); } catch(e){} };
+      ['f-h-tenor','f-h-cicilan','f-h-nominal','f-h-bunga'].forEach(function(id){
+        var el = document.getElementById(id);
+        if(el) el.addEventListener('input', up);
       });
-      document.getElementById('f-h-bunga-persen').addEventListener('input', function(){
-        var pokok = rawNum('f-nominal')||0, persen = Number(this.value)||0;
-        document.getElementById('f-h-bunga-nominal').value = pokok && persen ? ribuanStr(Math.round(pokok*persen/100)) : '';
-        updateTrxHPreview();
-      });
-      document.getElementById('f-h-bunga-nominal').addEventListener('input', function(){
-        var pokok = rawNum('f-nominal')||0, nom = rawNum(this)||0;
-        document.getElementById('f-h-bunga-persen').value = pokok && nom ? Math.round((nom/pokok*100)*10)/10 : '';
-        updateTrxHPreview();
-      });
-      document.getElementById('f-h-tenor').addEventListener('input', updateTrxHPreview);
-      updateTrxHPreview();
-    } else if(trxHutangMetode === 'Paylater'){
-      document.getElementById('f-h-biaya').addEventListener('input', updateTrxHPaylaterPreview);
-      updateTrxHPaylaterPreview();
+    } else {
+      var b = document.getElementById('f-h-biaya');
+      if(b) b.addEventListener('input', updateTrxHPaylaterPreview);
+      try { updateTrxHPaylaterPreview(); } catch(e){}
     }
-  }
-
-  function updateTrxHPreview(){
-    var pokok = rawNum('f-nominal')||0;
-    var bungaNominal = rawNum('f-h-bunga-nominal')||0;
-    var tenor = Number(document.getElementById('f-h-tenor').value)||1;
-    document.getElementById('trxh-prev-bunga').textContent = fmtRupiah(bungaNominal);
-    document.getElementById('trxh-prev-total').textContent = fmtRupiah(pokok+bungaNominal);
-    document.getElementById('trxh-prev-angsuran').textContent = fmtRupiah(Math.round((pokok+bungaNominal)/tenor));
   }
   function updateTrxHPaylaterPreview(){
     var pokok = rawNum('f-nominal')||0;
@@ -11427,13 +11397,23 @@ document.querySelectorAll('#trx-h-metode-grid .metode-btn').forEach(function(b){
 
   // ---- Tambah Hutang / Piutang ----
   var hpJenis = 'Hutang';
-  var hpMetode = 'Sekaligus';
+  var hpMetode = 'Paylater';
   var METODE_INFO = {
-    'Sekaligus': 'Dibayar penuh sekali di jatuh tempo',
-    'Cicilan Tetap': 'Pokok + bunga dibagi rata per bulan',
-    'Cicilan Bebas': 'Bayar sesuka nominal sampai lunas',
-    'Paylater': 'Beli sekarang, bayar nanti'
+    'Paylater': 'Bayar sekali di jatuh tempo (termasuk sekaligus)',
+    'Cicilan': 'Bayar per bulan sampai lunas'
   };
+  var METODE_UI = [
+    { id: 'Paylater', store: 'Paylater', label: 'Paylater', info: 'Bayar sekali di jatuh tempo' },
+    { id: 'Cicilan', store: 'Cicilan Tetap', label: 'Cicilan', info: 'Bayar per bulan sampai lunas' }
+  ];
+  function metodeStore_(uiId){
+    if(uiId === 'Cicilan' || uiId === 'Cicilan Tetap' || uiId === 'Cicilan Bebas') return 'Cicilan Tetap';
+    return 'Paylater'; // Paylater + Sekaligus
+  }
+  function metodeUi_(store){
+    if(store === 'Cicilan Tetap' || store === 'Cicilan Bebas' || store === 'Cicilan') return 'Cicilan';
+    return 'Paylater';
+  }
 
   function addMonthsJS(ymd, n){
     if(!ymd) return '';
@@ -11448,7 +11428,7 @@ document.querySelectorAll('#trx-h-metode-grid .metode-btn').forEach(function(b){
 
   function openHutangForm(preferJenis){
     hpJenis = (preferJenis === 'Piutang') ? 'Piutang' : 'Hutang';
-    hpMetode = 'Sekaligus';
+    hpMetode = 'Paylater';
     var today = toYMD(currentDate);
     if(!STATE.rekening.length){
       openSheet(
@@ -11488,9 +11468,10 @@ document.querySelectorAll('#trx-h-metode-grid .metode-btn').forEach(function(b){
         '<div class="form-section-body">' +
           '<div class="form-group"><label class="form-label">Metode</label>' +
             '<div class="metode-grid" id="hp-metode-grid">' +
-              Object.keys(METODE_INFO).map(function(m){
-                return '<button type="button" class="metode-btn' + (m===hpMetode?' active':'') + '" data-m="' + m + '">' + m + '<small>' + METODE_INFO[m] + '</small></button>';
-              }).join('') +
+              METODE_UI.map(function(m){
+              var active = metodeUi_(hpMetode) === m.id;
+              return '<button type="button" class="metode-btn' + (active?' active':'') + '" data-m="' + m.store + '" data-ui="' + m.id + '">' + m.label + '<small>' + m.info + '</small></button>';
+            }).join('') +
             '</div>' +
           '</div>' +
           '<div id="metode-fields"></div>' +
@@ -11547,94 +11528,72 @@ document.querySelectorAll('#trx-h-metode-grid .metode-btn').forEach(function(b){
 
   function renderMetodeFields(today){
     var el = document.getElementById('metode-fields');
+    if(!el) return;
+    var isCicilan = (hpMetode === 'Cicilan Tetap' || hpMetode === 'Cicilan Bebas' || hpMetode === 'Cicilan');
     var html = '';
-    if(hpMetode === 'Sekaligus'){
-      html +=
-        '<div class="form-group"><label class="form-label">Nominal</label><input class="form-input num num-input" id="f-pokok" type="text" inputmode="numeric" placeholder="0"></div>' +
-        '<div class="row-2 form-group">' +
-          '<div><label class="form-label">Tanggal</label><input class="form-input" id="f-tanggal" type="date" value="' + today + '"></div>' +
-          '<div><label class="form-label">Jatuh Tempo</label><input class="form-input" id="f-tempo" type="date"></div>' +
-        '</div>';
-    } else if(hpMetode === 'Cicilan Tetap'){
-      html +=
-        '<div class="form-group"><label class="form-label">Jumlah Pinjaman (Pokok)</label><input class="form-input num num-input" id="f-pokok" type="text" inputmode="numeric" placeholder="0"></div>' +
-        '<div class="form-group"><label class="form-label">Bunga</label>' +
-          '<div class="bunga-toggle"><button type="button" class="active" data-bm="persen">Persen (%)</button><button type="button" data-bm="nominal">Nominal (Rp)</button></div>' +
+    if(isCicilan){
+      html =
+        '<div class="form-group"><label class="form-label">Pokok *</label><input class="form-input num num-input" id="f-pokok" type="text" inputmode="numeric" placeholder="0"></div>' +
+        '<div class="form-group"><label class="form-label">Bunga (opsional)</label>' +
+          '<div class="bunga-toggle" id="bunga-toggle"><button type="button" class="active" data-bm="persen">Persen (%)</button><button type="button" data-bm="nominal">Nominal (Rp)</button></div>' +
           '<div class="row-2">' +
-            '<input class="form-input num" id="f-bunga-persen" type="number" inputmode="decimal" placeholder="Contoh: 10">' +
-            '<input class="form-input num num-input" id="f-bunga-nominal" type="text" inputmode="numeric" placeholder="Nominal bunga">' +
-          '</div>' +
-          '<div style="font-size:11px; color:var(--ink-faint); margin-top:5px;">Bunga flat untuk seluruh tenor. Isi salah satu, lainnya terisi otomatis.</div>' +
-        '</div>' +
-        '<div class="form-group"><label class="form-label">Tenor (bulan)</label><input class="form-input num" id="f-tenor" type="number" inputmode="numeric" placeholder="Contoh: 12"></div>' +
-        '<div class="preview-box">' +
-          '<div class="pr"><span>Total Bunga</span><b class="num" id="prev-bunga">Rp 0</b></div>' +
-          '<div class="pr big"><span>Total Hutang</span><b class="num" id="prev-total">Rp 0</b></div>' +
-          '<div class="pr"><span>Angsuran / bulan</span><b class="num" id="prev-angsuran">Rp 0</b></div>' +
-        '</div>' +
+            '<input class="form-input num" id="f-bunga-persen" type="number" inputmode="decimal" placeholder="0">' +
+            '<input class="form-input num num-input" id="f-bunga-nominal" type="text" inputmode="numeric" placeholder="0">' +
+          '</div></div>' +
         '<div class="row-2 form-group">' +
-          '<div><label class="form-label">Tanggal Mulai</label><input class="form-input" id="f-tanggal" type="date" value="' + today + '"></div>' +
-          '<div><label class="form-label">Jatuh Tempo ke-1</label><input class="form-input" id="f-tempo" type="date" value="' + addMonthsJS(today,1) + '"></div>' +
+          '<div><label class="form-label">Tenor (bulan) *</label><input class="form-input num" id="f-tenor" type="number" inputmode="numeric" min="1" placeholder="3"></div>' +
+          '<div><label class="form-label">Tagihan pertama *</label><input class="form-input" id="f-tempo" type="date" value="' + (today||'') + '"></div>' +
+        '</div>' +
+        '<div class="form-group"><label class="form-label">Cicilan / bulan (opsional)</label>' +
+          '<input class="form-input num num-input" id="f-cicilan" type="text" inputmode="numeric" placeholder="Kosongkan = bagi rata"></div>' +
+        '<div class="row-2 form-group">' +
+          '<div><label class="form-label">Tanggal</label><input class="form-input" id="f-tanggal" type="date" value="' + (today||'') + '"></div>' +
+          '<div></div>' +
+        '</div>' +
+        '<div class="preview-box" id="cicilan-preview">' +
+          '<div class="pr"><span>Total hutang</span><b class="num" id="prev-total">Rp 0</b></div>' +
+          '<div class="pr"><span>Cicilan / bln</span><b class="num" id="prev-cicilan">Rp 0</b></div>' +
         '</div>';
-    } else if(hpMetode === 'Cicilan Bebas'){
-      html +=
-        '<div class="form-group"><label class="form-label">Total Hutang</label><input class="form-input num num-input" id="f-pokok" type="text" inputmode="numeric" placeholder="0"></div>' +
+    } else {
+      // Paylater (= Sekaligus)
+      html =
+        '<div class="form-group"><label class="form-label">Nominal *</label><input class="form-input num num-input" id="f-pokok" type="text" inputmode="numeric" placeholder="0"></div>' +
+        '<div class="form-group"><label class="form-label">Biaya layanan / admin (opsional)</label>' +
+          '<input class="form-input num num-input" id="f-bunga-nominal" type="text" inputmode="numeric" placeholder="0"></div>' +
         '<div class="row-2 form-group">' +
-          '<div><label class="form-label">Tanggal</label><input class="form-input" id="f-tanggal" type="date" value="' + today + '"></div>' +
-          '<div><label class="form-label">Target Lunas (opsional)</label><input class="form-input" id="f-tempo" type="date"></div>' +
+          '<div><label class="form-label">Tanggal</label><input class="form-input" id="f-tanggal" type="date" value="' + (today||'') + '"></div>' +
+          '<div><label class="form-label">Jatuh tempo *</label><input class="form-input" id="f-tempo" type="date" value="' + (today||'') + '"></div>' +
         '</div>' +
-        '<div style="font-size:11px; color:var(--ink-faint); margin:-6px 0 4px;">Bayar berkali-kali dengan nominal bebas sampai sisa hutang habis.</div>';
-    } else { // Paylater
-      html +=
-        '<div class="form-group"><label class="form-label">Nominal Transaksi</label><input class="form-input num num-input" id="f-pokok" type="text" inputmode="numeric" placeholder="0"></div>' +
-        '<div class="form-group"><label class="form-label">Biaya Layanan / Admin (opsional)</label><input class="form-input num num-input" id="f-biaya" type="text" inputmode="numeric" placeholder="0"></div>' +
-        '<div class="preview-box"><div class="pr big"><span>Total Bayar</span><b class="num" id="prev-total">Rp 0</b></div></div>' +
-        '<div class="row-2 form-group">' +
-          '<div><label class="form-label">Tanggal</label><input class="form-input" id="f-tanggal" type="date" value="' + today + '"></div>' +
-          '<div><label class="form-label">Jatuh Tempo</label><input class="form-input" id="f-tempo" type="date" value="' + addMonthsJS(today,1) + '"></div>' +
-        '</div>';
+        '<div class="preview-box"><div class="pr big"><span>Total bayar</span><b class="num" id="prev-total">Rp 0</b></div></div>';
     }
     el.innerHTML = html;
-
-    if(hpMetode === 'Cicilan Tetap'){
-      var bungaMode = 'persen';
-      document.querySelectorAll('.bunga-toggle button').forEach(function(b){
-        b.addEventListener('click', function(){
-          bungaMode = b.dataset.bm;
-          document.querySelectorAll('.bunga-toggle button').forEach(function(x){ x.classList.remove('active'); });
-          b.classList.add('active');
+    // wire previews
+    try {
+      if(isCicilan && typeof updateCicilanPreview === 'function'){
+        ['f-pokok','f-bunga-persen','f-bunga-nominal','f-tenor','f-cicilan'].forEach(function(id){
+          var e = document.getElementById(id); if(e) e.addEventListener('input', updateCicilanPreview);
         });
-      });
-      var pokokEl = document.getElementById('f-pokok');
-      var persenEl = document.getElementById('f-bunga-persen');
-      var nominalEl = document.getElementById('f-bunga-nominal');
-      var tenorEl = document.getElementById('f-tenor');
-      var lock = false;
-      function fromPersen(){
-        if(lock) return; lock = true;
-        var pokok = rawNum(pokokEl)||0, persen = Number(persenEl.value)||0;
-        nominalEl.value = pokok && persen ? ribuanStr(Math.round(pokok*persen/100)) : '';
-        updateCicilanPreview(); lock = false;
+        document.querySelectorAll('#bunga-toggle button').forEach(function(b){
+          b.addEventListener('click', function(){
+            document.querySelectorAll('#bunga-toggle button').forEach(function(x){ x.classList.remove('active'); });
+            b.classList.add('active');
+            updateCicilanPreview();
+          });
+        });
+        updateCicilanPreview();
+      } else {
+        function upPay(){
+          var p = rawNum('f-pokok') || 0;
+          var b = rawNum('f-bunga-nominal') || 0;
+          var elT = document.getElementById('prev-total');
+          if(elT) elT.textContent = fmtRupiah(p + b);
+        }
+        ['f-pokok','f-bunga-nominal'].forEach(function(id){
+          var e = document.getElementById(id); if(e) e.addEventListener('input', upPay);
+        });
+        upPay();
       }
-      function fromNominal(){
-        if(lock) return; lock = true;
-        var pokok = rawNum(pokokEl)||0, nom = rawNum(nominalEl)||0;
-        persenEl.value = pokok && nom ? Math.round((nom/pokok*100)*10)/10 : '';
-        updateCicilanPreview(); lock = false;
-      }
-      persenEl.addEventListener('input', fromPersen);
-      nominalEl.addEventListener('input', fromNominal);
-      pokokEl.addEventListener('input', function(){ persenEl.value ? fromPersen() : fromNominal(); });
-      tenorEl.addEventListener('input', updateCicilanPreview);
-      document.getElementById('f-tanggal').addEventListener('change', function(){
-        document.getElementById('f-tempo').value = addMonthsJS(this.value, 1);
-      });
-      updateCicilanPreview();
-    } else if(hpMetode === 'Paylater'){
-      document.getElementById('f-pokok').addEventListener('input', updatePaylaterPreview);
-      document.getElementById('f-biaya').addEventListener('input', updatePaylaterPreview);
-      updatePaylaterPreview();
-    }
+    } catch(e){}
   }
 
   function updateCicilanPreview(){
@@ -11893,21 +11852,29 @@ document.querySelectorAll('#trx-h-metode-grid .metode-btn').forEach(function(b){
       (catatanBersih ? '<div class="detail-row"><span class="k">Catatan</span><span class="v">' + esc(catatanBersih) + '</span></div>' : '') +
       '</div></details>';
 
-    // Aksi
+    // Aksi — nominal default = tagihan berikutnya, tetap bisa diedit (bayar sebagian)
     if(!lunas && STATE.rekening.length){
-      var defaultBayar = nextJadwal
-        ? Math.min(nextJadwal.amount, Number(h.SisaHutang))
-        : (h.Metode === 'Cicilan Tetap' ? Math.min(Number(h.NominalCicilan) || 0, Number(h.SisaHutang) || 0) : Number(h.SisaHutang));
-      var payLabel = nextJadwal
-        ? ('Bayar ' + fmtRupiah(defaultBayar))
-        : (h.Metode === 'Cicilan Tetap' ? 'Bayar cicilan' : h.Metode === 'Cicilan Bebas' ? 'Catat pembayaran' : (isHutang ? 'Tandai sudah dibayar' : 'Tandai sudah diterima'));
-      var bayarReadonly = h.Metode === 'Cicilan Tetap' || h.Metode === 'Paylater' || h.Metode === 'Sekaligus' || !!nextJadwal;
+      var sisaH = Number(h.SisaHutang) || 0;
+      var defaultBayar = 0;
+      if(nextJadwal && nextJadwal.amount){
+        defaultBayar = Math.min(Number(nextJadwal.amount) || 0, sisaH);
+      } else if(h.Metode === 'Cicilan Tetap' || h.Metode === 'Cicilan Bebas' || h.Metode === 'Cicilan'){
+        defaultBayar = Math.min(Number(h.NominalCicilan) || sisaH, sisaH);
+      } else {
+        // Paylater / Sekaligus: default = sisa (atau tagihan penuh)
+        defaultBayar = sisaH;
+      }
+      if(defaultBayar < 0) defaultBayar = 0;
+      var payLabel = isHutang ? 'Bayar cicilan' : 'Catat penerimaan';
 
       html +=
         '<div class="hp-pay-zone">' +
           '<div class="form-group" style="margin:0 0 10px;"><label class="form-label">Nominal bayar</label>' +
-            '<input class="form-input num num-input" id="f-bayar-nominal" type="text" inputmode="numeric" value="' + ribuanStr(defaultBayar) + '"' +
-            (bayarReadonly ? ' readonly' : '') + '></div>' +
+            '<input class="form-input num num-input" id="f-bayar-nominal" type="text" inputmode="numeric" value="' + ribuanStr(defaultBayar) + '">' +
+            '<div style="font-size:11.5px;color:var(--ink-faint);margin-top:5px;line-height:1.4;">' +
+              'Default = tagihan' + (nextJadwal && nextJadwal.date ? ' (' + esc(nextJadwal.date) + ')' : '') +
+              '. Boleh diubah untuk <b>bayar sebagian</b> sebelum jatuh tempo.' +
+            '</div></div>' +
           '<div class="row-2 form-group" style="margin:0 0 10px;">' +
             '<div><label class="form-label">Tanggal</label><input class="form-input" id="f-bayar-tanggal" type="date" value="' + today + '"></div>' +
             '<div><label class="form-label">' + (isHutang ? 'Dari rekening' : 'Ke rekening') + '</label>' +
@@ -11961,8 +11928,10 @@ document.querySelectorAll('#trx-h-metode-grid .metode-btn').forEach(function(b){
         var tanggal = document.getElementById('f-bayar-tanggal').value;
         var akun = document.getElementById('f-akun-lunas').value;
         if(!nominal || nominal <= 0){ toast('Nominal bayar harus diisi'); return; }
-        if(!tanggal){ toast('Tanggal harus diisi'); flashFieldErr_('f-tanggal'); return; }
+        if(!tanggal){ toast('Tanggal harus diisi'); flashFieldErr_('f-bayar-tanggal'); return; }
         if(!akun){ toast('Pilih rekening'); return; }
+        var sisaNow = Number(h.SisaHutang) || 0;
+        if(nominal > sisaNow){ toast('Maksimal sisa ' + fmtRupiah(sisaNow)); return; }
         var payload = { id: h.ID, nominal: nominal, tanggal: tanggal, akun: akun };
         // Optimistic + sheet truth
         var oldSisa = Number(h.SisaHutang) || 0;
@@ -12047,13 +12016,14 @@ document.querySelectorAll('#trx-h-metode-grid .metode-btn').forEach(function(b){
   }
 
   function openHutangEditForm(h){
-    var isCicilanTetap = h.Metode === 'Cicilan Tetap';
-    var isPaylater = h.Metode === 'Paylater';
+    var isCicilanTetap = h.Metode === 'Cicilan Tetap' || h.Metode === 'Cicilan Bebas' || h.Metode === 'Cicilan';
+    var isPaylater = !isCicilanTetap; // Paylater + Sekaligus
+    var metodeLabel = metodeUi_ ? metodeUi_(h.Metode) : (isCicilanTetap ? 'Cicilan' : 'Paylater');
     var html =
       '<div class="sheet-title">Edit hutang</div>' +
       '<div class="form-mini-hero">' +
         '<div class="nm">' + esc(h.Nama) + '</div>' +
-        '<div class="sub">' + esc(h.Metode) + (h.Akun ? ' · ' + esc(h.Akun) : '') + '</div>' +
+        '<div class="sub">' + esc(metodeLabel) + (h.Akun ? ' · ' + esc(h.Akun) : '') + '</div>' +
         '<div class="val num">' + fmtRupiah(h.SisaHutang) + '</div>' +
         '<div class="sub">Sisa sekarang</div>' +
       '</div>' +
@@ -12218,7 +12188,6 @@ document.querySelectorAll('#trx-h-metode-grid .metode-btn').forEach(function(b){
     function remainingJadwalFrom_(hh){
       var all = parseJadwalTagihan_(hh.Catatan || '');
       if(!all.length && hh.Metode === 'Cicilan Tetap' && Number(hh.Tenor) > 0){
-        // bangun dari tenor rata jika belum ada JADWAL
         var n = Number(hh.Tenor) || 0;
         var paid = Number(hh.CicilanTerbayar) || 0;
         var cic = Number(hh.NominalCicilan) || Math.round((Number(hh.SisaHutang)||0) / Math.max(1, n - paid));
@@ -12234,7 +12203,7 @@ document.querySelectorAll('#trx-h-metode-grid .metode-btn').forEach(function(b){
       all.forEach(function(j){
         var prev = acc;
         acc += Number(j.amount) || 0;
-        if(terbayar >= acc - 0.01) return; // lunas penuh
+        if(terbayar >= acc - 0.01) return;
         if(terbayar > prev + 0.01){
           var sisaTag = Math.round(acc - terbayar);
           if(sisaTag > 0) out.push({ date: j.date, amount: sisaTag });
@@ -12242,6 +12211,13 @@ document.querySelectorAll('#trx-h-metode-grid .metode-btn').forEach(function(b){
           out.push({ date: j.date, amount: Number(j.amount) || 0 });
         }
       });
+      // Paylater / tanpa JADWAL: sisa hutang = 1 tagihan di jatuh tempo
+      if(!out.length && Number(hh.SisaHutang) > 0){
+        out.push({
+          date: hh.JatuhTempo || toYMD(new Date()),
+          amount: Math.round(Number(hh.SisaHutang) || 0)
+        });
+      }
       return out;
     }
 
