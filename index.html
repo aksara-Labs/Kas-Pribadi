@@ -9465,13 +9465,16 @@
         });
         // ringkasan di atas
         rows.unshift([]);
-        rows.unshift(['Piutang berkurang', data.piutangKurang || 0]);
+        rows.unshift(['Piutang diterima', data.piutangKurang || 0]);
         rows.unshift(['Piutang bertambah', data.piutangTambah || 0]);
+        rows.unshift(['Sudah dibayar (hutang)', data.hutangKurang || 0]);
+        rows.unshift(['Hutang baru / top up', data.hutangTambah || 0]);
+        rows.unshift(['Total keluar', data.pengeluaran || 0]);
         rows.unshift(['Bayar hutang', data.hutangKurang || 0]);
-        rows.unshift(['Hutang bertambah', data.hutangTambah || 0]);
+        rows.unshift(['Pengeluaran sehari-hari', Math.max(0, (data.pengeluaran||0)-(data.hutangKurang||0))]);
         rows.unshift(['Selisih', data.selisih || 0]);
-        rows.unshift(['Pengeluaran', data.pengeluaran || 0]);
-        rows.unshift(['Pemasukan', data.pemasukan || 0]);
+        rows.unshift(['Uang keluar (total)', data.pengeluaran || 0]);
+        rows.unshift(['Uang masuk', data.pemasukan || 0]);
         rows.unshift(['Periode', label]);
         rows.unshift(['LAPORAN KAS PRIBADI']);
         var csv = rows.map(function(r){
@@ -9537,13 +9540,19 @@
           '<div class="sub">Periode ' + esc(label) + '</div>' +
         '</div><div class="doc-meta">' + esc(uname) + '<br>Dibuat ' + esc(genAt) + '</div></div>' +
         '<div class="grid"><div class="card"><h2>Ringkasan</h2><table>' +
-        '<tr><td>Pemasukan</td><td class="r n" style="color:#059669">' + fmtRupiah(data.pemasukan) + '</td></tr>' +
-        '<tr><td>Pengeluaran</td><td class="r n" style="color:#dc2626">' + fmtRupiah(data.pengeluaran) + '</td></tr>' +
-        '<tr><td>Selisih</td><td class="r n">' + fmtRupiah(data.selisih) + '</td></tr>' +
-        '<tr><td>Hutang bertambah</td><td class="r n" style="color:#dc2626">' + fmtRupiah(data.hutangTambah || 0) + '</td></tr>' +
+        '<tr><td colspan="2" style="font-size:10px;color:#64748b;font-weight:700;letter-spacing:.04em;">ARUS KAS</td></tr>' +
+        '<tr><td>Uang masuk</td><td class="r n" style="color:#059669">' + fmtRupiah(data.pemasukan) + '</td></tr>' +
+        '<tr><td>Uang keluar (total)</td><td class="r n" style="color:#dc2626">' + fmtRupiah(data.pengeluaran) + '</td></tr>' +
+        '<tr><td><b>Selisih</b></td><td class="r n"><b>' + fmtRupiah(data.selisih) + '</b></td></tr>' +
+        '<tr><td colspan="2" style="font-size:10px;color:#64748b;font-weight:700;letter-spacing:.04em;padding-top:10px;">RINCIAN PENGELUARAN</td></tr>' +
+        '<tr><td>Pengeluaran sehari-hari</td><td class="r n" style="color:#dc2626">' + fmtRupiah(Math.max(0, (data.pengeluaran||0) - (data.hutangKurang||0))) + '</td></tr>' +
         '<tr><td>Bayar hutang</td><td class="r n" style="color:#059669">' + fmtRupiah(data.hutangKurang || 0) + '</td></tr>' +
+        '<tr><td>Total keluar</td><td class="r n" style="color:#dc2626">' + fmtRupiah(data.pengeluaran) + '</td></tr>' +
+        '<tr><td colspan="2" style="font-size:10px;color:#64748b;font-weight:700;letter-spacing:.04em;padding-top:10px;">HUTANG &amp; PIUTANG</td></tr>' +
+        '<tr><td>Hutang baru / top up</td><td class="r n" style="color:#dc2626">' + fmtRupiah(data.hutangTambah || 0) + '</td></tr>' +
+        '<tr><td>Sudah dibayar</td><td class="r n" style="color:#059669">' + fmtRupiah(data.hutangKurang || 0) + '</td></tr>' +
         '<tr><td>Piutang bertambah</td><td class="r n">' + fmtRupiah(data.piutangTambah || 0) + '</td></tr>' +
-        '<tr><td>Piutang berkurang</td><td class="r n">' + fmtRupiah(data.piutangKurang || 0) + '</td></tr>' +
+        '<tr><td>Piutang diterima</td><td class="r n">' + fmtRupiah(data.piutangKurang || 0) + '</td></tr>' +
         '</table></div><div class="card"><h2>Per orang</h2><table>' +
         '<tr><td>Pribadi</td><td class="r">' + fmtRupiah(u.Pribadi||0) + '</td></tr>' +
         '<tr><td>Istri</td><td class="r">' + fmtRupiah(u.Istri||0) + '</td></tr>' +
