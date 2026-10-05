@@ -155,9 +155,9 @@
       background:var(--bg); color:var(--ink);
     }
     #app{
-      position:fixed; top:0; left:50%; transform:translate3d(-50%,0,0);
+      position:fixed; top:0; left:0; right:0; transform:none;
       display:flex; flex-direction:column;
-      width:100vw;
+      width:100%; max-width:100%;
       background:
         radial-gradient(80% 40% at 50% -10%, rgba(59,130,246,.08) 0%, transparent 60%),
         var(--bg);
@@ -4205,6 +4205,47 @@
       margin: 4px 40px 8px 0 !important;
     }
 
+
+    /* WAJIB: sheet full lebar, tidak boleh geser samping */
+    #sheet-overlay{
+      position: fixed !important;
+      left: 0 !important; right: 0 !important;
+      top: 0 !important; bottom: 0 !important;
+      width: 100% !important; height: 100% !important;
+      margin: 0 !important; transform: none !important;
+      z-index: 20 !important;
+    }
+    #sheet{
+      position: fixed !important;
+      left: 0 !important; right: 0 !important;
+      bottom: 0 !important;
+      width: 100% !important; max-width: 100% !important;
+      margin: 0 !important; padding: 0 !important;
+      box-sizing: border-box !important;
+      z-index: 21 !important;
+      transform: translate3d(0, 100%, 0) !important;
+    }
+    #sheet.show{
+      transform: translate3d(0, 0, 0) !important;
+    }
+    #sheet.kb-open{
+      top: auto !important;
+      left: 0 !important; right: 0 !important;
+      width: 100% !important;
+      transform: translate3d(0, 0, 0) !important;
+    }
+    #sheetInner{
+      width: 100% !important;
+      max-width: 100% !important;
+      margin: 0 !important;
+      box-sizing: border-box !important;
+    }
+    #app{
+      left: 0 !important; right: 0 !important;
+      width: 100% !important; max-width: 100% !important;
+      transform: none !important;
+    }
+
 </style>
 </head>
 <body>
@@ -4534,8 +4575,10 @@
   // Pakai zoom CSS + layout normal biar flex tetap jalan.
   // Zoom 70%–100% (default 90% — lebih lega di HP modern)
   var uiScale = Number(localStorage.getItem('kasUiScale'));
-  if (!uiScale || isNaN(uiScale) || uiScale < 0.7 || uiScale > 1) uiScale = 0.9;
-  try { localStorage.setItem('kasUiScale', String(uiScale)); } catch(e) {}
+  // Zoom <1 bikin sheet nyempil samping di Android — paksa 1
+  if (!uiScale || isNaN(uiScale) || uiScale < 0.7 || uiScale > 1 || uiScale < 1) uiScale = 1;
+  try { localStorage.setItem('kasUiScale', '1'); } catch(e) {}
+  uiScale = 1;
   var isDarkMode = localStorage.getItem('kasDarkMode') === '1';
   document.documentElement.classList.toggle('dark', isDarkMode);
   function setDarkMode(on){
@@ -4571,32 +4614,22 @@
       document.activeElement &&
       (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'SELECT');
     if(sheetEl){
+      // Jangan set transform inline saat normal — biarkan CSS .show yang atur
       sheetEl.style.left = '0';
       sheetEl.style.right = '0';
       sheetEl.style.width = '100%';
       sheetEl.style.maxWidth = '100%';
-      sheetEl.style.marginLeft = '0';
-      sheetEl.style.marginRight = '0';
       if(sheetEl.classList.contains('show') && kbOpen){
         sheetEl.style.top = offsetTop + 'px';
         sheetEl.style.bottom = 'auto';
         sheetEl.style.height = visH + 'px';
         sheetEl.style.maxHeight = visH + 'px';
-        sheetEl.style.transform = 'translate3d(0,0,0)';
         sheetEl.classList.add('kb-open');
-      } else if(sheetEl.classList.contains('show')){
-        sheetEl.style.top = '';
-        sheetEl.style.height = '';
-        sheetEl.style.maxHeight = '';
-        sheetEl.style.bottom = '0px';
-        sheetEl.style.transform = 'translate3d(0,0,0)';
-        sheetEl.classList.remove('kb-open');
       } else {
         sheetEl.style.top = '';
         sheetEl.style.height = '';
         sheetEl.style.maxHeight = '';
         sheetEl.style.bottom = '0px';
-        sheetEl.style.transform = 'translate3d(0,100%,0)';
         sheetEl.classList.remove('kb-open');
       }
     }
@@ -9635,7 +9668,50 @@
     }
   }
 
+
+  function forceSheetLayout_(){
+    var sheetEl = document.getElementById('sheet');
+    var overlay = document.getElementById('sheet-overlay');
+    var inner = document.getElementById('sheetInner');
+    if(overlay){
+      overlay.style.position = 'fixed';
+      overlay.style.left = '0';
+      overlay.style.right = '0';
+      overlay.style.top = '0';
+      overlay.style.bottom = '0';
+      overlay.style.width = '100%';
+      overlay.style.height = '100%';
+      overlay.style.margin = '0';
+      overlay.style.transform = 'none';
+      overlay.style.zIndex = '20';
+    }
+    if(sheetEl){
+      sheetEl.style.position = 'fixed';
+      sheetEl.style.left = '0';
+      sheetEl.style.right = '0';
+      sheetEl.style.bottom = '0';
+      sheetEl.style.top = 'auto';
+      sheetEl.style.width = '100%';
+      sheetEl.style.maxWidth = '100%';
+      sheetEl.style.height = 'auto';
+      sheetEl.style.maxHeight = '90vh';
+      sheetEl.style.margin = '0';
+      sheetEl.style.padding = '0';
+      sheetEl.style.transform = 'translate3d(0,0,0)';
+      sheetEl.style.zIndex = '21';
+      sheetEl.style.boxSizing = 'border-box';
+    }
+    if(inner){
+      inner.style.width = '100%';
+      inner.style.maxWidth = '100%';
+      inner.style.margin = '0';
+      inner.style.boxSizing = 'border-box';
+      inner.style.transform = 'none';
+    }
+  }
+
   function openSheet(html){
+    forceSheetLayout_();
     __sheetPrevFocus = document.activeElement;
     var sc = document.getElementById('sheet-content');
     sc.onclick = null;
