@@ -4142,22 +4142,7 @@
       font-weight: 600 !important;
       font-size: 16px !important;
     }
-    /* Nominal: sticky di atas sheet saat keyboard buka */
-    #sheet.kb-open .sheet-body .form-group.is-nominal-row{
-      position: sticky;
-      top: 0;
-      z-index: 8;
-      background: var(--card);
-      padding: 8px 0 10px;
-      margin-bottom: 4px;
-      border-bottom: 1px solid var(--line);
-    }
-    #sheet.kb-open .sheet-body .form-group.is-nominal-row .form-input{
-      font-size: 20px !important;
-      font-weight: 700 !important;
-      letter-spacing: -0.3px;
-    }
-    #sheet-content .sheet-body{
+        #sheet-content .sheet-body{
       scroll-padding-top: 8px;
       scroll-padding-bottom: 140px;
     }
@@ -4169,6 +4154,54 @@
     }
     #sheet .form-label{
       font-weight: 650 !important;
+    }
+
+
+    /* Nominal selalu di zona aman (tidak ikut scroll, tidak ketutup keyboard) */
+    #sheet-content{
+      display: flex !important;
+      flex-direction: column !important;
+      min-height: 0 !important;
+      overflow: hidden !important;
+    }
+    #sheet-content > .form-hero.sheet-hero-pin{
+      flex: 0 0 auto !important;
+      padding: 6px 20px 12px !important;
+      margin: 0 !important;
+      border-bottom: 1px solid var(--line) !important;
+      background: var(--card) !important;
+      position: relative !important;
+      z-index: 6 !important;
+      top: auto !important;
+    }
+    #sheet-content > .form-hero.sheet-hero-pin .form-hero-lbl{
+      font-size: 12px !important;
+      font-weight: 650 !important;
+      color: var(--ink-faint) !important;
+      margin-bottom: 4px !important;
+    }
+    #sheet-content > .form-hero.sheet-hero-pin .form-hero-input,
+    #sheet-content > .form-hero.sheet-hero-pin .num-input{
+      font-size: 26px !important;
+      font-weight: 700 !important;
+      letter-spacing: -0.4px !important;
+      padding: 10px 12px !important;
+      min-height: 48px !important;
+    }
+    #sheet.kb-open{
+      border-radius: 0 !important;
+    }
+    #sheet.kb-open #sheetInner{
+      border-radius: 0 !important;
+      max-height: 100% !important;
+      height: 100% !important;
+    }
+    #sheet.kb-open #sheet-handle{
+      display: none !important;
+    }
+    #sheet.kb-open .sheet-title{
+      font-size: 16px !important;
+      margin: 4px 40px 8px 0 !important;
     }
 
 </style>
@@ -4529,32 +4562,50 @@
     var sheetEl = document.getElementById('sheet');
     var vv = window.visualViewport;
     var visH = (vv && vv.height) ? vv.height : realH;
-    // deteksi keyboard: visual viewport jauh lebih pendek dari layout
+    var offsetTop = (vv && vv.offsetTop != null) ? vv.offsetTop : 0;
     var layoutH = window.innerHeight || realH;
-    var kbGap = Math.max(0, layoutH - ((vv ? (vv.offsetTop || 0) : 0) + visH));
-    var kbOpen = kbGap > 100;
-    if(sheetInner){
-      sheetInner.style.width = '100%';
-      // saat keyboard buka, sheet hanya setinggi area terlihat
-      var maxH = kbOpen ? Math.max(220, visH - 8) : Math.min(visH * 0.92, realH * 0.9);
-      sheetInner.style.maxHeight = maxH + 'px';
-      sheetInner.style.transform = 'none';
-    }
-    if(sheetEl){
-      if(kbOpen && sheetEl.classList.contains('show')){
-        // angkat sheet di atas keyboard
-        sheetEl.style.bottom = kbGap + 'px';
+    var kbGap = Math.max(0, layoutH - (offsetTop + visH));
+    var kbOpen = kbGap > 80;
+    if(sheetEl && sheetEl.classList.contains('show')){
+      if(kbOpen){
+        // Sheet = tepat area visual (di atas keyboard, di bawah status bar)
+        sheetEl.style.left = '0';
+        sheetEl.style.width = '100%';
+        sheetEl.style.top = offsetTop + 'px';
+        sheetEl.style.bottom = 'auto';
+        sheetEl.style.height = visH + 'px';
+        sheetEl.style.maxHeight = visH + 'px';
+        sheetEl.style.transform = 'translate3d(0,0,0)';
         sheetEl.classList.add('kb-open');
       } else {
+        sheetEl.style.top = '';
+        sheetEl.style.height = '';
+        sheetEl.style.maxHeight = '';
         sheetEl.style.bottom = '0px';
+        sheetEl.style.left = '50%';
+        sheetEl.style.width = '100vw';
+        sheetEl.style.transform = 'translate3d(-50%,0,0)';
         sheetEl.classList.remove('kb-open');
       }
+    } else if(sheetEl){
+      sheetEl.style.top = '';
+      sheetEl.style.height = '';
+      sheetEl.style.bottom = '0px';
+      sheetEl.classList.remove('kb-open');
     }
-    // padding ekstra di body biar field terakhir bisa di-scroll ke tengah
+    if(sheetInner){
+      sheetInner.style.width = '100%';
+      sheetInner.style.transform = 'none';
+      if(kbOpen){
+        sheetInner.style.maxHeight = '100%';
+        sheetInner.style.height = '100%';
+      } else {
+        sheetInner.style.maxHeight = Math.min(visH * 0.92, realH * 0.9) + 'px';
+        sheetInner.style.height = '';
+      }
+    }
     var body = document.querySelector('#sheet-content .sheet-body');
-    if(body){
-      body.style.paddingBottom = kbOpen ? '48px' : '';
-    }
+    if(body) body.style.paddingBottom = kbOpen ? '24px' : '';
   }
   function setUiScale(scale){
     uiScale = scale;
@@ -9589,6 +9640,12 @@
       }
     }
     sc.innerHTML = '';
+    // Nominal hero di LUAR area scroll — selalu kelihatan di atas keyboard
+    var hero = body.querySelector('.form-hero');
+    if(hero){
+      hero.classList.add('sheet-hero-pin');
+      sc.appendChild(hero);
+    }
     sc.appendChild(body);
     if(footer.childNodes.length) sc.appendChild(footer);
     else footer.classList.add('empty');
