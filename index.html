@@ -4246,6 +4246,16 @@
       transform: none !important;
     }
 
+
+    .rekap-sec-title{
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      margin: 14px 0 6px;
+    }
+
 </style>
 </head>
 <body>
@@ -8753,8 +8763,12 @@
       if(h.Jenis === 'Hutang') hutangTambah += pokok;
       else if(h.Jenis === 'Piutang') piutangTambah += pokok;
     });
+    var bayarHutang = hutangKurang;
+    var pengeluaranHarian = Math.max(0, pengeluaran - bayarHutang);
     return {
       pengeluaran: pengeluaran,
+      pengeluaranHarian: pengeluaranHarian,
+      bayarHutang: bayarHutang,
       pemasukan: pemasukan,
       selisih: pemasukan - pengeluaran,
       hutangTambah: hutangTambah,
@@ -8781,7 +8795,7 @@
     var fLabel = rekapUntukFilter ? (' · ' + rekapUntukFilter) : '';
     var html = '<div class="rekap-card" data-from="' + fromYMD + '" data-to="' + toYMD + '">' +
       '<div class="rekap-date">' + esc(dateLabel) + (fLabel ? '<span style="font-weight:600;color:var(--ink-faint);font-size:14px;">' + esc(fLabel) + '</span>' : '') + '</div>' +
-      '<div class="rekap-hint">Ketuk angka untuk lihat detail</div>';
+      '<div class="rekap-hint">1) Arus kas · 2) Rincian keluar · 3) Hutang — ketuk untuk detail</div>';
 
     // 3 angka utama
     if(rekapUntukFilter){
@@ -8793,11 +8807,11 @@
     } else {
       html += '<div class="rekap-summary-grid">' +
         '<div class="rekap-sum-cell" data-focus="pemasukan">' +
-          '<div class="sl">Masuk</div>' +
+          '<div class="sl">Uang masuk</div>' +
           '<div class="sv green">' + numOnly(data.pemasukan) + '</div>' +
         '</div>' +
         '<div class="rekap-sum-cell" data-focus="pengeluaran">' +
-          '<div class="sl">Keluar</div>' +
+          '<div class="sl">Uang keluar</div>' +
           '<div class="sv red">' + numOnly(data.pengeluaran) + '</div>' +
         '</div>' +
         '<div class="rekap-sum-cell" data-focus="rekap">' +
@@ -8809,18 +8823,15 @@
       '</div>';
     }
 
-    // Top kategori dilipat — 3 angka hero tetap fokus
-    var katBars = topKategoriBars_(fromYMD, toYMD, 5);
-    if(katBars.length){
-      html += '<div class="rekap-fold open" data-fold="kat">' +
-        '<button type="button" class="rekap-fold-btn">' +
-          '<span>Top kategori</span><span class="rekap-fold-chev">›</span>' +
-        '</button>' +
-        '<div class="rekap-fold-body">' + simpleBarChartHtml_(katBars, true) + '</div>' +
-      '</div>';
+    // Urutan baca: 1) arus kas (di atas)  2) rincian keluar  3) hutang  4) top kategori
+    if(!rekapUntukFilter){
+      var harian = (data.pengeluaranHarian != null) ? data.pengeluaranHarian : Math.max(0, (data.pengeluaran||0) - (data.hutangKurang||0));
+      html += '<div class="rekap-sec-title">Rincian pengeluaran</div>';
+      html += rekapRowHtml('Pengeluaran sehari-hari', harian, 'pengeluaran', 'pengeluaran');
+      html += rekapRowHtml('Bayar hutang', data.hutangKurang || 0, 'hutang-kurang', 'hutang-kurang');
+      html += rekapRowHtml('Total keluar', data.pengeluaran || 0, 'pengeluaran', 'pengeluaran');
     }
 
-    // Hutang dilipat — tidak mengganggu cashflow
     var hasHp = data.hutangTambah || data.hutangKurang || data.piutangTambah || data.piutangKurang;
     if(hasHp && !rekapUntukFilter){
       html += '<div class="rekap-fold open" data-fold="hp">' +
@@ -8829,13 +8840,24 @@
           '<span class="rekap-fold-chev">›</span>' +
         '</button>' +
         '<div class="rekap-fold-body">' +
-          rekapRowHtml('Hutang bertambah', data.hutangTambah, 'hutang-tambah', 'hutang-tambah') +
-          rekapRowHtml('Hutang berkurang (bayar)', data.hutangKurang, 'hutang-kurang', 'hutang-kurang');
+          '<div style="font-size:11.5px;color:var(--ink-faint);margin:0 0 8px;line-height:1.4;">Kewajiban (terpisah dari arus kas harian).</div>' +
+          rekapRowHtml('Hutang baru / top up', data.hutangTambah, 'hutang-tambah', 'hutang-tambah') +
+          rekapRowHtml('Sudah dibayar', data.hutangKurang, 'hutang-kurang', 'hutang-kurang');
       if(data.piutangTambah || data.piutangKurang){
         html += rekapRowHtml('Piutang bertambah', data.piutangTambah, 'hutang-tambah', 'piutang-tambah') +
-          rekapRowHtml('Piutang berkurang', data.piutangKurang, 'hutang-kurang', 'piutang-kurang');
+          rekapRowHtml('Piutang diterima', data.piutangKurang, 'hutang-kurang', 'piutang-kurang');
       }
       html += '</div></div>';
+    }
+
+    var katBars = topKategoriBars_(fromYMD, toYMD, 5);
+    if(katBars.length){
+      html += '<div class="rekap-fold open" data-fold="kat">' +
+        '<button type="button" class="rekap-fold-btn">' +
+          '<span>Top kategori</span><span class="rekap-fold-chev">›</span>' +
+        '</button>' +
+        '<div class="rekap-fold-body">' + simpleBarChartHtml_(katBars, true) + '</div>' +
+      '</div>';
     }
 
     html += '</div>';
