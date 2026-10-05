@@ -629,13 +629,14 @@
     }
     #sheet-overlay.show{opacity:1; pointer-events:auto; }
     #sheet{
-      position:fixed; left:50%; bottom:0; width:100vw;
-      transform:translate3d(-50%,100%,0);
+      position:fixed; left:0; right:0; bottom:0; width:100%; max-width:100%;
+      transform:translate3d(0,100%,0);
       z-index:21; transition:transform .22s cubic-bezier(.32,.72,0,1);
       overflow-x:hidden;
       backface-visibility:hidden;
+      box-sizing:border-box;
     }
-    #sheet.show{transform:translate3d(-50%,0,0);}
+    #sheet.show{transform:translate3d(0,0,0);}
     #sheetInner{
       background:var(--card); border-radius:24px 24px 0 0; display:flex; flex-direction:column;
       box-shadow:0 -8px 32px -8px rgba(15,39,68,.15);
@@ -4565,36 +4566,43 @@
     var offsetTop = (vv && vv.offsetTop != null) ? vv.offsetTop : 0;
     var layoutH = window.innerHeight || realH;
     var kbGap = Math.max(0, layoutH - (offsetTop + visH));
-    var kbOpen = kbGap > 80;
-    if(sheetEl && sheetEl.classList.contains('show')){
-      if(kbOpen){
-        // Sheet = tepat area visual (di atas keyboard, di bawah status bar)
-        sheetEl.style.left = '0';
-        sheetEl.style.width = '100%';
+    // Threshold lebih tinggi biar tidak false-positive (sheet nyempil kanan)
+    var kbOpen = kbGap > 150 && sheetEl && sheetEl.classList.contains('show') &&
+      document.activeElement &&
+      (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'SELECT');
+    if(sheetEl){
+      sheetEl.style.left = '0';
+      sheetEl.style.right = '0';
+      sheetEl.style.width = '100%';
+      sheetEl.style.maxWidth = '100%';
+      sheetEl.style.marginLeft = '0';
+      sheetEl.style.marginRight = '0';
+      if(sheetEl.classList.contains('show') && kbOpen){
         sheetEl.style.top = offsetTop + 'px';
         sheetEl.style.bottom = 'auto';
         sheetEl.style.height = visH + 'px';
         sheetEl.style.maxHeight = visH + 'px';
         sheetEl.style.transform = 'translate3d(0,0,0)';
         sheetEl.classList.add('kb-open');
+      } else if(sheetEl.classList.contains('show')){
+        sheetEl.style.top = '';
+        sheetEl.style.height = '';
+        sheetEl.style.maxHeight = '';
+        sheetEl.style.bottom = '0px';
+        sheetEl.style.transform = 'translate3d(0,0,0)';
+        sheetEl.classList.remove('kb-open');
       } else {
         sheetEl.style.top = '';
         sheetEl.style.height = '';
         sheetEl.style.maxHeight = '';
         sheetEl.style.bottom = '0px';
-        sheetEl.style.left = '50%';
-        sheetEl.style.width = '100vw';
-        sheetEl.style.transform = 'translate3d(-50%,0,0)';
+        sheetEl.style.transform = 'translate3d(0,100%,0)';
         sheetEl.classList.remove('kb-open');
       }
-    } else if(sheetEl){
-      sheetEl.style.top = '';
-      sheetEl.style.height = '';
-      sheetEl.style.bottom = '0px';
-      sheetEl.classList.remove('kb-open');
     }
     if(sheetInner){
       sheetInner.style.width = '100%';
+      sheetInner.style.maxWidth = '100%';
       sheetInner.style.transform = 'none';
       if(kbOpen){
         sheetInner.style.maxHeight = '100%';
@@ -4648,9 +4656,17 @@
     var w = (vv && vv.width) ? vv.width : window.innerWidth;
     applyUiScale(w, h);
     if(sheet){
+      // Selalu full-width dari kiri — jangan left:50% (bikin geser ke kanan)
       sheet.style.left = '0';
+      sheet.style.right = '0';
       sheet.style.width = '100%';
-      sheet.style.transform = sheet.classList.contains('show') ? 'translate3d(0,0,0)' : 'translate3d(0,100%,0)';
+      sheet.style.maxWidth = '100%';
+      sheet.style.margin = '0';
+      if(!sheet.classList.contains('kb-open')){
+        sheet.style.transform = sheet.classList.contains('show')
+          ? 'translate3d(0,0,0)'
+          : 'translate3d(0,100%,0)';
+      }
       applySheetScale(w, h);
     }
   }
@@ -9670,6 +9686,17 @@
   }
   function closeSheet(){
     overlay.classList.remove('show'); sheet.classList.remove('show');
+    sheet.classList.remove('kb-open');
+    try {
+      sheet.style.top = '';
+      sheet.style.height = '';
+      sheet.style.maxHeight = '';
+      sheet.style.bottom = '0px';
+      sheet.style.left = '0';
+      sheet.style.right = '0';
+      sheet.style.width = '100%';
+      sheet.style.transform = 'translate3d(0,100%,0)';
+    } catch(e){}
     sheet.removeAttribute('role');
     if(sheetHistoryPushed){
       sheetHistoryPushed = false;
