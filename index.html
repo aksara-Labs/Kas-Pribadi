@@ -4575,10 +4575,9 @@
   // Pakai zoom CSS + layout normal biar flex tetap jalan.
   // Zoom 70%–100% (default 90% — lebih lega di HP modern)
   var uiScale = Number(localStorage.getItem('kasUiScale'));
-  // Zoom <1 bikin sheet nyempil samping di Android — paksa 1
-  if (!uiScale || isNaN(uiScale) || uiScale < 0.7 || uiScale > 1 || uiScale < 1) uiScale = 1;
-  try { localStorage.setItem('kasUiScale', '1'); } catch(e) {}
-  uiScale = 1;
+  // Default tampilan 70%
+  if (!uiScale || isNaN(uiScale) || uiScale < 0.7 || uiScale > 1) uiScale = 0.7;
+  try { localStorage.setItem('kasUiScale', String(uiScale)); } catch(e) {}
   var isDarkMode = localStorage.getItem('kasDarkMode') === '1';
   document.documentElement.classList.toggle('dark', isDarkMode);
   function setDarkMode(on){
@@ -11163,6 +11162,99 @@ document.querySelectorAll('#trx-h-metode-grid .metode-btn').forEach(function(b){
     pushTrxToServer_();
   }
 
+
+  function tagHpid_(catatan, hpid){
+    var c = String(catatan || '').replace(/\s*[•|]?\s*HPID:[A-Za-z0-9\-_]+/gi, '').trim();
+    if(!hpid) return c;
+    return (c ? c + ' · ' : '') + 'HPID:' + hpid;
+  }
+  function parseHpid_(catatan){
+    var m = String(catatan || '').match(/HPID:([A-Za-z0-9\-_]+)/i);
+    return m ? m[1] : '';
+  }
+  function isHutangTrxKategori_(kat){
+    return ['Terima Hutang','Bayar Hutang','Beri Piutang','Terima Piutang','Top Up Hutang','Top Up Piutang'].indexOf(kat) >= 0;
+  }
+  function findTrxLinkedToHutang_(hid, nama){
+    var out = [];
+    (STATE.transaksi || []).forEach(function(tr){
+      if(parseHpid_(tr.Catatan) === hid){ out.push(tr); return; }
+      if(!isHutangTrxKategori_(tr.Kategori)) return;
+      if(nama && String(tr.Catatan || '').indexOf(nama) >= 0) out.push(tr);
+    });
+    return out;
+  }
+  function findHutangForTrx_(tr){
+    if(!tr) return null;
+    var hid = parseHpid_(tr.Catatan);
+    if(hid){
+      for(var i=0;i<(STATE.hutangPiutang||[]).length;i++){
+        if(STATE.hutangPiutang[i].ID === hid) return STATE.hutangPiutang[i];
+      }
+    }
+    if(!isHutangTrxKategori_(tr.Kategori)) return null;
+    var cat = String(tr.Catatan || '');
+    // "Bayar X" / "Top up X" / nama di catatan
+    var m = cat.match(/(?:Bayar|Top up|Top Up|Terima)\s+(.+)$/i);
+    var nama = m ? m[1].replace(/\s*[•|].*$/,'').replace(/\s*HPID:.*$/i,'').trim() : '';
+    if(!nama) return null;
+    for(var j=0;j<(STATE.hutangPiutang||[]).length;j++){
+      if(String(STATE.hutangPiutang[j].Nama || '') === nama) return STATE.hutangPiutang[j];
+    }
+    return null;
+  }
+  function removeTrxLocalByIds_(ids){
+    ids = ids || [];
+    var removed = (STATE.transaksi || []).filter(function(x){ return ids.indexOf(x.ID) >= 0; });
+    STATE.transaksi = (STATE.transaksi || []).filter(function(x){ return ids.indexOf(x.ID) < 0; });
+    removed.forEach(function(row){
+      var n = Number(row.Nominal) || 0;
+      (STATE.rekening || []).forEach(function(r){
+        if(r.Nama !== row.Akun) return;
+        var s = Number(r.Saldo) || 0;
+        r.Saldo = row.Jenis === 'Pemasukan' ? s - n : s + n;
+      });
+    });
+    return removed;
+  }
+  function deleteTrxIdsOnServer_(ids, done){
+    ids = (ids || []).slice();
+    function next(){
+      if(!ids.length){ if(done) done(); return; }
+      var one = ids.shift();
+      try {
+        google.script.run.withSuccessHandler(function(){ next(); })
+          .withFailureHandler(function(){ next(); })
+          .deleteTransaksi(one);
+      } catch(e){ next(); }
+    }
+    next();
+  }
+  function cascadeDeleteHutangLocal_(hid, nama){
+    var linked = findTrxLinkedToHutang_(hid, nama);
+    var ids = linked.map(function(x){ return x.ID; });
+    removeTrxLocalByIds_(ids);
+    STATE.hutangPiutang = (STATE.hutangPiutang || []).filter(function(x){ return x.ID !== hid; });
+    return ids;
+  }
+  function cascadeReverseBayarLocal_(h, nominal){
+    if(!h) return;
+    var n = Number(nominal) || 0;
+    h.SisaHutang = Math.min(Number(h.TotalHutang) || 0, (Number(h.SisaHutang) || 0) + n);
+    if(h.Status === 'Lunas' && Number(h.SisaHutang) > 0) h.Status = 'Aktif';
+    if(h.Metode === 'Cicilan Tetap'){
+      h.CicilanTerbayar = Math.max(0, (Number(h.CicilanTerbayar) || 0) - 1);
+    }
+  }
+  function cascadeReverseTopUpLocal_(h, nominal){
+    if(!h) return;
+    var n = Number(nominal) || 0;
+    h.Pokok = Math.max(0, (Number(h.Pokok) || 0) - n);
+    h.TotalHutang = Math.max(0, (Number(h.TotalHutang) || 0) - n);
+    h.SisaHutang = Math.max(0, (Number(h.SisaHutang) || 0) - n);
+    if(Number(h.SisaHutang) <= 0) h.Status = 'Lunas';
+  }
+
   function openTrxDetail(id){
     var t = STATE.transaksi.find(function(x){ return x.ID === id; });
     if(!t) return;
@@ -11242,6 +11334,26 @@ document.querySelectorAll('#trx-h-metode-grid .metode-btn').forEach(function(b){
             var s = Number(r.Saldo) || 0;
             r.Saldo = row.Jenis === 'Pemasukan' ? s - n : s + n;
           });
+          // Cascade hutang
+          if(isHutangTrxKategori_(row.Kategori)){
+            var hp = findHutangForTrx_(row);
+            if(hp){
+              if(row.Kategori === 'Bayar Hutang' || row.Kategori === 'Terima Piutang'){
+                cascadeReverseBayarLocal_(hp, n);
+              } else if(row.Kategori === 'Top Up Hutang' || row.Kategori === 'Top Up Piutang'){
+                cascadeReverseTopUpLocal_(hp, n);
+              } else if(row.Kategori === 'Terima Hutang' || row.Kategori === 'Beri Piutang'){
+                // catatan hutang utama → hapus seluruh hutang + trx terkait lain
+                var moreIds = cascadeDeleteHutangLocal_(hp.ID, hp.Nama);
+                moreIds.forEach(function(mid){ if(ids.indexOf(mid) < 0) ids.push(mid); });
+                try {
+                  google.script.run.withSuccessHandler(function(){})
+                    .withFailureHandler(function(){})
+                    .deleteHutangPiutang(hp.ID);
+                } catch(e3){}
+              }
+            }
+          }
         });
       } catch(e){}
       try { renderAll(); } catch(e){}
@@ -11950,7 +12062,7 @@ document.querySelectorAll('#trx-h-metode-grid .metode-btn').forEach(function(b){
         STATE.transaksi = [{
           ID: localTrxId, Tanggal: tanggal, Jenis: 'Pengeluaran',
           Kategori: 'Bayar Hutang', Akun: akun, Nominal: nominal,
-          Catatan: 'Bayar ' + (h.Nama || 'hutang')
+          Catatan: tagHpid_('Bayar ' + (h.Nama || 'hutang'), h.ID)
         }].concat(STATE.transaksi || []);
         try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e){}
         closeSheet();
@@ -11996,10 +12108,29 @@ document.querySelectorAll('#trx-h-metode-grid .metode-btn').forEach(function(b){
       }).join('');
       box.querySelectorAll('.riwayat-del-btn').forEach(function(btn){
         btn.addEventListener('click', function(){
-          if(!confirm('Hapus pembayaran ini? Sisa hutang dan saldo rekening akan dikembalikan.')) return;
+          if(!confirm('Hapus pembayaran ini?\nSisa hutang, saldo rekening, dan transaksi Bayar Hutang terkait ikut dibersihkan.')) return;
+          var pid = btn.dataset.pid;
+          // Client: cari trx Bayar Hutang terkait HPID / nominal
+          try {
+            var linked = findTrxLinkedToHutang_(id, h.Nama).filter(function(tr){
+              return tr.Kategori === 'Bayar Hutang' || tr.Kategori === 'Terima Piutang';
+            });
+            // prefer match by TransaksiId if pid looks like trx id
+            var byId = linked.filter(function(tr){ return tr.ID === pid; });
+            var toRemove = byId.length ? byId : linked.slice(0, 1);
+            var rids = toRemove.map(function(x){ return x.ID; });
+            if(rids.length){
+              var rem = removeTrxLocalByIds_(rids);
+              rem.forEach(function(row){ cascadeReverseBayarLocal_(h, row.Nominal); });
+            } else {
+              // fallback: naikkan sisa tanpa trx match
+            }
+            try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e){}
+            try { renderAll(); } catch(e){}
+          } catch(e){}
           google.script.run.withSuccessHandler(function(data){
             refreshState(data); toast('Pembayaran dihapus'); openHutangDetail(id);
-          }).withFailureHandler(function(err){ toast('Gagal: ' + err.message); }).hapusPembayaran(btn.dataset.pid);
+          }).withFailureHandler(function(err){ toast('Gagal: ' + err.message); try { softPullFromSheet_(); } catch(e){} }).hapusPembayaran(pid);
         });
       });
     }).withFailureHandler(function(){
@@ -12008,10 +12139,27 @@ document.querySelectorAll('#trx-h-metode-grid .metode-btn').forEach(function(b){
     }).getRiwayatPembayaran(id);
 
     document.getElementById('btn-del-hp').addEventListener('click', function(){
-      if(!confirm('Hapus catatan hutang/piutang ini?')) return;
-      saveOptimistic('Dihapus', function(ok, fail){
-        google.script.run.withSuccessHandler(ok).withFailureHandler(fail).deleteHutangPiutang(id);
-      });
+      if(!confirm('Hapus catatan hutang/piutang ini?\n\nSemua transaksi terkait (terima/top up/bayar) juga akan dihapus dari Transaksi & Rekap.')) return;
+      var linkedIds = cascadeDeleteHutangLocal_(id, h.Nama);
+      try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e){}
+      closeSheet();
+      toast('Hutang & transaksi terkait dihapus');
+      try { renderAll(); } catch(e){}
+      __kasSyncing++;
+      updateSyncPill_();
+      google.script.run.withSuccessHandler(function(data){
+        // hapus trx terkait di sheet
+        deleteTrxIdsOnServer_(linkedIds, function(){
+          __kasSyncing = Math.max(0, __kasSyncing - 1);
+          updateSyncPill_();
+          try { syncAfterWrite_(data || null, { light: true }); } catch(e){ try { softPullFromSheet_(); } catch(e2){} }
+        });
+      }).withFailureHandler(function(err){
+        __kasSyncing = Math.max(0, __kasSyncing - 1);
+        updateSyncPill_();
+        toast('Gagal hapus di server: ' + (err && err.message ? err.message : err));
+        try { softPullFromSheet_(); } catch(e){}
+      }).deleteHutangPiutang(id);
     });
   }
 
@@ -12320,7 +12468,7 @@ document.querySelectorAll('#trx-h-metode-grid .metode-btn').forEach(function(b){
         STATE.transaksi = [{
           ID: genLocalId_('trx'), Tanggal: tanggal, Jenis: 'Pemasukan',
           Kategori: 'Top Up Hutang', Akun: payload.akun, Nominal: nominalTambahan,
-          Catatan: 'Top up ' + (h.Nama || '')
+          Catatan: tagHpid_('Top up ' + (h.Nama || ''), h.ID)
         }].concat(STATE.transaksi || []);
       }
       try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e){}
