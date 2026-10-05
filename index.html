@@ -4100,6 +4100,30 @@
       overflow: visible !important;
     }
 
+
+    /* Keyboard: sheet naik, body bisa di-scroll */
+    #sheet.kb-open{
+      transition: bottom .2s ease, transform .2s ease !important;
+    }
+    #sheet.kb-open #sheetInner{
+      max-height: 100% !important;
+    }
+    #sheet-content .sheet-body{
+      overscroll-behavior: contain;
+      scroll-padding-bottom: 80px;
+      scroll-padding-top: 24px;
+    }
+    #sheet.kb-open #sheet-content .sheet-body{
+      padding-bottom: 56px !important;
+    }
+    /* field yang fokus tetap kebaca */
+    #sheet .form-input:focus,
+    #sheet .form-select:focus,
+    #sheet textarea:focus{
+      position: relative;
+      z-index: 3;
+    }
+
 </style>
 </head>
 <body>
@@ -4455,10 +4479,35 @@
   }
   function applySheetScale(realW, realH){
     var sheetInner = document.getElementById('sheetInner');
-    if(!sheetInner) return;
-    sheetInner.style.width = '100%';
-    sheetInner.style.maxHeight = (realH * 0.9) + 'px';
-    sheetInner.style.transform = 'none';
+    var sheetEl = document.getElementById('sheet');
+    var vv = window.visualViewport;
+    var visH = (vv && vv.height) ? vv.height : realH;
+    // deteksi keyboard: visual viewport jauh lebih pendek dari layout
+    var layoutH = window.innerHeight || realH;
+    var kbGap = Math.max(0, layoutH - ((vv ? (vv.offsetTop || 0) : 0) + visH));
+    var kbOpen = kbGap > 100;
+    if(sheetInner){
+      sheetInner.style.width = '100%';
+      // saat keyboard buka, sheet hanya setinggi area terlihat
+      var maxH = kbOpen ? Math.max(220, visH - 8) : Math.min(visH * 0.92, realH * 0.9);
+      sheetInner.style.maxHeight = maxH + 'px';
+      sheetInner.style.transform = 'none';
+    }
+    if(sheetEl){
+      if(kbOpen && sheetEl.classList.contains('show')){
+        // angkat sheet di atas keyboard
+        sheetEl.style.bottom = kbGap + 'px';
+        sheetEl.classList.add('kb-open');
+      } else {
+        sheetEl.style.bottom = '0px';
+        sheetEl.classList.remove('kb-open');
+      }
+    }
+    // padding ekstra di body biar field terakhir bisa di-scroll ke tengah
+    var body = document.querySelector('#sheet-content .sheet-body');
+    if(body){
+      body.style.paddingBottom = kbOpen ? '48px' : '';
+    }
   }
   function setUiScale(scale){
     uiScale = scale;
@@ -9439,10 +9488,9 @@
       try{ history.pushState({ kasSheet: true }, ''); sheetHistoryPushed = true; }catch(e){}
     }
     fitViewport();
-    setTimeout(function(){
-      var focusEl = document.querySelector('#sheet-content .form-input, #sheet-content .form-select, #sheet-content .btn-primary');
-      if(focusEl) try{ focusEl.focus(); }catch(e){}
-    }, 80);
+    // Jangan auto-focus input di HP — keyboard nutupi form.
+    // User ketuk field sendiri; focusin handler yang scroll ke view.
+    try { wireSheetKeyboardFix_(); } catch(e){}
   }
   function closeSheet(){
     overlay.classList.remove('show'); sheet.classList.remove('show');
