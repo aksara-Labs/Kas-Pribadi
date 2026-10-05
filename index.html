@@ -4048,6 +4048,58 @@
       }
     }
 
+
+    .kat-combo{ position: relative; z-index: 40; }
+    .kat-combo-row{ position: relative; display: flex; align-items: stretch; }
+    .kat-combo-row .form-input{
+      flex: 1;
+      padding-right: 42px !important;
+    }
+    .kat-combo-chev{
+      position: absolute; right: 4px; top: 50%; transform: translateY(-50%) rotate(90deg);
+      width: 36px; height: 36px; border: none; background: transparent;
+      color: var(--ink-faint); font-size: 18px; font-weight: 700; cursor: pointer;
+      border-radius: 10px; z-index: 2;
+    }
+    .kat-combo-chev:active{ background: var(--input-bg); }
+    .kat-suggest{
+      position: absolute; left: 0; right: 0; top: calc(100% + 6px);
+      z-index: 50; max-height: 240px; overflow-y: auto; -webkit-overflow-scrolling: touch;
+      background: var(--card); border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: 0 12px 32px rgba(15,23,42,.16);
+      padding: 6px;
+    }
+    .kat-suggest-item{
+      display: block; width: 100%; text-align: left;
+      padding: 12px 12px; border: none; background: transparent;
+      border-radius: 10px; font-size: 14.5px; font-weight: 650;
+      color: var(--ink); cursor: pointer;
+    }
+    .kat-suggest-item.active{
+      background: rgba(26,54,93,.08);
+      color: var(--blue-dark, #1A365D);
+    }
+    .kat-suggest-item:active, .kat-suggest-item:hover{
+      background: var(--input-bg);
+    }
+    .kat-suggest-empty{
+      padding: 12px; font-size: 13px; color: var(--ink-faint); text-align: center;
+    }
+    html.dark .kat-suggest{
+      background: #0f172a;
+      border-color: rgba(148,163,184,.2);
+      box-shadow: 0 12px 32px rgba(0,0,0,.45);
+    }
+    html.dark .kat-suggest-item.active{
+      background: rgba(147,197,253,.12);
+      color: #93C5FD;
+    }
+    /* sheet jangan clip dropdown */
+    #sheet-content, .sheet-content{
+      overflow: visible !important;
+    }
+
 </style>
 </head>
 <body>
@@ -9961,78 +10013,116 @@
     return '<datalist id="kategori-list">' + list.map(function(c){ return '<option value="' + esc(c) + '">'; }).join('') + '</datalist>';
   }
   function kategoriSelectHtml(selected){
-    // Bisa diketik + saran filter (tidak perlu scroll panjang)
     var val = selected || '';
     return '<div class="kat-combo" id="kat-combo">' +
-      '<input class="form-input" id="f-kategori" type="text" inputmode="text" autocomplete="off" ' +
-        'placeholder="Ketik kategori… (mis. Makan)" value="' + esc(val) + '" ' +
-        'aria-autocomplete="list" aria-controls="kat-suggest">' +
+      '<div class="kat-combo-row">' +
+        '<input class="form-input" id="f-kategori" type="text" inputmode="search" autocomplete="off" ' +
+          'placeholder="Pilih / ketik kategori…" value="' + esc(val) + '">' +
+        '<button type="button" class="kat-combo-chev" id="btn-kat-open" aria-label="Buka daftar">›</button>' +
+      '</div>' +
       '<div id="kat-suggest" class="kat-suggest" hidden></div>' +
-      kategoriDatalist() +
     '</div>';
   }
   function listKategoriAktif_(){
-    return trxJenis === 'Pemasukan' ? KATEGORI_PEMASUKAN.slice() : listKategoriPengeluaran_();
+    try {
+      return trxJenis === 'Pemasukan' ? (KATEGORI_PEMASUKAN || []).slice() : listKategoriPengeluaran_();
+    } catch(e){ return ['Lainnya']; }
   }
   function wireKategoriCombo_(){
     var inp = document.getElementById('f-kategori');
     var box = document.getElementById('kat-suggest');
+    var btn = document.getElementById('btn-kat-open');
     if(!inp || !box) return;
-    if(inp.tagName === 'SELECT') return; // legacy
-    function renderSuggest_(q){
-      var list = listKategoriAktif_();
+    if(inp.dataset.katWired === '1') return;
+    inp.dataset.katWired = '1';
+    function pick_(val){
+      inp.value = val || '';
+      box.hidden = true;
+      box.innerHTML = '';
+      try {
+        inp.dispatchEvent(new Event('input', { bubbles: true }));
+        inp.dispatchEvent(new Event('change', { bubbles: true }));
+      } catch(err){}
+      try { if(typeof renderKategoriDetailFields_ === 'function') renderKategoriDetailFields_(); } catch(e){}
+    }
+    function renderSuggest_(q, forceAll){
+      var list = listKategoriAktif_() || [];
       var qq = String(q || '').trim().toLowerCase();
       var items = list.filter(function(c){
-        if(!qq) return true;
+        if(forceAll || !qq) return true;
         return String(c).toLowerCase().indexOf(qq) >= 0;
       });
-      // kalau ketik persis "lainnya" tetap ada
       if(!items.length && qq){
-        items = list.filter(function(c){ return /lain/i.test(c); }).slice(0, 3);
+        items = list.filter(function(c){ return /lain/i.test(String(c)); });
       }
-      items = items.slice(0, 12);
+      if(!forceAll && qq) items = items.slice(0, 14);
       if(!items.length){
         box.hidden = true;
-        box.innerHTML = '';
+        box.innerHTML = '<div class="kat-suggest-empty">Tidak ketemu — ketik lalu pilih Lainnya</div>';
+        box.hidden = false;
         return;
       }
       box.innerHTML = items.map(function(c){
-        return '<button type="button" class="kat-suggest-item" data-v="' + esc(c) + '">' + esc(c) + '</button>';
+        var active = String(inp.value) === String(c) ? ' active' : '';
+        return '<button type="button" class="kat-suggest-item' + active + '" data-v="' + esc(c) + '">' + esc(c) + '</button>';
       }).join('');
       box.hidden = false;
-      box.querySelectorAll('.kat-suggest-item').forEach(function(btn){
-        btn.addEventListener('mousedown', function(e){
-          // mousedown sebelum blur input
+      box.querySelectorAll('.kat-suggest-item').forEach(function(b){
+        b.addEventListener('mousedown', function(e){
           e.preventDefault();
-          inp.value = btn.getAttribute('data-v') || '';
-          box.hidden = true;
-          try {
-            inp.dispatchEvent(new Event('change', { bubbles: true }));
-            inp.dispatchEvent(new Event('input', { bubbles: true }));
-          } catch(err){}
-          if(typeof renderKategoriDetailFields_ === 'function') renderKategoriDetailFields_();
+          e.stopPropagation();
+          pick_(b.getAttribute('data-v') || '');
+        });
+        b.addEventListener('click', function(e){
+          e.preventDefault();
+          pick_(b.getAttribute('data-v') || '');
         });
       });
     }
-    inp.addEventListener('focus', function(){ renderSuggest_(inp.value); });
-    inp.addEventListener('input', function(){ renderSuggest_(inp.value); });
+    function openAll_(){
+      renderSuggest_('', true);
+      try { inp.focus(); } catch(e){}
+    }
+    inp.addEventListener('focus', function(){ renderSuggest_(inp.value, !String(inp.value||'').trim()); });
+    inp.addEventListener('click', function(){ if(box.hidden) renderSuggest_(inp.value, !String(inp.value||'').trim()); });
+    inp.addEventListener('input', function(){ renderSuggest_(inp.value, false); });
     inp.addEventListener('keydown', function(e){
-      if(e.key === 'Escape'){ box.hidden = true; }
+      if(e.key === 'Escape'){ box.hidden = true; return; }
+      if(e.key === 'ArrowDown'){
+        e.preventDefault();
+        var first = box.querySelector('.kat-suggest-item');
+        if(box.hidden) openAll_();
+        else if(first) first.focus();
+        return;
+      }
       if(e.key === 'Enter'){
         var first = box.querySelector('.kat-suggest-item');
         if(first && !box.hidden){
           e.preventDefault();
-          inp.value = first.getAttribute('data-v') || inp.value;
-          box.hidden = true;
-          try { inp.dispatchEvent(new Event('change', { bubbles: true })); } catch(err){}
-          if(typeof renderKategoriDetailFields_ === 'function') renderKategoriDetailFields_();
+          pick_(first.getAttribute('data-v') || inp.value);
         }
       }
     });
-    inp.addEventListener('blur', function(){
-      setTimeout(function(){ box.hidden = true; }, 180);
-    });
+    if(btn){
+      btn.addEventListener('mousedown', function(e){ e.preventDefault(); });
+      btn.addEventListener('click', function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        if(box.hidden) openAll_();
+        else { box.hidden = true; }
+      });
+    }
+    // tutup saat klik di luar
+    setTimeout(function(){
+      document.addEventListener('mousedown', function hideKat(ev){
+        if(!box || box.hidden) return;
+        var combo = document.getElementById('kat-combo');
+        if(combo && combo.contains(ev.target)) return;
+        box.hidden = true;
+      });
+    }, 0);
   }
+
 
   // ---- Tambah Transaksi ----
   var trxJenis = 'Pengeluaran';
@@ -10174,11 +10264,12 @@
       });
       var katSel = document.getElementById('f-kategori');
       if(katSel){
-        katSel.addEventListener('change', function(){ renderKategoriDetailFields_();
-      try { wireKategoriCombo_(); } catch(e){} });
+        katSel.addEventListener('change', function(){ renderKategoriDetailFields_(); });
+        katSel.addEventListener('input', function(){ renderKategoriDetailFields_(); });
         renderKategoriDetailFields_();
       }
-      document.querySelectorAll('#trx-h-metode-grid .metode-btn').forEach(function(b){
+      try { wireKategoriCombo_(); } catch(e){}
+document.querySelectorAll('#trx-h-metode-grid .metode-btn').forEach(function(b){
         b.addEventListener('click', function(){
           trxHutangMetode = b.dataset.m;
           document.querySelectorAll('#trx-h-metode-grid .metode-btn').forEach(function(x){ x.classList.remove('active'); });
@@ -10298,11 +10389,12 @@
       }
       var katSel = document.getElementById('f-kategori');
       if(katSel){
-        katSel.addEventListener('change', function(){ renderKategoriDetailFields_();
-      try { wireKategoriCombo_(); } catch(e){} });
+        katSel.addEventListener('change', function(){ renderKategoriDetailFields_(); });
+        katSel.addEventListener('input', function(){ renderKategoriDetailFields_(); });
         renderKategoriDetailFields_();
       }
-    }
+      try { wireKategoriCombo_(); } catch(e){}
+}
   }
 
   var TRANSPORT_SUB = [
