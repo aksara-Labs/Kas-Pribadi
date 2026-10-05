@@ -4124,6 +4124,33 @@
       z-index: 3;
     }
 
+
+    /* Field yang sedang diketik — jangan ketutup keyboard */
+    #sheet.kb-open .form-group.field-kb-focus{
+      position: relative;
+      z-index: 5;
+      background: var(--card);
+      border-radius: 12px;
+      padding: 6px 4px 8px;
+      margin-left: -4px;
+      margin-right: -4px;
+      box-shadow: 0 0 0 3px rgba(26,54,93,.12);
+    }
+    #sheet.kb-open .form-input.field-kb-focus,
+    #sheet.kb-open input.field-kb-focus{
+      border-color: var(--blue) !important;
+      background: #fff !important;
+      font-size: 18px !important;
+      font-weight: 800 !important;
+    }
+    html.dark #sheet.kb-open .form-input.field-kb-focus{
+      background: #0f172a !important;
+    }
+    #sheet-content .sheet-body{
+      scroll-padding-top: 16px;
+      scroll-padding-bottom: 120px;
+    }
+
 </style>
 </head>
 <body>
@@ -9450,6 +9477,73 @@
     });
   }
   var __sheetPrevFocus = null;
+  var __sheetKbWired = false;
+  function scrollFieldIntoSheet_(el){
+    if(!el) return;
+    var body = document.querySelector('#sheet-content .sheet-body');
+    var sheetEl = document.getElementById('sheet');
+    try { fitViewport(); } catch(e){}
+    if(!body){
+      try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch(e){}
+      return;
+    }
+    try {
+      var bRect = body.getBoundingClientRect();
+      var eRect = el.getBoundingClientRect();
+      // Target: field di 1/4 atas area sheet yang terlihat (di atas keyboard)
+      var targetY = bRect.top + Math.min(72, bRect.height * 0.18);
+      var delta = eRect.top - targetY;
+      if(Math.abs(delta) > 4){
+        body.scrollTop = Math.max(0, body.scrollTop + delta);
+      }
+      // label di atas field ikut kelihatan
+      var label = el.closest('.form-group');
+      if(label){
+        var lRect = label.getBoundingClientRect();
+        if(lRect.top < bRect.top + 8){
+          body.scrollTop = Math.max(0, body.scrollTop - (bRect.top + 12 - lRect.top));
+        }
+      }
+    } catch(e){
+      try { el.scrollIntoView({ block: 'center', behavior: 'auto' }); } catch(e2){}
+    }
+  }
+  function wireSheetKeyboardFix_(){
+    var sc = document.getElementById('sheet-content');
+    if(!sc) return;
+    if(!__sheetKbWired){
+      __sheetKbWired = true;
+      sc.addEventListener('focusin', function(e){
+        var el = e.target;
+        if(!el) return;
+        var tag = (el.tagName || '').toLowerCase();
+        var isField = tag === 'input' || tag === 'select' || tag === 'textarea' ||
+          (el.classList && (el.classList.contains('form-input') || el.classList.contains('form-select')));
+        if(!isField) return;
+        // tandai field fokus biar CSS bisa bantu
+        try {
+          sc.querySelectorAll('.field-kb-focus').forEach(function(x){ x.classList.remove('field-kb-focus'); });
+          el.classList.add('field-kb-focus');
+          var grp = el.closest('.form-group');
+          if(grp) grp.classList.add('field-kb-focus');
+        } catch(err){}
+        // beberapa kali — keyboard animasi beda-beda di Android
+        scrollFieldIntoSheet_(el);
+        setTimeout(function(){ scrollFieldIntoSheet_(el); }, 150);
+        setTimeout(function(){ scrollFieldIntoSheet_(el); }, 350);
+        setTimeout(function(){ scrollFieldIntoSheet_(el); }, 600);
+      });
+      sc.addEventListener('focusout', function(e){
+        try {
+          if(e.target && e.target.classList) e.target.classList.remove('field-kb-focus');
+          var grp = e.target && e.target.closest ? e.target.closest('.form-group') : null;
+          if(grp) grp.classList.remove('field-kb-focus');
+        } catch(err){}
+        setTimeout(function(){ try { fitViewport(); } catch(err){} }, 180);
+      });
+    }
+  }
+
   function openSheet(html){
     __sheetPrevFocus = document.activeElement;
     var sc = document.getElementById('sheet-content');
@@ -9488,6 +9582,7 @@
       try{ history.pushState({ kasSheet: true }, ''); sheetHistoryPushed = true; }catch(e){}
     }
     fitViewport();
+    try { wireSheetKeyboardFix_(); } catch(e){}
     // Jangan auto-focus input di HP — keyboard nutupi form.
     // User ketuk field sendiri; focusin handler yang scroll ke view.
     try { wireSheetKeyboardFix_(); } catch(e){}
