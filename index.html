@@ -12568,17 +12568,94 @@ document.querySelectorAll('#trx-h-metode-grid .metode-btn').forEach(function(b){
     var claimBtn = document.getElementById('btn-claim');
     if(claimBtn){
       claimBtn.addEventListener('click', function(){
+        if(claimBtn.dataset.busy === '1') return;
         var akunTujuan = document.getElementById('f-claim-akun').value;
         var nominal = rawNum('f-claim-nominal');
         var tanggal = document.getElementById('f-claim-tanggal').value;
         if(!akunTujuan){ toast('Pilih rekening tujuan'); return; }
+        if(akunTujuan === 'Reimburse'){ toast('Pilih rekening tujuan selain Reimburse'); return; }
         if(!nominal || nominal <= 0){ toast('Nominal claim harus diisi'); return; }
-        if(nominal > saldo){ toast('Nominal claim melebihi saldo reimburse'); return; }
-        if(!tanggal){ toast('Tanggal harus diisi'); flashFieldErr_('f-tanggal'); return; }
-        var payload = { akunAsal: 'Reimburse', akunTujuan: akunTujuan, nominal: nominal, biayaAdmin: 0, tanggal: tanggal, catatan: 'Claim Reimburse' };
-        saveOptimistic('Claim berhasil dicatat', function(ok, fail){
-          google.script.run.withSuccessHandler(ok).withFailureHandler(fail).addTransfer(payload);
-        });
+        // baca saldo terbaru dari STATE (bukan snapshot saat buka sheet)
+        var rekRb = (STATE.rekening || []).find(function(x){ return x.Nama === 'Reimburse'; });
+        var saldoNow = rekRb ? (Number(rekRb.Saldo) || 0) : saldo;
+        if(nominal > saldoNow + 0.01){ toast('Nominal claim melebihi saldo reimburse (' + fmtRupiah(saldoNow) + ')'); return; }
+        if(!tanggal){ toast('Tanggal harus diisi'); flashFieldErr_('f-claim-tanggal'); return; }
+
+        claimBtn.dataset.busy = '1';
+        claimBtn.textContent = 'Menyimpan…';
+
+        function adjSaldo(nama, delta){
+          (STATE.rekening || []).forEach(function(r){
+            if(r.Nama === nama) r.Saldo = (Number(r.Saldo) || 0) + delta;
+          });
+        }
+
+        // Optimistic — sama seperti transfer biasa
+        var localTfid = 'CL' + Date.now().toString(36);
+        adjSaldo('Reimburse', -nominal);
+        adjSaldo(akunTujuan, nominal);
+        var catKeluar = 'Claim Reimburse · ke ' + akunTujuan + ' · TFID:' + localTfid;
+        var catMasuk = 'Claim Reimburse · dari Reimburse · TFID:' + localTfid;
+        var legOut = {
+          ID: genLocalId_('trx'), Tanggal: tanggal, Jenis: 'Pengeluaran',
+          Kategori: 'Transfer Keluar', Akun: 'Reimburse', Nominal: nominal,
+          Catatan: catKeluar, BudgetId: '', Untuk: ''
+        };
+        var legIn = {
+          ID: genLocalId_('trx'), Tanggal: tanggal, Jenis: 'Pemasukan',
+          Kategori: 'Transfer Masuk', Akun: akunTujuan, Nominal: nominal,
+          Catatan: catMasuk, BudgetId: '', Untuk: ''
+        };
+        STATE.transaksi = [legOut, legIn].concat(STATE.transaksi || []);
+        try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e){}
+        closeSheet();
+        toast('Claim dicatat');
+        try { renderAll(); } catch(e){}
+
+        var payload = {
+          akunAsal: 'Reimburse',
+          akunTujuan: akunTujuan,
+          nominal: nominal,
+          biayaAdmin: 0,
+          tanggal: tanggal,
+          catatan: 'Claim Reimburse',
+          clientKey: 'claim-' + tanggal + '-' + akunTujuan + '-' + nominal + '-' + localTfid
+        };
+
+        __kasSyncing++;
+        updateSyncPill_();
+        function softOk(data){
+          __kasSyncing = Math.max(0, __kasSyncing - 1);
+          updateSyncPill_();
+          try { syncAfterWrite_(data, { light: !!(data && (data.delta || data.trxPatch)) }); } catch(e){
+            try { if(data) refreshState(data); } catch(e2){}
+          }
+        }
+        function softFail(err){
+          // rollback local
+          adjSaldo('Reimburse', nominal);
+          adjSaldo(akunTujuan, -nominal);
+          STATE.transaksi = (STATE.transaksi || []).filter(function(x){
+            return x.ID !== legOut.ID && x.ID !== legIn.ID;
+          });
+          try { localStorage.setItem('kasCacheV1', JSON.stringify(STATE)); } catch(e){}
+          try { renderAll(); } catch(e){}
+          __kasSyncing = Math.max(0, __kasSyncing - 1);
+          updateSyncPill_();
+          var m = (err && err.message) ? err.message : 'Gagal claim';
+          toast(m + ' — coba lagi');
+          try { softPullFromSheet_(); } catch(e){}
+        }
+        try {
+          google.script.run.withSuccessHandler(softOk).withFailureHandler(function(err){
+            // retry 1x (kadang server dingin)
+            setTimeout(function(){
+              try {
+                google.script.run.withSuccessHandler(softOk).withFailureHandler(softFail).addTransfer(payload);
+              } catch(e){ softFail(e); }
+            }, 1500);
+          }).addTransfer(payload);
+        } catch(e){ softFail(e); }
       });
     }
   }
