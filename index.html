@@ -8418,7 +8418,8 @@
     }
     var visibleRek = STATE.rekening.filter(function(r){
       if(!r.Nama || !String(r.Nama).trim()) return false;
-      // Sembunyikan rekening virtual (bikin bingung) — Reimburse tetap tampil
+      // Sembunyikan Kredit Non-Kas / virtual — Reimburse tetap tampil
+      if(typeof isHiddenVirtualRek_ === 'function' && isHiddenVirtualRek_(r)) return false;
       if(r.Nama === 'Kredit (Non-Kas)') return false;
       if(/non-?kas/i.test(r.Nama) && !/reimburse/i.test(r.Nama)) return false;
       return true;
@@ -8426,12 +8427,11 @@
     if(!visibleRek.length){
       html += emptyState('Belum ada rekening', 'Yuk tambah rekening pertama — BCA, Gopay, atau tunai — biar saldo ke-track.');
     } else {
-      sortRekeningList(STATE.rekening).forEach(function(r){
+      sortRekeningList(visibleRek).forEach(function(r){
+        if(isHiddenVirtualRek_(r)) return;
         if(!r.Nama || !String(r.Nama).trim()) return;
         var isReimburse = r.Nama === 'Reimburse';
-        var isKreditNonKas = r.Nama === 'Kredit (Non-Kas)';
-        var chip = isReimburse ? '<span class="rek-chip">Klaim</span>'
-          : (isKreditNonKas ? '<span class="rek-chip">Virtual</span>' : '');
+        var chip = isReimburse ? '<span class="rek-chip">Klaim</span>' : '';
         var saldo = Number(r.Saldo) || 0;
         var tipeRek = 'Rekening';
         var nm = String(r.Nama||'').toLowerCase();
@@ -10308,8 +10308,16 @@
       '<div style="font-size:11px; color:var(--ink-faint); margin-top:4px;">Di tanggal trip, default ke budget itu. Bunga pinjol tidak terpotong dari sini.</div></div>';
   }
 
+  function isHiddenVirtualRek_(r){
+    var n = String((r && r.Nama) || r || '').trim();
+    if(!n) return true;
+    if(n === 'Kredit (Non-Kas)') return true;
+    if(/kredit\s*\(?\s*non[\s-]?kas\s*\)?/i.test(n)) return true;
+    if(/non[\s-]?kas/i.test(n) && !/reimburse/i.test(n)) return true;
+    return false;
+  }
   function accountOptions(selected){
-    var list = STATE.rekening.filter(function(r){ return r.Nama !== 'Kredit (Non-Kas)'; });
+    var list = STATE.rekening.filter(function(r){ return r.Nama && !isHiddenVirtualRek_(r); });
     if(!list.length) return '<option value="">Belum ada rekening</option>';
     return list.map(function(r){
       return '<option value="' + esc(r.Nama) + '"' + (r.Nama===selected?' selected':'') + '>' + esc(r.Nama) + '</option>';
