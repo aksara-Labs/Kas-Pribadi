@@ -7151,11 +7151,22 @@
       || k === 'Tarik Tunai' || k === 'Setor Tunai';
   }
   function isReimburseClaimLeg(t){
-    // Kaki kedua reimburse (klaim masuk ke pot Reimburse) — disembunyikan di list
+    // Kaki kedua reimburse (klaim masuk ke pot Reimburse) — disembunyikan di list & rekap
     if(!t) return false;
     var k = String(t.Kategori || '');
     if(k === 'Klaim Reimburse') return true;
     if(t.Jenis === 'Pemasukan' && String(t.Akun || '') === 'Reimburse' && /klaim|reimburse/i.test(k + ' ' + (t.Catatan || '')))
+      return true;
+    return false;
+  }
+  /** Tidak dihitung arus kas (pemasukan/pengeluaran) di rekap */
+  function isReimburseNonCashflow_(t){
+    if(!t) return false;
+    if(isReimburseClaimLeg(t)) return true;
+    var k = String(t.Kategori || '');
+    if(k === 'Klaim Reimburse') return true;
+    // Transfer claim pot Reimburse ↔ rekening (sudah isTransferLeg, backup)
+    if(String(t.Akun || '') === 'Reimburse' && (isTransferLeg(t) || /claim\s*reimburse|tfid:/i.test(String(t.Catatan || ''))))
       return true;
     return false;
   }
@@ -7171,6 +7182,44 @@
   function extractRbidClient_(catatan){
     var m = String(catatan || '').match(/RBID:([A-Za-z0-9\-_]+)/);
     return m ? m[1] : '';
+  }
+
+  /** Nominal yang akan diklaim (reimburse) dari sebuah pengeluaran */
+  function reimburseKlaimAmount_(t){
+    if(!t || t.Jenis !== 'Pengeluaran') return 0;
+    var nominal = Number(t.Nominal) || 0;
+    if(nominal <= 0) return 0;
+    var cat = String(t.Catatan || '');
+    // "klaim Rp123.456" atau "klaim Rp 123456"
+    var mRp = cat.match(/klaim\s*Rp\s*([\d.]+)/i);
+    if(mRp){
+      var klaim = Number(String(mRp[1]).replace(/\./g, '')) || 0;
+      if(klaim > 0) return Math.min(klaim, nominal);
+    }
+    // "Reimburse 80%" / "reimburse 100%"
+    var mPct = cat.match(/reimburse\s*(\d+(?:[.,]\d+)?)\s*%/i);
+    if(mPct){
+      var pct = Number(String(mPct[1]).replace(',', '.')) || 0;
+      pct = Math.max(0, Math.min(100, pct));
+      return Math.round(nominal * pct / 100);
+    }
+    // pasangan kaki Klaim via RBID
+    var rbid = extractRbidClient_(cat);
+    if(rbid){
+      for(var i = 0; i < (STATE.transaksi || []).length; i++){
+        var x = STATE.transaksi[i];
+        if(!isReimburseClaimLeg(x)) continue;
+        if(extractRbidClient_(x.Catatan) === rbid){
+          return Math.min(Number(x.Nominal) || 0, nominal);
+        }
+      }
+    }
+    return 0;
+  }
+  /** Pengeluaran yang jadi beban pribadi = total bayar − bagian diklaim */
+  function netPengeluaran_(t){
+    var n = Number(t.Nominal) || 0;
+    return Math.max(0, n - reimburseKlaimAmount_(t));
   }
   function transferLabelFromAccounts_(asal, tujuan){
     if(isCashAccountName_(tujuan) && !isCashAccountName_(asal)) return 'Tarik Tunai';
@@ -7825,8 +7874,15 @@
         bits.push((asal || '') + (t.Akun ? (' → ' + t.Akun) : ''));
       }
     } else if(t.Akun) bits.push(String(t.Akun));
-    if(/reimburse\s*\d+\s*%/i.test(String(t.Catatan || '')) || /RBID:/i.test(String(t.Catatan || ''))){
-      bits.unshift('Reimburse');
+    if(isRb){
+      var klaimAmt = (typeof reimburseKlaimAmount_ === 'function') ? reimburseKlaimAmount_(t) : 0;
+      var netAmt = (typeof netPengeluaran_ === 'function') ? netPengeluaran_(t) : 0;
+      title = (t.Kategori && t.Kategori !== 'Pengeluaran') ? t.Kategori : 'Reimburse';
+      bits = [];
+      if(t.Akun) bits.push(String(t.Akun) + ' → pot klaim');
+      if(klaimAmt > 0) bits.push('Klaim ' + fmtRupiah(klaimAmt));
+      if(netAmt > 0) bits.push('Beban ' + fmtRupiah(netAmt));
+      else bits.push('100% diganti kantor');
     }
     var untuk = parseUntuk_(t);
     if(untuk) bits.push(String(untuk));
@@ -8713,12 +8769,16 @@
       if(t.Jenis !== 'Pengeluaran') return;
       if(t.Tanggal < fromYMD || t.Tanggal > toYMD) return;
       if(isTransferLeg(t)) return;
+      if(typeof isReimburseNonCashflow_ === 'function' && isReimburseNonCashflow_(t)) return;
+      if(isReimburseClaimLeg(t)) return;
       if(uf){
         var u = parseUntuk_(t) || '';
         if(u !== uf) return;
       }
       var k = t.Kategori || 'Lainnya';
-      map[k] = (map[k] || 0) + (Number(t.Nominal) || 0);
+      var beban = (typeof netPengeluaran_ === 'function') ? netPengeluaran_(t) : (Number(t.Nominal) || 0);
+      if(beban <= 0) return; // 100% reimburse → tidak masuk beban kategori
+      map[k] = (map[k] || 0) + beban;
     });
     var arr = Object.keys(map).map(function(k){ return { label: k, value: map[k], color: '#1A365D' }; });
     arr.sort(function(a,b){ return b.value - a.value; });
@@ -8734,6 +8794,9 @@
     STATE.transaksi.forEach(function(t){
       if(t.Tanggal < fromYMD || t.Tanggal > toYMD) return;
       if(isTransferLeg(t)) return;
+      // Klaim reimburse / pot virtual — jangan campur ke masuk/keluar
+      if(typeof isReimburseNonCashflow_ === 'function' && isReimburseNonCashflow_(t)) return;
+      if(isReimburseClaimLeg(t)) return;
       var n = Number(t.Nominal) || 0;
       if(t.Kategori === 'Terima Hutang' || t.Kategori === 'Top Up Hutang') hutangTambah += n;
       else if(t.Kategori === 'Bayar Hutang') hutangKurang += n;
@@ -8751,8 +8814,10 @@
           if(bucket !== 'Lainnya') return;
         } else if(u !== untukFilter) return;
       }
-      pengeluaran += n;
-      untukMap[bucket] += n;
+      // Reimburse: hanya selisih yang tidak diklaim yang jadi beban
+      var beban = (typeof netPengeluaran_ === 'function') ? netPengeluaran_(t) : n;
+      pengeluaran += beban;
+      untukMap[bucket] += beban;
     });
     // Hutang/piutang bentuk Barang: kewajiban nambah tanpa kas "Terima Hutang"
     STATE.hutangPiutang.forEach(function(h){
@@ -11325,9 +11390,13 @@ document.querySelectorAll('#trx-h-metode-grid .metode-btn').forEach(function(b){
       .replace(/Untuk:\s*[^•|]+/i, '')
       .replace(/TFID:[A-Za-z0-9\-_]+/g, '').replace(/RBID:[A-Za-z0-9\-_]+/g, '')
       .replace(/\s*•\s*/g, ' ').trim();
-    var sign = (isTransfer || isReimburseTrx_(t)) ? '' : (isIn ? '+' : '−');
+    var sign = (isTransfer || isRb) ? '' : (isIn ? '+' : '−');
     var amtColor = isRb ? 'var(--ink)' : (isTransfer ? 'var(--blue-dark)' : (isIn ? 'var(--green)' : 'var(--red)'));
     var titleKat = t.Kategori || t.Jenis;
+    if(isRb && !isTransfer){
+      titleKat = (t.Kategori && t.Kategori !== 'Pengeluaran' && t.Kategori !== 'Pemasukan')
+        ? ('Reimburse · ' + t.Kategori) : 'Reimburse (pindah ke pot klaim)';
+    }
     var heroAmt = fmtRupiah(t.Nominal);
     if(isTransfer && groupRows.length > 1){
       var keluar = groupRows.filter(function(x){ return x.Jenis === 'Pengeluaran' && x.Kategori !== 'Biaya Admin Transfer'; })[0];
@@ -12686,16 +12755,88 @@ document.querySelectorAll('#trx-h-metode-grid .metode-btn').forEach(function(b){
   function openRekeningEdit(id){
     var r = STATE.rekening.find(function(x){ return x.ID === id; });
     if(!r) return;
-    openSheet(
-      '<div class="sheet-title">Edit Rekening</div>' +
-      '<div class="form-group"><label class="form-label">Nama Rekening</label><input class="form-input" id="f-nama" type="text" value="' + esc(r.Nama) + '"></div>' +
-      '<div class="detail-row"><span class="k">Saldo Saat Ini</span><span class="v num">' + fmtRupiah(r.Saldo) + '</span></div>' +
-      '<div class="form-group"><label class="form-label">Saldo Baru (sesuai kenyataan)</label><input class="form-input num num-input" id="f-saldo-baru" type="text" inputmode="numeric" value="' + ribuanStr(r.Saldo) + '"></div>' +
-      '<div style="font-size:11px; color:var(--ink-faint); margin:-8px 0 12px; line-height:1.5;">Kalau beda dengan saldo sistem, selisihnya otomatis dicatat sebagai <b>Pemasukan</b> atau <b>Pengeluaran</b> kategori “Penyesuaian Saldo”.</div>' +
-      '<button class="btn-primary" id="btn-update-rek">Simpan Perubahan</button>' +
-      '<button class="btn-danger-text" id="btn-del-rek">' + ICON_TRASH + ' &nbsp;Hapus Rekening</button>'
-    );
-    document.getElementById('btn-update-rek').addEventListener('click', function(){
+    var namaRek = r.Nama || '';
+    var saldo = Number(r.Saldo) || 0;
+    var list = (STATE.transaksi || []).filter(function(tr){
+      return String(tr.Akun || '') === namaRek;
+    }).slice().sort(function(a,b){
+      if(a.Tanggal < b.Tanggal) return 1;
+      if(a.Tanggal > b.Tanggal) return -1;
+      return 0;
+    });
+    var masuk = 0, keluar = 0;
+    list.forEach(function(tr){
+      var n = Number(tr.Nominal) || 0;
+      if(tr.Jenis === 'Pemasukan') masuk += n;
+      else if(tr.Jenis === 'Pengeluaran') keluar += n;
+    });
+    var html =
+      '<div class="sheet-title">' + esc(namaRek) + '</div>' +
+      '<div class="total-saldo-card" style="margin-bottom:12px;">' +
+        '<div class="lbl">Saldo saat ini</div>' +
+        '<div class="val num">' + fmtRupiah(saldo) + '</div>' +
+        '<div class="sub">Masuk ' + fmtRupiah(masuk) + ' · Keluar ' + fmtRupiah(keluar) + ' · ' + list.length + ' trx</div>' +
+      '</div>' +
+      '<div class="rekap-sec-title">Riwayat pemasukan &amp; pengeluaran</div>';
+    if(!list.length){
+      html += '<div class="riwayat-empty">Belum ada transaksi di rekening ini.</div>';
+    } else {
+      html += '<div id="rek-riwayat-list">';
+      list.slice(0, 100).forEach(function(tr){
+        var isIn = tr.Jenis === 'Pemasukan';
+        var isTf = typeof isTransferLeg === 'function' && isTransferLeg(tr);
+        var isRb = (typeof isReimburseTrx_ === 'function' && isReimburseTrx_(tr)) ||
+                   (typeof isReimburseClaimLeg === 'function' && isReimburseClaimLeg(tr));
+        var cls = (isTf || isRb) ? 'neutral' : (isIn ? 'green' : 'red');
+        var sign = (isTf || isRb) ? '' : (isIn ? '+' : '−');
+        var title = tr.Kategori || tr.Jenis || 'Transaksi';
+        if(isTf){
+          if(tr.Kategori === 'Tarik Tunai') title = 'Tarik Tunai';
+          else if(tr.Kategori === 'Setor Tunai') title = 'Setor Tunai';
+          else title = 'Transfer';
+        }
+        if(isRb && !isTf) title = 'Reimburse' + (tr.Kategori && tr.Kategori !== 'Pengeluaran' ? (' · ' + tr.Kategori) : '');
+        var sub = String(tr.Tanggal || '');
+        var cat = String(tr.Catatan || '')
+          .replace(/TFID:[A-Za-z0-9\-_]+/gi,'').replace(/RBID:[A-Za-z0-9\-_]+/gi,'')
+          .replace(/\s*[•|]\s*/g,' · ').trim();
+        if(cat) sub += ' · ' + cat;
+        html +=
+          '<div class="riwayat-row rek-trx-row" data-tid="' + esc(tr.ID) + '" style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);">' +
+            '<div style="flex:1;min-width:0;">' +
+              '<div style="font-weight:700;font-size:13px;color:var(--ink);">' + esc(title) + '</div>' +
+              '<div style="font-size:11px;color:var(--ink-faint);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(sub) + '</div>' +
+            '</div>' +
+            '<span class="num item-amount ' + cls + '" style="flex:0 0 auto;">' + sign + fmtRupiah(tr.Nominal) + '</span>' +
+          '</div>';
+      });
+      if(list.length > 100){
+        html += '<div class="riwayat-empty">100 terbaru dari ' + list.length + ' transaksi</div>';
+      }
+      html += '</div>';
+    }
+    html +=
+      '<details class="hp-rincian" style="margin-top:14px;">' +
+        '<summary>Edit rekening</summary>' +
+        '<div class="hp-rincian-body">' +
+          '<div class="form-group"><label class="form-label">Nama Rekening</label><input class="form-input" id="f-nama" type="text" value="' + esc(namaRek) + '"></div>' +
+          '<div class="form-group"><label class="form-label">Saldo Baru (sesuai kenyataan)</label><input class="form-input num num-input" id="f-saldo-baru" type="text" inputmode="numeric" value="' + ribuanStr(saldo) + '"></div>' +
+          '<div style="font-size:11px;color:var(--ink-faint);margin:-6px 0 12px;line-height:1.45;">Selisih otomatis jadi kategori Penyesuaian Saldo.</div>' +
+          '<button class="btn-primary" id="btn-update-rek">Simpan Perubahan</button>' +
+          '<button class="btn-danger-text" id="btn-del-rek">' + ICON_TRASH + ' &nbsp;Hapus Rekening</button>' +
+        '</div>' +
+      '</details>';
+
+    openSheet(html);
+
+    document.querySelectorAll('.rek-trx-row').forEach(function(row){
+      row.addEventListener('click', function(){
+        var tid = row.getAttribute('data-tid');
+        if(tid) try { openTrxDetail(tid); } catch(e){}
+      });
+    });
+    var btnUp = document.getElementById('btn-update-rek');
+    if(btnUp) btnUp.addEventListener('click', function(){
       var nama = document.getElementById('f-nama').value.trim();
       if(!nama){ toast('Nama rekening harus diisi'); return; }
       var payload = { id: id, nama: nama, saldoBaru: rawNum('f-saldo-baru') };
@@ -12706,7 +12847,8 @@ document.querySelectorAll('#trx-h-metode-grid .metode-btn').forEach(function(b){
         google.script.run.withSuccessHandler(ok).withFailureHandler(fail).updateRekening(payload);
       });
     });
-    document.getElementById('btn-del-rek').addEventListener('click', function(){
+    var btnDel = document.getElementById('btn-del-rek');
+    if(btnDel) btnDel.addEventListener('click', function(){
       if(!confirm('Hapus rekening ini? Transaksi yang terkait tidak akan terhapus.')) return;
       closeSheet();
       var card = document.querySelector('.rekening-card[data-id="' + id + '"]');
