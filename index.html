@@ -12757,31 +12757,40 @@ document.querySelectorAll('#trx-h-metode-grid .metode-btn').forEach(function(b){
     if(!r) return;
     var namaRek = r.Nama || '';
     var saldo = Number(r.Saldo) || 0;
-    var list = (STATE.transaksi || []).filter(function(tr){
-      return String(tr.Akun || '') === namaRek;
-    }).slice().sort(function(a,b){
-      if(a.Tanggal < b.Tanggal) return 1;
-      if(a.Tanggal > b.Tanggal) return -1;
-      return 0;
-    });
-    var masuk = 0, keluar = 0;
-    list.forEach(function(tr){
-      var n = Number(tr.Nominal) || 0;
-      if(tr.Jenis === 'Pemasukan') masuk += n;
-      else if(tr.Jenis === 'Pengeluaran') keluar += n;
-    });
-    var html =
-      '<div class="sheet-title">' + esc(namaRek) + '</div>' +
-      '<div class="total-saldo-card" style="margin-bottom:12px;">' +
-        '<div class="lbl">Saldo saat ini</div>' +
-        '<div class="val num">' + fmtRupiah(saldo) + '</div>' +
-        '<div class="sub">Masuk ' + fmtRupiah(masuk) + ' · Keluar ' + fmtRupiah(keluar) + ' · ' + list.length + ' trx</div>' +
-      '</div>' +
-      '<div class="rekap-sec-title">Riwayat pemasukan &amp; pengeluaran</div>';
-    if(!list.length){
-      html += '<div class="riwayat-empty">Belum ada transaksi di rekening ini.</div>';
-    } else {
-      html += '<div id="rek-riwayat-list">';
+    var today = (typeof toYMD === 'function') ? toYMD(new Date()) : '';
+    // default rentang: awal bulan ini → hari ini
+    var fromDefault = today ? (today.slice(0, 8) + '01') : '';
+    var toDefault = today || '';
+
+    function buildList_(fromY, toY){
+      return (STATE.transaksi || []).filter(function(tr){
+        if(String(tr.Akun || '') !== namaRek) return false;
+        var d = String(tr.Tanggal || '');
+        if(fromY && d < fromY) return false;
+        if(toY && d > toY) return false;
+        return true;
+      }).slice().sort(function(a,b){
+        if(a.Tanggal < b.Tanggal) return 1;
+        if(a.Tanggal > b.Tanggal) return -1;
+        return 0;
+      });
+    }
+
+    function renderRiwayatHtml_(list){
+      var masuk = 0, keluar = 0;
+      list.forEach(function(tr){
+        var n = Number(tr.Nominal) || 0;
+        if(tr.Jenis === 'Pemasukan') masuk += n;
+        else if(tr.Jenis === 'Pengeluaran') keluar += n;
+      });
+      var h =
+        '<div style="font-size:12px;color:var(--ink-faint);margin:0 0 10px;">Masuk ' + fmtRupiah(masuk) +
+        ' · Keluar ' + fmtRupiah(keluar) + ' · ' + list.length + ' trx</div>';
+      if(!list.length){
+        h += '<div class="riwayat-empty">Tidak ada transaksi di rentang ini.</div>';
+        return h;
+      }
+      h += '<div id="rek-riwayat-list">';
       list.slice(0, 100).forEach(function(tr){
         var isIn = tr.Jenis === 'Pemasukan';
         var isTf = typeof isTransferLeg === 'function' && isTransferLeg(tr);
@@ -12801,7 +12810,7 @@ document.querySelectorAll('#trx-h-metode-grid .metode-btn').forEach(function(b){
           .replace(/TFID:[A-Za-z0-9\-_]+/gi,'').replace(/RBID:[A-Za-z0-9\-_]+/gi,'')
           .replace(/\s*[•|]\s*/g,' · ').trim();
         if(cat) sub += ' · ' + cat;
-        html +=
+        h +=
           '<div class="riwayat-row rek-trx-row" data-tid="' + esc(tr.ID) + '" style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);">' +
             '<div style="flex:1;min-width:0;">' +
               '<div style="font-weight:700;font-size:13px;color:var(--ink);">' + esc(title) + '</div>' +
@@ -12811,11 +12820,30 @@ document.querySelectorAll('#trx-h-metode-grid .metode-btn').forEach(function(b){
           '</div>';
       });
       if(list.length > 100){
-        html += '<div class="riwayat-empty">100 terbaru dari ' + list.length + ' transaksi</div>';
+        h += '<div class="riwayat-empty">100 terbaru dari ' + list.length + ' transaksi</div>';
       }
-      html += '</div>';
+      h += '</div>';
+      return h;
     }
-    html +=
+
+    var html =
+      '<div class="sheet-title">' + esc(namaRek) + '</div>' +
+      '<div class="total-saldo-card" style="margin-bottom:14px;">' +
+        '<div class="lbl">Saldo saat ini</div>' +
+        '<div class="val num">' + fmtRupiah(saldo) + '</div>' +
+      '</div>' +
+      '<button type="button" class="btn-secondary" id="btn-cek-riwayat" style="width:100%;margin-bottom:10px;">Cek riwayat</button>' +
+      '<div id="rek-riwayat-panel" style="display:none;">' +
+        '<div class="rekap-sec-title">Filter tanggal</div>' +
+        '<div class="row-2 form-group" style="margin-bottom:10px;">' +
+          '<div><label class="form-label">Dari</label>' +
+            '<input class="form-input" id="f-rek-from" type="date" value="' + esc(fromDefault) + '"></div>' +
+          '<div><label class="form-label">Sampai</label>' +
+            '<input class="form-input" id="f-rek-to" type="date" value="' + esc(toDefault) + '"></div>' +
+        '</div>' +
+        '<button type="button" class="btn-primary" id="btn-apply-riwayat" style="width:100%;margin-bottom:12px;">Tampilkan</button>' +
+        '<div id="rek-riwayat-body"><div class="riwayat-empty">Pilih tanggal lalu ketuk Tampilkan.</div></div>' +
+      '</div>' +
       '<details class="hp-rincian" style="margin-top:14px;">' +
         '<summary>Edit rekening</summary>' +
         '<div class="hp-rincian-body">' +
@@ -12829,12 +12857,57 @@ document.querySelectorAll('#trx-h-metode-grid .metode-btn').forEach(function(b){
 
     openSheet(html);
 
-    document.querySelectorAll('.rek-trx-row').forEach(function(row){
-      row.addEventListener('click', function(){
-        var tid = row.getAttribute('data-tid');
-        if(tid) try { openTrxDetail(tid); } catch(e){}
+    function wireRiwayatClicks_(){
+      document.querySelectorAll('.rek-trx-row').forEach(function(row){
+        row.addEventListener('click', function(){
+          var tid = row.getAttribute('data-tid');
+          if(tid) try { openTrxDetail(tid); } catch(e){}
+        });
       });
-    });
+    }
+
+    var btnCek = document.getElementById('btn-cek-riwayat');
+    var panel = document.getElementById('rek-riwayat-panel');
+    if(btnCek && panel){
+      btnCek.addEventListener('click', function(){
+        var open = panel.style.display !== 'none';
+        if(open){
+          panel.style.display = 'none';
+          btnCek.textContent = 'Cek riwayat';
+        } else {
+          panel.style.display = '';
+          btnCek.textContent = 'Sembunyikan riwayat';
+          // auto tampilkan default range sekali
+          var body = document.getElementById('rek-riwayat-body');
+          var fromEl = document.getElementById('f-rek-from');
+          var toEl = document.getElementById('f-rek-to');
+          if(body && fromEl && toEl){
+            var list = buildList_(fromEl.value || '', toEl.value || '');
+            body.innerHTML = renderRiwayatHtml_(list);
+            wireRiwayatClicks_();
+          }
+        }
+      });
+    }
+    var btnApply = document.getElementById('btn-apply-riwayat');
+    if(btnApply){
+      btnApply.addEventListener('click', function(){
+        var fromEl = document.getElementById('f-rek-from');
+        var toEl = document.getElementById('f-rek-to');
+        var body = document.getElementById('rek-riwayat-body');
+        if(!body) return;
+        var fromY = fromEl ? fromEl.value : '';
+        var toY = toEl ? toEl.value : '';
+        if(fromY && toY && fromY > toY){
+          toast('Tanggal Dari tidak boleh setelah Sampai');
+          return;
+        }
+        var list = buildList_(fromY, toY);
+        body.innerHTML = renderRiwayatHtml_(list);
+        wireRiwayatClicks_();
+      });
+    }
+
     var btnUp = document.getElementById('btn-update-rek');
     if(btnUp) btnUp.addEventListener('click', function(){
       var nama = document.getElementById('f-nama').value.trim();
