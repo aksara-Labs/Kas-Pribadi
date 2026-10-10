@@ -8830,6 +8830,21 @@
       html += rekapRowHtml('Pengeluaran sehari-hari', harian, 'pengeluaran', 'pengeluaran');
       html += rekapRowHtml('Bayar hutang', data.hutangKurang || 0, 'hutang-kurang', 'hutang-kurang');
       html += rekapRowHtml('Total keluar', data.pengeluaran || 0, 'pengeluaran', 'pengeluaran');
+
+      // Per orang — selalu tampil, ketuk untuk detail
+      var u = data.untuk || {};
+      var uKeys = ['Pribadi', 'Istri', 'Anak', 'Bersama'];
+      var uTotal = 0;
+      uKeys.forEach(function(k){ uTotal += Number(u[k]) || 0; });
+      html += '<div class="rekap-sec-title">Per orang</div>';
+      html += '<div style="font-size:11.5px;color:var(--ink-faint);margin:-2px 0 8px;line-height:1.35;">Ketuk baris untuk lihat daftar pengeluaran.</div>';
+      uKeys.forEach(function(k){
+        html += rekapRowHtml(k, Number(u[k]) || 0, 'pengeluaran', 'untuk-' + k);
+      });
+      if(Number(u.Lainnya) > 0){
+        html += rekapRowHtml('Lainnya (tanpa label)', Number(u.Lainnya) || 0, 'pengeluaran', 'untuk-Lainnya');
+      }
+      html += rekapRowHtml('Total per orang', uTotal, 'pengeluaran', 'pengeluaran');
     }
 
     var hasHp = data.hutangTambah || data.hutangKurang || data.piutangTambah || data.piutangKurang;
@@ -9021,7 +9036,7 @@
         '</div>' +
         '<div class="rekap-toolbar-row">' +
           '<div class="rekap-filter-row" id="rekap-untuk-filter">' +
-            '<select id="rekap-untuk-select" class="rekap-filter-select" aria-label="Filter pengeluaran">' +
+            '<select id="rekap-untuk-select" class="rekap-filter-select" aria-label="Filter pengeluaran per orang">' +
               chips.map(function(c){
                 var on = (rekapUntukFilter || '') === c.v;
                 return '<option value="' + c.v + '"' + (on ? ' selected' : '') + '>' + c.l + '</option>';
